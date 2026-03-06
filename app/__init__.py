@@ -80,6 +80,8 @@ def scrape_kiosk_status(ip, port=8080):
     data = {
         'active_video': "Unknown / Not playing",
         'play_mode': "Unknown",
+        'loop_mode': "Unknown",
+        'default_subtitle': "Unknown",
         'start_time': "N/A",
         'end_time': "N/A"
     }
@@ -101,6 +103,18 @@ def scrape_kiosk_status(ip, port=8080):
         if play_mode_select:
              opt = play_mode_select.find('option', selected=True)
              if opt: data['play_mode'] = opt.get('value', 'Unknown')
+
+        # Look for loop mode
+        loop_mode_select = soup.find('select', {'name': 'loop_mode'})
+        if loop_mode_select:
+             opt = loop_mode_select.find('option', selected=True)
+             if opt: data['loop_mode'] = opt.text.strip()
+
+        # Look for default_subtitle
+        subtitle_select = soup.find('select', {'name': 'default_subtitle'})
+        if subtitle_select:
+             opt = subtitle_select.find('option', selected=True)
+             if opt: data['default_subtitle'] = opt.text.strip()
              
         # Look for screensaver_start_hhmm
         start_input = soup.find('input', {'name': 'screensaver_start_hhmm'})
@@ -155,6 +169,8 @@ def index():
             scraped_data = {
                 'active_video': 'N/A',
                 'play_mode': 'N/A',
+                'loop_mode': 'N/A',
+                'default_subtitle': 'N/A',
                 'start_time': 'N/A',
                 'end_time': 'N/A'
             }

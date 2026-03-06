@@ -22,8 +22,10 @@
                 <strong>Currently Playing:</strong>
                 <span class="video-name">{{ device.active_video }}</span>
                 <div style="margin-top: 0.5rem; font-size: 0.8rem;">
-                    <strong>Mode:</strong> {{ device.play_mode }}<br>
-                    <strong>Schedule:</strong> {{ device.start_time }} to {{ device.end_time }}
+                    <strong>Play Mode:</strong> {{ device.play_mode }}<br>
+                    <strong>Loop Mode:</strong> {{ device.loop_mode }}<br>
+                    <strong>Subtitle:</strong> {{ device.default_subtitle }}<br>
+                    <strong>Active Schedule:</strong> {{ device.end_time }} to {{ device.start_time }}
                 </div>
             </div>
             {% endif %}
