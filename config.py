@@ -9,3 +9,4 @@ class Config:
     CONFIG_JSON = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'config.json')
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB maximum payload size

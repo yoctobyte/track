@@ -102,8 +102,18 @@ def get_tailscale_devices():
         print(f"Error fetching tailscale status: {e}")
         return {}
 
+SCRAPE_CACHE = {}
+CACHE_TTL = 60 # 60 seconds
+
 def scrape_kiosk_status(ip, port=8080):
     """Scrape the active video, play mode, and timezone schedules from the kioskplayer's webcontrol."""
+    global SCRAPE_CACHE
+    now = time.time()
+    
+    # Return quick cached hit if available and not expired
+    if ip in SCRAPE_CACHE and now - SCRAPE_CACHE[ip]['timestamp'] < CACHE_TTL:
+        return SCRAPE_CACHE[ip]['data']
+        
     data = {
         'active_video': "Unknown / Not playing",
         'play_mode': "Unknown",
@@ -112,6 +122,7 @@ def scrape_kiosk_status(ip, port=8080):
         'start_time': "N/A",
         'end_time': "N/A"
     }
+    
     try:
         url = f"http://{ip}:{port}/"
         response = requests.get(url, timeout=3)
@@ -153,6 +164,9 @@ def scrape_kiosk_status(ip, port=8080):
         
     except Exception as e:
         print(f"Error scraping kiosk at {ip}: {e}")
+        
+    # Overwrite the cache
+    SCRAPE_CACHE[ip] = {'timestamp': now, 'data': data}
     return data
 
 @app.route('/')
@@ -230,6 +244,10 @@ def login():
         
         # Cleanup old timestamps
         FAILED_LOGINS_GLOBAL = [t for t in FAILED_LOGINS_GLOBAL if now - t < 60] # 1 min global window
+        
+        # Ensure FAILED_LOGINS_IP doesn't leak memory infinitely in a distributed brute-force
+        if len(FAILED_LOGINS_IP) > 500:
+             FAILED_LOGINS_IP.clear()
         
         if client_ip in FAILED_LOGINS_IP:
             FAILED_LOGINS_IP[client_ip] = [t for t in FAILED_LOGINS_IP[client_ip] if now - t < 120] # 2 min IP window
