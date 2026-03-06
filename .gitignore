@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+app.log
+app/data/auth.json
+app/data/devices.json
+app/data/logs.json
+*.swp
+.DS_Store

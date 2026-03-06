@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h2>Device Overview</h2>
+    <p>Monitoring museum displays across the Tailscale network.</p>
+</div>
+
+<div class="device-grid">
+    {% for device in devices %}
+    <div class="device-card {% if device.status == 'Online' %}online{% else %}offline{% endif %}">
+        <div class="device-header">
+            <h3>{{ device.name }}</h3>
+            <span class="status-badge">{{ device.status }}</span>
+        </div>
+        <div class="device-body">
+            <p><strong>Hostname:</strong> {{ device.hostname }}</p>
+            <p><strong>Location:</strong> {{ device.room }} &mdash; {{ device.placement }}</p>
+
+            {% if device.type == 'kioskplayer' %}
+            <div class="playing-info">
+                <strong>Currently Playing:</strong>
+                <span class="video-name">{{ device.active_video }}</span>
+                <div style="margin-top: 0.5rem; font-size: 0.8rem;">
+                    <strong>Mode:</strong> {{ device.play_mode }}<br>
+                    <strong>Schedule:</strong> {{ device.start_time }} to {{ device.end_time }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="device-footer">
+            <a href="/proxy/{{ device.id }}/" class="btn btn-secondary btn-sm" {% if device.status=='Offline'
+                %}disabled{% endif %}>Open Interface</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No devices found. Ensure Tailscale is running and populated.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

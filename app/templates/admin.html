@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h2>Admin Dashboard</h2>
+        <p>Edit device details, view advanced configurations, or manually add devices.</p>
+    </div>
+    <a href="/logout" class="btn btn-secondary">Log Out</a>
+</div>
+
+<div class="device-card" style="background: var(--bg-color); border-style: dashed; margin-bottom: 2rem;">
+    <div class="device-header">
+        <h3>Add Device manually</h3>
+    </div>
+    <form method="POST" action="/admin" style="margin-top: 1rem; display: flex; gap: 0.75rem;">
+        <input type="hidden" name="action" value="add_device">
+        <input type="text" name="hostname" placeholder="Hostname or IP Address (e.g. 192.168.1.10)" required
+            style="flex: 1; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
+        <button type="submit" class="btn" style="background: var(--primary); color: white;">Add Device</button>
+    </form>
+</div>
+
+<div class="device-grid">
+    {% for device in devices %}
+    <div class="device-card">
+        <div class="device-header">
+            <h3>{{ device.name }}</h3>
+            <span class="status-badge" style="background: var(--border-color); color: var(--text-color);">{{
+                device.hostname }}</span>
+        </div>
+
+        {% if device.ip %}
+        <div style="font-size: 0.85rem; margin-top: 0.5rem;">
+            <strong>IP Address:</strong> {{ device.ip }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/admin"
+            style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <input type="hidden" name="device_id" value="{{ device.id }}">
+
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Room</label>
+                <input type="text" name="room" value="{{ device.room }}"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            </div>
+
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Placement</label>
+                <input type="text" name="placement" value="{{ device.placement }}"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            </div>
+
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Notes</label>
+                <textarea name="notes" rows="2"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); resize: vertical;">{{ device.notes }}</textarea>
+            </div>
+
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">SSH User</label>
+                <input type="text" name="ssh_user" value="{{ device.ssh_user }}"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            </div>
+
+            <button type="submit" class="btn" style="background: var(--success); color: white; margin-top: 0.5rem;">Save
+                Changes</button>
+        </form>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No devices found to manage. They will auto-populate from Tailscale when active.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

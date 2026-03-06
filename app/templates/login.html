@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="login-container"
+    style="max-width: 400px; margin: 4rem auto; padding: 2rem; background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--border-color);">
+    <h2 style="margin-bottom: 1.5rem; text-align: center;">Admin Access</h2>
+
+    {% if error %}
+    <div
+        style="background: var(--danger); color: white; padding: 0.75rem; border-radius: var(--radius); margin-bottom: 1rem; text-align: center;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+        <div style="margin-bottom: 1.5rem;">
+            <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password</label>
+            <input type="password" id="password" name="password" required
+                style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 1rem;">
+        </div>
+
+        <button type="submit" class="btn" style="width: 100%; background: var(--primary); color: white;">Log In</button>
+    </form>
+</div>
+{% endblock %}
