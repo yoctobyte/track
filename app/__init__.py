@@ -249,6 +249,12 @@ def login():
         
         if stored_hash and check_password_hash(stored_hash, password):
             session['logged_in'] = True
+            
+            # Follow redirect if Next is specified
+            next_url = request.args.get('next')
+            if next_url and next_url.startswith('/'):
+                 return redirect(next_url)
+                 
             return redirect(url_for('admin'))
         else:
             FAILED_LOGINS_GLOBAL.append(now)
@@ -331,10 +337,10 @@ def admin():
 @csrf.exempt
 def proxy(device_id, subpath=""):
     """Secure proxy wrapper around the device's web interface."""
-    auth = request.authorization
-    auth_data = load_auth()
-    if not auth or not check_password_hash(auth_data.get('admin_password', ''), auth.password):
-        return Response('Authentication required.', 401, {'WWW-Authenticate': 'Basic realm="Proxy"'})
+    if not session.get('logged_in'):
+        # Redirect to login page with the target URL as the 'next' parameter
+        target_path = f"/proxy/{device_id}/" if not subpath else f"/proxy/{device_id}/{subpath}"
+        return redirect(url_for('login', next=target_path))
         
     # Prevent directory traversal
     if '..' in subpath.split('/') or subpath.startswith('/'):
@@ -389,6 +395,12 @@ def proxy(device_id, subpath=""):
 def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    
+    # Apply strict CSP to our app views, but exempt the proxy views since they
+    # load external HTML that we can't reliably inline-permit or hash.
+    if not request.path.startswith('/proxy/'):
+         response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none';"
+         
     return response
 
 if __name__ == '__main__':
