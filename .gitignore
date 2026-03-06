@@ -1,11 +1,25 @@
-venv/
+# 1. Ignore everything by default
+*
+
+# 2. Unignore all directories so we can traverse them
+!*/
+
+# 3. Re-ignore specific directories we don't want traversed at all
 __pycache__/
-*.pyc
-app.log
-app/data/auth.json
-app/data/devices.json
-app/data/logs.json
-*.swp
-.DS_Store
-create_password.py
-cookies.txt
+venv/
+.git/
+
+# 4. Allowlist explicit files
+!.gitignore
+!README.md
+!requirements.txt
+!run.py
+!run.sh
+!config.py
+!config.json
+
+# App source and assets
+!app/__init__.py
+!app/templates/*.html
+!app/static/css/*.css
+!app/data/translations.json
