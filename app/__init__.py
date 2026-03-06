@@ -2,8 +2,10 @@ import json
 import os
 import subprocess
 import requests
+import time
 from bs4 import BeautifulSoup
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, session
+from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
 
 app = Flask(__name__)
@@ -35,7 +37,7 @@ def load_devices():
 
 def load_auth():
     if not os.path.exists(app.config['AUTH_FILE']):
-        default = {"admin_password": "museum_default"}
+        default = {"admin_password": generate_password_hash("museum_default")}
         try:
             with open(app.config['AUTH_FILE'], 'w') as f:
                 json.dump(default, f, indent=2)
@@ -44,9 +46,18 @@ def load_auth():
         return default
     try:
         with open(app.config['AUTH_FILE'], 'r') as f:
-            return json.load(f)
+            data = json.load(f)
+            pw = data.get('admin_password', '')
+            if not pw.startswith('scrypt:') and not pw.startswith('pbkdf2:'):
+                data['admin_password'] = generate_password_hash(pw if pw else 'museum_default')
+                try:
+                    with open(app.config['AUTH_FILE'], 'w') as f:
+                        json.dump(data, f, indent=2)
+                except Exception:
+                    pass
+            return data
     except json.JSONDecodeError:
-        return {"admin_password": "museum_default"}
+        return {"admin_password": generate_password_hash("museum_default")}
 
 def save_devices(devices):
     with open(app.config['DEVICES_FILE'], 'w') as f:
@@ -184,15 +195,44 @@ def index():
 
     return render_template('index.html', devices=dashboard_devices)
 
+# IP rate-limiting state
+FAILED_LOGINS_GLOBAL = []
+FAILED_LOGINS_IP = {}
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    global FAILED_LOGINS_GLOBAL, FAILED_LOGINS_IP
     if request.method == 'POST':
+        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        now = time.time()
+        
+        # Cleanup old timestamps
+        FAILED_LOGINS_GLOBAL = [t for t in FAILED_LOGINS_GLOBAL if now - t < 60] # 1 min global window
+        
+        if client_ip in FAILED_LOGINS_IP:
+            FAILED_LOGINS_IP[client_ip] = [t for t in FAILED_LOGINS_IP[client_ip] if now - t < 120] # 2 min IP window
+        else:
+            FAILED_LOGINS_IP[client_ip] = []
+            
+        # Check limits
+        if len(FAILED_LOGINS_GLOBAL) >= 20:
+            return render_template('login.html', error="System is temporarily locked down due to too many failed attempts.")
+            
+        if len(FAILED_LOGINS_IP[client_ip]) >= 3:
+            return render_template('login.html', error="Your IP is temporarily blocked due to too many failed attempts.")
+    
         auth_data = load_auth()
-        if request.form.get('password') == auth_data.get('admin_password'):
+        password = request.form.get('password')
+        stored_hash = auth_data.get('admin_password', '')
+        
+        if stored_hash and check_password_hash(stored_hash, password):
             session['logged_in'] = True
             return redirect(url_for('admin'))
         else:
+            FAILED_LOGINS_GLOBAL.append(now)
+            FAILED_LOGINS_IP[client_ip].append(now)
             return render_template('login.html', error="Invalid password")
+            
     return render_template('login.html')
 
 @app.route('/logout')
@@ -300,4 +340,4 @@ def proxy(device_id, subpath=""):
         return f"Proxy Error: {e}", 502
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)

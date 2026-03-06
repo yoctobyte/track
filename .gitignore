@@ -7,3 +7,4 @@ app/data/devices.json
 app/data/logs.json
 *.swp
 .DS_Store
+create_password.py
