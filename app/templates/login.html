@@ -13,6 +13,7 @@
     {% endif %}
 
     <form method="POST" action="/login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div style="margin-bottom: 1.5rem;">
             <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Password</label>
             <input type="password" id="password" name="password" required

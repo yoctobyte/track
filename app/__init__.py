@@ -5,11 +5,13 @@ import requests
 import time
 from bs4 import BeautifulSoup
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, session
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
+csrf = CSRFProtect(app)
 
 # Ensure data directory exists
 os.makedirs(app.config['DATA_DIR'], exist_ok=True)
@@ -293,6 +295,10 @@ def proxy(device_id, subpath=""):
     auth_data = load_auth()
     if not auth or auth.password != auth_data.get('admin_password'):
         return Response('Authentication required.', 401, {'WWW-Authenticate': 'Basic realm="Proxy"'})
+        
+    # Prevent directory traversal
+    if '..' in subpath.split('/') or subpath.startswith('/'):
+        return "Invalid path requested", 400
         
     # Lookup the device IP via tailscale status
     configured_devices = load_devices()
