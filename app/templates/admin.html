@@ -3,22 +3,55 @@
 {% block content %}
 <div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center;">
     <div>
-        <h2>Admin Dashboard</h2>
-        <p>Edit device details, view advanced configurations, or manually add devices.</p>
+        <h2>{{ t.admin_dashboard }}</h2>
+        <p>{{ t.admin_desc }}</p>
     </div>
-    <a href="/logout" class="btn btn-secondary">Log Out</a>
+    <a href="/logout" class="btn btn-secondary">{{ t.logout }}</a>
+</div>
+
+<div class="device-card"
+    style="background: var(--bg-color); border: 1px solid var(--border-color); margin-bottom: 2rem;">
+    <div class="device-header">
+        <h3>{{ t.system_settings }}</h3>
+    </div>
+    <form method="POST" action="/admin" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="action" value="update_settings">
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">{{ t.app_title_label }}</label>
+            <input type="text" name="app_title" value="{{ app_title }}"
+                style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">{{ t.app_subtitle_label }}</label>
+            <input type="text" name="app_subtitle" value="{{ app_subtitle }}"
+                style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
+        </div>
+        <div>
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">{{ t.language }}</label>
+            <select name="language"
+                style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
+                <option value="en" {% if app_lang=='en' %}selected{% endif %}>English</option>
+                <option value="nl" {% if app_lang=='nl' %}selected{% endif %}>Nederlands (Dutch)</option>
+            </select>
+        </div>
+        <button type="submit" class="btn"
+            style="background: var(--success); color: white; margin-top: 0.5rem; align-self: flex-start;">{{
+            t.save_changes }}</button>
+    </form>
 </div>
 
 <div class="device-card" style="background: var(--bg-color); border-style: dashed; margin-bottom: 2rem;">
     <div class="device-header">
-        <h3>Add Device manually</h3>
+        <h3>{{ t.add_device_manual }}</h3>
     </div>
     <form method="POST" action="/admin" style="margin-top: 1rem; display: flex; gap: 0.75rem;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <input type="hidden" name="action" value="add_device">
-        <input type="text" name="hostname" placeholder="Hostname or IP Address (e.g. 192.168.1.10)" required
+        <input type="text" name="hostname" placeholder="{{ t.add_device_ph }}" required
             style="flex: 1; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
-        <button type="submit" class="btn" style="background: var(--primary); color: white;">Add Device</button>
+        <button type="submit" class="btn" style="background: var(--primary); color: white;">{{ t.add_device_btn
+            }}</button>
     </form>
 </div>
 
@@ -33,7 +66,7 @@
 
         {% if device.ip %}
         <div style="font-size: 0.85rem; margin-top: 0.5rem;">
-            <strong>IP Address:</strong> {{ device.ip }}
+            <strong>{{ t.ip_address }}:</strong> {{ device.ip }}
         </div>
         {% endif %}
 
@@ -43,36 +76,36 @@
             <input type="hidden" name="device_id" value="{{ device.id }}">
 
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Room</label>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">{{ t.room }}</label>
                 <input type="text" name="room" value="{{ device.room }}"
                     style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
             </div>
 
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Placement</label>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">{{ t.placement }}</label>
                 <input type="text" name="placement" value="{{ device.placement }}"
                     style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
             </div>
 
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Notes</label>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">{{ t.notes }}</label>
                 <textarea name="notes" rows="2"
                     style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius); resize: vertical;">{{ device.notes }}</textarea>
             </div>
 
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">SSH User</label>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">{{ t.ssh_user }}</label>
                 <input type="text" name="ssh_user" value="{{ device.ssh_user }}"
                     style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
             </div>
 
-            <button type="submit" class="btn" style="background: var(--success); color: white; margin-top: 0.5rem;">Save
-                Changes</button>
+            <button type="submit" class="btn" style="background: var(--success); color: white; margin-top: 0.5rem;">{{
+                t.save_changes }}</button>
         </form>
     </div>
     {% else %}
     <div class="empty-state">
-        <p>No devices found to manage. They will auto-populate from Tailscale when active.</p>
+        <p>{{ t.no_admin_devices }}</p>
     </div>
     {% endfor %}
 </div>

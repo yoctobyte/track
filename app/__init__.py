@@ -19,14 +19,28 @@ os.makedirs(app.config['DATA_DIR'], exist_ok=True)
 @app.context_processor
 def inject_config():
     title = "Museum Kiosk Control"
+    subtitle = "Monitoring museum displays across the Tailscale network."
+    language = "en"
+    
     if os.path.exists(app.config.get('CONFIG_JSON')):
         try:
             with open(app.config.get('CONFIG_JSON'), 'r') as f:
                 cfg = json.load(f)
                 title = cfg.get('title', title)
+                subtitle = cfg.get('subtitle', subtitle)
+                language = cfg.get('language', language)
         except Exception:
             pass
-    return dict(app_title=title)
+            
+    t = {}
+    try:
+        with open(os.path.join(app.config['DATA_DIR'], 'translations.json'), 'r') as f:
+            all_t = json.load(f)
+            t = all_t.get(language, all_t.get('en', {}))
+    except Exception:
+        pass
+        
+    return dict(app_title=title, app_subtitle=subtitle, app_lang=language, t=t)
 
 def load_devices():
     if not os.path.exists(app.config['DEVICES_FILE']):
@@ -195,6 +209,12 @@ def index():
             **scraped_data
         })
 
+    # Sort devices: Online first, then offline, then alphabetically by name
+    dashboard_devices.sort(key=lambda x: (
+        0 if x.get('status') == 'Online' else 1,
+        x.get('name', '').lower()
+    ))
+
     return render_template('index.html', devices=dashboard_devices)
 
 # IP rate-limiting state
@@ -267,6 +287,25 @@ def admin():
                      "ssh_user": "pi"
                  })
                  save_devices(devices)
+        elif action == 'update_settings':
+            new_title = request.form.get('app_title', '').strip()
+            new_subtitle = request.form.get('app_subtitle', '').strip()
+            new_lang = request.form.get('language', 'en').strip()
+            try:
+                cfg = {}
+                cfg_path = app.config.get('CONFIG_JSON')
+                if os.path.exists(cfg_path):
+                    with open(cfg_path, 'r') as f:
+                        cfg = json.load(f)
+                
+                if new_title: cfg['title'] = new_title
+                if new_subtitle: cfg['subtitle'] = new_subtitle
+                if new_lang: cfg['language'] = new_lang
+                
+                with open(cfg_path, 'w') as f:
+                    json.dump(cfg, f, indent=4)
+            except Exception as e:
+                print(f"Error updating config: {e}")
         else:
             # Simple handling to update location or notes on a device
             device_id = request.form.get('device_id')
@@ -287,8 +326,9 @@ def admin():
         
     return render_template('admin.html', devices=devices)
 
-@app.route('/proxy/<device_id>/')
+@app.route('/proxy/<device_id>/', methods=['GET', 'POST'])
 @app.route('/proxy/<device_id>/<path:subpath>', methods=['GET', 'POST'])
+@csrf.exempt
 def proxy(device_id, subpath=""):
     """Secure proxy wrapper around the device's web interface."""
     auth = request.authorization

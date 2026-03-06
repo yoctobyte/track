@@ -1,5 +1,7 @@
 {
     "port": 4575,
     "bind": "0.0.0.0",
-    "title": "Museum Kiosk Control"
+    "title": "Museum Kiosk Control",
+    "subtitle": "Test Subtitle Dutch",
+    "language": "nl"
 }

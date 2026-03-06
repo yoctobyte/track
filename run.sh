@@ -28,8 +28,11 @@ pip install -r requirements.txt
 # Export necessary environment variables
 export FLASK_APP=run.py
 export FLASK_ENV=production
-# In production, replace this with a secure key or load from a .env file
-export SECRET_KEY=${SECRET_KEY:-"museum-kiosk-fallback-secret-key-$(date +%s)"}
+# Setup stable secret key if it doesn't exist
+if [ ! -f ".secret_key" ]; then
+    echo "museum-kiosk-secret-key-$(date +%s)-$(openssl rand -hex 12)" > .secret_key
+fi
+export SECRET_KEY=$(cat .secret_key)
 
 # Start the application
 echo "Starting Museum Kiosk Control app on port $PORT..."
