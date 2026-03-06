@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>{{ app_title }}</h1>
+            <nav>
+                <a href="/">{{ t.dashboard }}</a>
+                <a href="/admin">{{ t.admin_login }}</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="container text-center text-muted">
+            <small>{{ t.footer_text }} &copy; 2026</small>
+        </div>
+    </footer>
+</body>
+
+</html>
