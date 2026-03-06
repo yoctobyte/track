@@ -205,7 +205,7 @@ FAILED_LOGINS_IP = {}
 def login():
     global FAILED_LOGINS_GLOBAL, FAILED_LOGINS_IP
     if request.method == 'POST':
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        client_ip = request.remote_addr
         now = time.time()
         
         # Cleanup old timestamps
@@ -293,7 +293,7 @@ def proxy(device_id, subpath=""):
     """Secure proxy wrapper around the device's web interface."""
     auth = request.authorization
     auth_data = load_auth()
-    if not auth or auth.password != auth_data.get('admin_password'):
+    if not auth or not check_password_hash(auth_data.get('admin_password', ''), auth.password):
         return Response('Authentication required.', 401, {'WWW-Authenticate': 'Basic realm="Proxy"'})
         
     # Prevent directory traversal
@@ -344,6 +344,12 @@ def proxy(device_id, subpath=""):
         
     except Exception as e:
         return f"Proxy Error: {e}", 502
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
