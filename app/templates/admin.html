@@ -76,6 +76,17 @@
             <input type="hidden" name="device_id" value="{{ device.id }}">
 
             <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">Device Type</label>
+                <select name="type"
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">
+                    <option value="kioskplayer" {% if device.type=='kioskplayer' %}selected{% endif %}>Video Player
+                    </option>
+                    <option value="unknown" {% if device.type=='unknown' %}selected{% endif %}>Unknown Device</option>
+                    <option value="other" {% if device.type=='other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+
+            <div>
                 <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted);">{{ t.room }}</label>
                 <input type="text" name="room" value="{{ device.room }}"
                     style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius);">

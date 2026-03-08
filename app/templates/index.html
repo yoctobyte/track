@@ -29,6 +29,10 @@
                     <strong>{{ t.active_schedule }}:</strong> {{ device.end_time }} to {{ device.start_time }}
                 </div>
             </div>
+            {% else %}
+            <div class="playing-info" style="color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem;">
+                <strong>Device Type:</strong> {{ device.type | capitalize }}
+            </div>
             {% endif %}
         </div>
         <div class="device-footer">

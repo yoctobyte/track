@@ -202,6 +202,15 @@ def index():
         ts_info = ts_devices.get(hostname, {})
         
         status = 'Online' if ts_info.get('online') else 'Offline'
+        
+        # Ping fallback for manually added or non-Tailscale devices
+        if status == 'Offline':
+            try:
+                if subprocess.run(['ping', '-c', '1', '-W', '1', hostname], capture_output=True).returncode == 0:
+                    status = 'Online'
+            except Exception:
+                pass
+                
         active_video = "N/A"
         
         if status == 'Online' and device.get('type') == 'kioskplayer' and ts_info.get('ip'):
@@ -335,6 +344,7 @@ def admin():
             device_id = request.form.get('device_id')
             for d in devices:
                 if d.get('id') == device_id:
+                    d['type'] = request.form.get('type', 'kioskplayer')
                     d['room'] = request.form.get('room')
                     d['placement'] = request.form.get('placement')
                     d['notes'] = request.form.get('notes')
