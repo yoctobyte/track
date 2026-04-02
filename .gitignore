@@ -1,0 +1,25 @@
+# Python virtual environments
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Go/build outputs
+netinv
+*.test
+*.out
+
+# Runtime logs and debug outputs
+*.log
+network_graph.dot
+
+# Runtime and captured data
+data/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
