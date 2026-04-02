@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetInventory | Overview</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --sidebar-bg: #1e293b;
+            --card-bg: #334155;
+            --accent: #38bdf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #475569;
+        }
+
+        /* Dashboard widget */
+        #dashboard-overlay {
+            position: absolute;
+            top: 20px;
+            left: 320px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            pointer-events: none;
+            z-index: 5;
+            min-width: 200px;
+        }
+
+        .dash-item {
+            margin-bottom: 8px;
+        }
+
+        .dash-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dash-val {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--accent);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Layout */
+        #sidebar {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        #main {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        #details-panel {
+            position: absolute;
+            top: 0;
+            right: -450px;
+            /* Hidden */
+            width: 400px;
+            /* Wider for tabs */
+            height: 100%;
+            background-color: var(--sidebar-bg);
+            border-left: 1px solid var(--border);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+            z-index: 20;
+        }
+
+        #details-panel.open {
+            right: 0;
+        }
+
+        /* Components */
+        .brand {
+            padding: 20px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent);
+            border-bottom: 1px solid var(--border);
+            letter-spacing: -0.5px;
+        }
+
+        .network-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .net-card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .net-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-color: var(--accent);
+        }
+
+        .net-card.active {
+            border-color: var(--accent);
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+
+        .net-id {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .net-stats {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Canvas */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        /* Typography */
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 0;
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: var(--accent);
+        }
+
+        p {
+            line-height: 1.5;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .code-block {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            color: #e2e8f0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav id="sidebar">
+        <div class="brand">NetInventory</div>
+        <div
+            style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+            <span style="font-size: 0.8rem; color: var(--text-secondary);">Auto-switch active</span>
+            <input type="checkbox" id="autoSwitchToggle" checked style="cursor: pointer;">
+        </div>
+        <div class="network-list" id="networkList">
+            <!-- populated by JS -->
+            <div style="padding: 20px; text-align: center; color: var(--text-secondary);">Loading...</div>
+        </div>
+    </nav>
+
+    <main id="main">
+        <div id="dashboard-overlay">
+            <div class="dash-item">
+                <div class="dash-label">NetID</div>
+                <div class="dash-val" id="dash-netid">--</div>
+            </div>
+            <div class="dash-item">
+                <div class="dash-label">GPS</div>
+                <div class="dash-val" id="dash-gps">--</div>
+            </div>
+            <div class="dash-item">
+                <div class="dash-label">WiFi / BSSID</div>
+                <div class="dash-val" id="dash-wifi">--</div>
+            </div>
+            <div class="dash-item">
+                <div class="dash-label">Gateway</div>
+                <div class="dash-val" id="dash-gw">--</div>
+            </div>
+            <div class="dash-item">
+                <div class="dash-label">External IP</div>
+                <div class="dash-val" id="dash-ext">--</div>
+            </div>
+        </div>
+        <canvas id="graphCanvas"></canvas>
+    </main>
+
+    <aside id="details-panel">
+        <h2 id="detail-title">Details</h2>
+        <div id="detail-content">Select a node to view details.</div>
+        <button onclick="closeDetails()"
+            style="margin-top: 20px; padding: 8px 16px; background: var(--card-bg); color: white; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+    </aside>
+
+    <script>
+        // State
+        let networks = {};
+        let currentGraph = { nodes: [], links: [] };
+        let simulation = null;
+
+        // Elements
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const listEl = document.getElementById('networkList');
+        const detailsPanel = document.getElementById('details-panel');
+        const detailTitle = document.getElementById('detail-title');
+        const detailContent = document.getElementById('detail-content');
+
+        // Helper: Tabs
+        function createTabs(tabs) {
+            const container = document.createElement('div');
+            const header = document.createElement('div');
+            header.style.display = 'flex';
+            header.style.borderBottom = '1px solid var(--border)';
+            header.style.marginBottom = '15px';
+
+            const contentDiv = document.createElement('div');
+
+            tabs.forEach((tab, idx) => {
+                const btn = document.createElement('div');
+                btn.innerText = tab.label;
+                btn.style.padding = '8px 16px';
+                btn.style.cursor = 'pointer';
+                btn.style.fontSize = '0.9rem';
+                btn.style.color = idx === 0 ? 'var(--accent)' : 'var(--text-secondary)';
+                btn.style.borderBottom = idx === 0 ? '2px solid var(--accent)' : '2px solid transparent';
+
+                btn.onclick = () => {
+                    // reset styling
+                    Array.from(header.children).forEach(c => {
+                        c.style.color = 'var(--text-secondary)';
+                        c.style.borderBottom = '2px solid transparent';
+                    });
+                    // active styling
+                    btn.style.color = 'var(--accent)';
+                    btn.style.borderBottom = '2px solid var(--accent)';
+
+                    // Content
+                    contentDiv.innerHTML = tab.render();
+                };
+                header.appendChild(btn);
+            });
+
+            // Initial render
+            contentDiv.innerHTML = tabs[0].render();
+
+            container.appendChild(header);
+            container.appendChild(contentDiv);
+            return container;
+        }
+
+        // Resize Canvas
+        function resize() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            if (simulation) simulation.restart();
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // API Access
+        async function fetchNetworks() {
+            try {
+                const res = await fetch('/api/networks');
+                const data = await res.json();
+                networks = data;
+                renderSidebar();
+            } catch (e) {
+                console.error(e);
+                listEl.innerHTML = '<div style="padding:20px; color: #ef4444;">Failed to load networks</div>';
+            }
+        }
+
+        async function fetchGraph(netId) {
+            try {
+                const res = await fetch(`/api/networks/${netId}`);
+                const data = await res.json();
+                initSimulation(data);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function saveAnnotation(netId, text, useGps) {
+            await fetch(`/api/networks/${netId}/annotate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ annotation: text, use_gps: useGps })
+            });
+            fetchNetworks();
+        }
+
+        // Sidebar Rendering
+        function renderSidebar() {
+            listEl.innerHTML = '';
+            Object.keys(networks).forEach(id => {
+                const net = networks[id];
+                const div = document.createElement('div');
+                div.className = 'net-card';
+                div.innerHTML = `
+                <div class="net-id">${id}</div>
+                <div class="net-stats">
+                    ${net.hosts.length} Hosts • ${net.count} Snaps<br>
+                    <span style="font-size:0.7em; opacity:0.7">Last seen: ${new Date(net.last_seen).toLocaleString()}</span>
+                </div>
+                ${net.annotation ? `<div style="font-size:0.75rem; color: #facc15; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📝 ${net.annotation}</div>` : ''}
+            `;
+                div.onclick = () => {
+                    document.querySelectorAll('.net-card').forEach(c => c.classList.remove('active'));
+                    div.classList.add('active');
+                    fetchGraph(id);
+                };
+                listEl.appendChild(div);
+            });
+
+            // Update Dashboard with latest data from first network for demo
+            const firstId = Object.keys(networks)[0];
+            if (firstId) {
+                const net = networks[firstId];
+                document.getElementById('dash-netid').innerText = firstId;
+                // GPS and WiFi would come from latest_snapshot
+            }
+
+            // Auto-select first
+            const first = Object.keys(networks)[0];
+            if (first) {
+                listEl.children[0].click();
+            }
+        }
+
+        // Simple Force Simulation
+        function initSimulation(data) {
+            currentGraph = data;
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            data.nodes.forEach(n => {
+                n.x = cx + (Math.random() - 0.5) * 100;
+                n.y = cy + (Math.random() - 0.5) * 100;
+                n.vx = 0;
+                n.vy = 0;
+            });
+
+            if (simulation) cancelAnimationFrame(simulation);
+
+            function tick() {
+                const repulsion = 500;
+                const springLen = 100;
+                const centerForce = 0.05;
+
+                // Repulsion
+                for (let i = 0; i < data.nodes.length; i++) {
+                    const a = data.nodes[i];
+                    a.vx += (cx - a.x) * centerForce * 0.1;
+                    a.vy += (cy - a.y) * centerForce * 0.1;
+
+                    for (let j = i + 1; j < data.nodes.length; j++) {
+                        const b = data.nodes[j];
+                        const dx = b.x - a.x;
+                        const dy = b.y - a.y;
+                        const distSq = dx * dx + dy * dy || 1;
+                        const dist = Math.sqrt(distSq);
+                        const force = repulsion / distSq;
+                        const fx = (dx / dist) * force;
+                        const fy = (dy / dist) * force;
+                        a.vx -= fx;
+                        a.vy -= fy;
+                        b.vx += fx;
+                        b.vy += fy;
+                    }
+                }
+
+                // Springs
+                data.links.forEach(l => {
+                    const source = data.nodes.find(n => n.id === l.source);
+                    const target = data.nodes.find(n => n.id === l.target);
+                    if (!source || !target) return;
+
+                    const dx = target.x - source.x;
+                    const dy = target.y - source.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const force = (dist - springLen) * 0.05;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+                    source.vx += fx;
+                    source.vy += fy;
+                    target.vx -= fx;
+                    target.vy -= fy;
+                });
+
+                // Update
+                let maxVel = 0;
+                data.nodes.forEach(n => {
+                    n.vx *= 0.9;
+                    n.vy *= 0.9;
+                    n.x += n.vx;
+                    n.y += n.vy;
+                    maxVel = Math.max(maxVel, Math.abs(n.vx), Math.abs(n.vy));
+                });
+
+                draw();
+                if (maxVel > 0.1) simulation = requestAnimationFrame(tick);
+            }
+            tick();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Links
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            currentGraph.links.forEach(l => {
+                const s = currentGraph.nodes.find(n => n.id === l.source);
+                const t = currentGraph.nodes.find(n => n.id === l.target);
+                if (s && t) {
+                    ctx.moveTo(s.x, s.y);
+                    ctx.lineTo(t.x, t.y);
+                }
+            });
+            ctx.stroke();
+
+            // Nodes
+            currentGraph.nodes.forEach(n => {
+                const isNet = n.type === 'network';
+                const size = isNet ? 30 : 15;
+                ctx.fillStyle = isNet ? '#38bdf8' : '#34d399';
+                ctx.shadowColor = isNet ? 'rgba(56, 189, 248, 0.5)' : 'rgba(52, 211, 153, 0.5)';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#f8fafc';
+                ctx.font = isNet ? 'bold 14px Inter' : '12px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(n.label, n.x, n.y + size + 20);
+            });
+        }
+
+        // Interaction
+        let draggedNode = null;
+        let hoveredNode = null;
+
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            if (draggedNode) {
+                draggedNode.x = mx;
+                draggedNode.y = my;
+                draggedNode.vx = 0;
+                draggedNode.vy = 0;
+                requestAnimationFrame(draw);
+                return;
+            }
+            let found = null;
+            for (let n of currentGraph.nodes) {
+                const dx = mx - n.x;
+                const dy = my - n.y;
+                const r = n.type === 'network' ? 30 : 15;
+                if (dx * dx + dy * dy < r * r) { found = n; break; }
+            }
+            if (found !== hoveredNode) {
+                hoveredNode = found;
+                canvas.style.cursor = found ? 'pointer' : 'default';
+            }
+        });
+
+        canvas.addEventListener('mousedown', e => {
+            if (hoveredNode) {
+                draggedNode = hoveredNode;
+                showDetails(hoveredNode);
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (draggedNode) {
+                if (!simulation) {
+                    const dummy = { nodes: currentGraph.nodes, links: currentGraph.links };
+                    initSimulation(dummy);
+                }
+            }
+            draggedNode = null;
+        });
+
+        // Details Panel & Tabs
+        function showDetails(node) {
+            detailsPanel.classList.add('open');
+            detailContent.innerHTML = '';
+
+            if (node.type === 'network') {
+                detailTitle.innerText = 'Network Context';
+
+                const netId = node.label.replace('Network ', '');
+                let currentAnnotation = node.annotation || '';
+                const rawData = currentGraph.latest_snapshot || {};
+
+                const tabs = [
+                    {
+                        label: 'Overview',
+                        render: () => `
+                        <div>
+                            <p><strong>ID:</strong> ${netId}</p>
+                            <p class="status-badge">Active</p>
+                            <h3 style="margin-top:20px;">Annotation</h3>
+                            <textarea id="noteInput" placeholder="Add notes about this network..." style="width:100%; height:80px; background:#1e293b; border:1px solid #475569; color:white; padding:8px; border-radius:4px; box-sizing:border-box;">${currentAnnotation}</textarea>
+                             <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+                                <input type="checkbox" id="gpsToggle" style="width:16px; height:16px;">
+                                <label for="gpsToggle" style="font-size:0.85rem; color:var(--text-secondary)">Attach latest GPS location</label>
+                             </div>
+                            <button onclick="saveAnnotation('${netId}', document.getElementById('noteInput').value, document.getElementById('gpsToggle').checked)" 
+                                    style="margin-top:10px; padding:6px 12px; background:var(--accent); color:#0f172a; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
+                                 Save Note
+                            </button>
+                            <div style="margin-top:30px; color:#94a3b8; font-size:0.8rem;">Select a host node to see device details.</div>
+                        </div>
+                    `
+                    },
+                    {
+                        label: 'Console',
+                        render: () => `<div id="consoleLog" class="code-block" style="max-height: 500px; overflow: auto; font-size:0.75rem; color:#34d399; background:#000;">Loading logs...</div>`
+                    },
+                    {
+                        label: 'Playbook',
+                        render: () => {
+                            let html = '<ul style="list-style:none; padding:0;">';
+                            const dataMap = rawData.data || {};
+                            Object.keys(dataMap).forEach(pluginName => {
+                                const pData = dataMap[pluginName];
+                                const statusColor = pData.success ? '#34d399' : '#ef4444';
+                                const id = `pb-${pluginName.replace(/[^a-z0-9]/gi, '_')}`;
+                                html += `
+                                <li style="margin-bottom:10px; padding:10px; background:rgba(255,255,255,0.05); border-left:3px solid ${statusColor}; border-radius:0 4px 4px 0; cursor:pointer;"
+                                    onclick="document.getElementById('${id}').style.display = document.getElementById('${id}').style.display === 'none' ? 'block' : 'none'">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <div style="font-weight:bold; color:${statusColor}">${pluginName}</div>
+                                        <div style="font-size:0.75rem; opacity:0.6;">${pData.duration || ''}</div>
+                                    </div>
+                                    <div style="font-size:0.8rem; color:#ccc;">${pData.success ? 'Success' : 'Failed'}</div>
+                                    <div id="${id}" style="display:none; margin-top:10px; font-size:0.75rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:5px;">
+                                        ${pData.facts ? `<pre style="white-space:pre-wrap; color:#93c5fd;">${JSON.stringify(pData.facts, null, 2)}</pre>` : ''}
+                                        ${pData.raw ? `<pre style="white-space:pre-wrap; color:#94a3b8; font-style:italic;">${pData.raw}</pre>` : ''}
+                                        ${pData.error ? `<div style="color:#ef4444;">Error: ${pData.error}</div>` : ''}
+                                    </div>
+                                </li>
+                            `;
+                            });
+                            html += '</ul>';
+                            if (Object.keys(dataMap).length === 0) return '<div style="padding:20px; text-align:center;">No data in latest snapshot.</div>';
+                            return html;
+                        }
+                    },
+                    {
+                        label: 'Raw Data',
+                        render: () => `<div class="code-block" style="max-height: 500px; overflow: auto; font-size:0.75rem;">${JSON.stringify(rawData, null, 2)}</div>`
+                    }
+                ];
+
+                detailContent.appendChild(createTabs(tabs));
+
+            } else {
+                detailTitle.innerText = 'Host Details';
+                const d = node.details;
+                detailContent.innerHTML = `
+                <h3>${d.ips[0]}</h3>
+                <p><strong>MAC:</strong> ${d.mac}</p>
+                <p><strong>Vendor:</strong> ${d.vendors}</p>
+                <h4>IP Addresses</h4>
+                <ul>${d.ips.map(i => `<li>${i}</li>`).join('')}</ul>
+                <div class="code-block">${JSON.stringify(d, null, 2)}</div>
+            `;
+            }
+        }
+
+        function closeDetails() {
+            detailsPanel.classList.remove('open');
+        }
+
+        // Polling loop for dashboard, logs, and active network
+        let lastActiveNetId = null;
+
+        setInterval(async () => {
+            const autoSwitchEnabled = document.getElementById('autoSwitchToggle').checked;
+            // Check for new active network
+            try {
+                const activeRes = await fetch('/api/active_network');
+                const activeData = await activeRes.json();
+                const activeId = activeData.active_net_id;
+
+                if (activeId && activeId !== lastActiveNetId && autoSwitchEnabled) {
+                    console.log(`>>> Auto-switching to active network: ${activeId}`);
+                    lastActiveNetId = activeId;
+
+                    // Refresh network list first to ensure the new network is there
+                    await fetchNetworks();
+
+                    // Trigger click on the matching network card
+                    const cards = document.querySelectorAll('.net-card');
+                    for (let card of cards) {
+                        if (card.querySelector('.net-id').innerText === activeId) {
+                            card.click();
+                            break;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching active network:", e);
+            }
+
+            if (detailsPanel.classList.contains('open') && document.getElementById('consoleLog')) {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                document.getElementById('consoleLog').innerText = data.logs;
+            }
+            // Update dashboard from latest snapshot
+            if (currentGraph.latest_snapshot) {
+                const snap = currentGraph.latest_snapshot;
+                const gps = snap.data.gps_location?.facts;
+                if (gps) {
+                    const timeStr = gps.timestamp ? new Date(gps.timestamp).toLocaleTimeString() : '--';
+                    document.getElementById('dash-gps').innerText = `${gps.lat.toFixed(4)}, ${gps.lon.toFixed(4)} (${timeStr})`;
+                }
+                const wifi = snap.data.wifi_info?.facts?.ssid;
+                const bssid = snap.data.wifi_info?.facts?.bssid;
+                if (wifi) document.getElementById('dash-wifi').innerText = bssid ? `${wifi} (${bssid})` : wifi;
+                const gw = snap.data.gateway_context?.facts?.gateway_ip;
+                if (gw) document.getElementById('dash-gw').innerText = gw;
+                const ext = snap.data.external_ip?.facts?.ip;
+                if (ext) document.getElementById('dash-ext').innerText = ext;
+            }
+        }, 2000);
+
+        // Init
+        fetchNetworks();
+
+    </script>
+</body>
+
+</html>

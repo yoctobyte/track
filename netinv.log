@@ -1,0 +1,584 @@
+2026/02/01 18:37:06 Starting NetInventory Collector...
+2026/02/01 18:37:06 Netlink monitor started
+2026/02/01 18:37:06 WiFi monitor started (polling)
+2026/02/01 18:37:06 [GPS] SUCCESS: GPS ENABLED / FOUND ON /dev/ttyACM0
+2026/02/01 18:37:06 Orchestrator started
+2026/02/01 18:37:06 NetInventory Collector running.
+2026/02/01 18:37:06 Triggering snapshot due to event: manual_capture
+2026/02/01 18:37:06 Starting playbook execution for snapshot 05d06fe7-f954-4ad0-b1df-1f59e338f8f0
+2026/02/01 18:37:06 GPS monitor: Successfully opened /dev/ttyACM0. Scanning for NMEA data...
+2026/02/01 18:37:07 [GPS] STATUS: ACQUIRED FIX (51.969755333333325, 5.6578785)
+2026/02/01 18:37:11 Triggering snapshot due to event: wifi_connect
+2026/02/01 18:37:11 Starting playbook execution for snapshot e01c0c2b-98b9-43da-9ac7-d88c1c470e5b
+2026/02/01 18:37:15 Playbook execution finished for snapshot 05d06fe7-f954-4ad0-b1df-1f59e338f8f0
+2026/02/01 18:37:15 Saving snapshot 05d06fe7-f954-4ad0-b1df-1f59e338f8f0 to store
+2026/02/01 18:37:15 Snapshot 05d06fe7-f954-4ad0-b1df-1f59e338f8f0 saved successfully
+2026/02/01 18:37:20 Playbook execution finished for snapshot e01c0c2b-98b9-43da-9ac7-d88c1c470e5b
+2026/02/01 18:37:20 Saving snapshot e01c0c2b-98b9-43da-9ac7-d88c1c470e5b to store
+2026/02/01 18:37:20 Snapshot e01c0c2b-98b9-43da-9ac7-d88c1c470e5b saved successfully
+2026/02/01 18:37:34 Triggering snapshot due to event: interface_up
+2026/02/01 18:37:34 Starting playbook execution for snapshot 5de47def-e1ed-4a7e-9257-a764d7ec9584
+2026/02/01 18:37:43 Playbook execution finished for snapshot 5de47def-e1ed-4a7e-9257-a764d7ec9584
+2026/02/01 18:37:43 Saving snapshot 5de47def-e1ed-4a7e-9257-a764d7ec9584 to store
+2026/02/01 18:37:43 Snapshot 5de47def-e1ed-4a7e-9257-a764d7ec9584 saved successfully
+2026/02/01 18:38:08 Triggering snapshot due to event: interface_up
+2026/02/01 18:38:08 Starting playbook execution for snapshot fee55182-bf63-43ce-b73f-1f8ec6263b4a
+2026/02/01 18:38:18 Playbook execution finished for snapshot fee55182-bf63-43ce-b73f-1f8ec6263b4a
+2026/02/01 18:38:18 Saving snapshot fee55182-bf63-43ce-b73f-1f8ec6263b4a to store
+2026/02/01 18:38:18 Snapshot fee55182-bf63-43ce-b73f-1f8ec6263b4a saved successfully
+2026/02/01 18:38:43 Triggering snapshot due to event: interface_up
+2026/02/01 18:38:43 Starting playbook execution for snapshot 76a82fbc-c792-4dbc-a4f5-9a003b530009
+2026/02/01 18:38:53 Playbook execution finished for snapshot 76a82fbc-c792-4dbc-a4f5-9a003b530009
+2026/02/01 18:38:53 Saving snapshot 76a82fbc-c792-4dbc-a4f5-9a003b530009 to store
+2026/02/01 18:38:53 Snapshot 76a82fbc-c792-4dbc-a4f5-9a003b530009 saved successfully
+2026/02/01 18:39:23 Triggering snapshot due to event: interface_up
+2026/02/01 18:39:23 Starting playbook execution for snapshot 8844925d-43ea-42e7-b5df-0b7ec67c44e6
+2026/02/01 18:39:34 Playbook execution finished for snapshot 8844925d-43ea-42e7-b5df-0b7ec67c44e6
+2026/02/01 18:39:34 Saving snapshot 8844925d-43ea-42e7-b5df-0b7ec67c44e6 to store
+2026/02/01 18:39:34 Snapshot 8844925d-43ea-42e7-b5df-0b7ec67c44e6 saved successfully
+2026/02/01 18:39:59 Triggering snapshot due to event: interface_up
+2026/02/01 18:39:59 Starting playbook execution for snapshot 2fbddece-198c-4925-926e-6bc6074104a5
+2026/02/01 18:40:09 Playbook execution finished for snapshot 2fbddece-198c-4925-926e-6bc6074104a5
+2026/02/01 18:40:09 Saving snapshot 2fbddece-198c-4925-926e-6bc6074104a5 to store
+2026/02/01 18:40:09 Snapshot 2fbddece-198c-4925-926e-6bc6074104a5 saved successfully
+2026/02/01 18:40:34 Triggering snapshot due to event: interface_up
+2026/02/01 18:40:34 Starting playbook execution for snapshot 20556988-4be7-424c-80c1-30d030748c9c
+2026/02/01 18:40:44 Playbook execution finished for snapshot 20556988-4be7-424c-80c1-30d030748c9c
+2026/02/01 18:40:44 Saving snapshot 20556988-4be7-424c-80c1-30d030748c9c to store
+2026/02/01 18:40:44 Snapshot 20556988-4be7-424c-80c1-30d030748c9c saved successfully
+2026/02/01 18:41:09 Triggering snapshot due to event: interface_up
+2026/02/01 18:41:09 Starting playbook execution for snapshot e93f12f6-bcd2-4d8d-ba54-486db3e1d081
+2026/02/01 18:41:19 Playbook execution finished for snapshot e93f12f6-bcd2-4d8d-ba54-486db3e1d081
+2026/02/01 18:41:19 Saving snapshot e93f12f6-bcd2-4d8d-ba54-486db3e1d081 to store
+2026/02/01 18:41:19 Snapshot e93f12f6-bcd2-4d8d-ba54-486db3e1d081 saved successfully
+2026/02/01 18:41:37 [GPS] STATUS: LOST FIX
+2026/02/01 18:41:38 [GPS] STATUS: ACQUIRED FIX (51.969601499999996, 5.6578425)
+2026/02/01 18:41:44 Triggering snapshot due to event: interface_up
+2026/02/01 18:41:44 Starting playbook execution for snapshot 8947c8bb-3154-4f57-9fcd-484851ee3492
+2026/02/01 18:41:54 Playbook execution finished for snapshot 8947c8bb-3154-4f57-9fcd-484851ee3492
+2026/02/01 18:41:54 Saving snapshot 8947c8bb-3154-4f57-9fcd-484851ee3492 to store
+2026/02/01 18:41:54 Snapshot 8947c8bb-3154-4f57-9fcd-484851ee3492 saved successfully
+2026/02/01 18:42:21 Triggering snapshot due to event: interface_up
+2026/02/01 18:42:21 Starting playbook execution for snapshot 06a5079f-3de1-4302-b82c-ddb5b8f12afe
+2026/02/01 18:42:30 Playbook execution finished for snapshot 06a5079f-3de1-4302-b82c-ddb5b8f12afe
+2026/02/01 18:42:30 Saving snapshot 06a5079f-3de1-4302-b82c-ddb5b8f12afe to store
+2026/02/01 18:42:30 Snapshot 06a5079f-3de1-4302-b82c-ddb5b8f12afe saved successfully
+2026/02/01 18:42:54 Triggering snapshot due to event: interface_up
+2026/02/01 18:42:54 Starting playbook execution for snapshot 96a9c107-b4d9-4f29-8ae8-dfd7e26dc035
+2026/02/01 18:43:03 Playbook execution finished for snapshot 96a9c107-b4d9-4f29-8ae8-dfd7e26dc035
+2026/02/01 18:43:03 Saving snapshot 96a9c107-b4d9-4f29-8ae8-dfd7e26dc035 to store
+2026/02/01 18:43:03 Snapshot 96a9c107-b4d9-4f29-8ae8-dfd7e26dc035 saved successfully
+2026/02/01 18:43:28 Triggering snapshot due to event: interface_up
+2026/02/01 18:43:28 Starting playbook execution for snapshot 5907b376-8bca-4603-82a8-ebe5f5435272
+2026/02/01 18:43:37 Playbook execution finished for snapshot 5907b376-8bca-4603-82a8-ebe5f5435272
+2026/02/01 18:43:37 Saving snapshot 5907b376-8bca-4603-82a8-ebe5f5435272 to store
+2026/02/01 18:43:37 Snapshot 5907b376-8bca-4603-82a8-ebe5f5435272 saved successfully
+2026/02/01 18:43:56 Triggering snapshot due to event: interface_up
+2026/02/01 18:43:56 Starting playbook execution for snapshot ae54cffb-4771-4fb4-919c-6e5f7c2f1deb
+2026/02/01 18:44:06 Playbook execution finished for snapshot ae54cffb-4771-4fb4-919c-6e5f7c2f1deb
+2026/02/01 18:44:06 Saving snapshot ae54cffb-4771-4fb4-919c-6e5f7c2f1deb to store
+2026/02/01 18:44:06 Snapshot ae54cffb-4771-4fb4-919c-6e5f7c2f1deb saved successfully
+2026/02/01 18:44:07 Triggering snapshot due to event: interface_up
+2026/02/01 18:44:07 Starting playbook execution for snapshot db926925-1600-4860-8694-b5a5164eb1fe
+2026/02/01 18:44:17 Playbook execution finished for snapshot db926925-1600-4860-8694-b5a5164eb1fe
+2026/02/01 18:44:17 Saving snapshot db926925-1600-4860-8694-b5a5164eb1fe to store
+2026/02/01 18:44:17 Snapshot db926925-1600-4860-8694-b5a5164eb1fe saved successfully
+2026/02/01 18:44:44 Triggering snapshot due to event: interface_up
+2026/02/01 18:44:44 Starting playbook execution for snapshot df496893-0ec9-47c3-9bb5-41ba3562305e
+2026/02/01 18:44:54 Playbook execution finished for snapshot df496893-0ec9-47c3-9bb5-41ba3562305e
+2026/02/01 18:44:54 Saving snapshot df496893-0ec9-47c3-9bb5-41ba3562305e to store
+2026/02/01 18:44:54 Snapshot df496893-0ec9-47c3-9bb5-41ba3562305e saved successfully
+2026/02/01 18:45:28 Triggering snapshot due to event: interface_up
+2026/02/01 18:45:28 Starting playbook execution for snapshot fcd975b4-a680-49bc-a83b-b188b7a8d7db
+2026/02/01 18:45:37 Playbook execution finished for snapshot fcd975b4-a680-49bc-a83b-b188b7a8d7db
+2026/02/01 18:45:37 Saving snapshot fcd975b4-a680-49bc-a83b-b188b7a8d7db to store
+2026/02/01 18:45:37 Snapshot fcd975b4-a680-49bc-a83b-b188b7a8d7db saved successfully
+2026/02/01 18:46:14 Triggering snapshot due to event: interface_up
+2026/02/01 18:46:14 Starting playbook execution for snapshot dce2bd49-7ade-4c22-8354-bc5a28d76d92
+2026/02/01 18:46:24 Playbook execution finished for snapshot dce2bd49-7ade-4c22-8354-bc5a28d76d92
+2026/02/01 18:46:24 Saving snapshot dce2bd49-7ade-4c22-8354-bc5a28d76d92 to store
+2026/02/01 18:46:24 Snapshot dce2bd49-7ade-4c22-8354-bc5a28d76d92 saved successfully
+2026/02/01 18:46:58 Triggering snapshot due to event: interface_up
+2026/02/01 18:46:58 Starting playbook execution for snapshot d57400c3-843e-4118-99e7-81191d407db7
+2026/02/01 18:47:07 Playbook execution finished for snapshot d57400c3-843e-4118-99e7-81191d407db7
+2026/02/01 18:47:07 Saving snapshot d57400c3-843e-4118-99e7-81191d407db7 to store
+2026/02/01 18:47:07 Snapshot d57400c3-843e-4118-99e7-81191d407db7 saved successfully
+2026/02/01 18:47:44 Triggering snapshot due to event: interface_up
+2026/02/01 18:47:44 Starting playbook execution for snapshot 82018f8b-8565-427f-8303-44df4c8d6798
+2026/02/01 18:47:55 Playbook execution finished for snapshot 82018f8b-8565-427f-8303-44df4c8d6798
+2026/02/01 18:47:55 Saving snapshot 82018f8b-8565-427f-8303-44df4c8d6798 to store
+2026/02/01 18:47:55 Snapshot 82018f8b-8565-427f-8303-44df4c8d6798 saved successfully
+2026/02/01 18:48:29 Triggering snapshot due to event: interface_up
+2026/02/01 18:48:29 Starting playbook execution for snapshot 203da69a-24f2-48e1-ba03-601c40955607
+2026/02/01 18:48:38 Playbook execution finished for snapshot 203da69a-24f2-48e1-ba03-601c40955607
+2026/02/01 18:48:38 Saving snapshot 203da69a-24f2-48e1-ba03-601c40955607 to store
+2026/02/01 18:48:38 Snapshot 203da69a-24f2-48e1-ba03-601c40955607 saved successfully
+2026/02/01 18:48:49 Triggering snapshot due to event: interface_up
+2026/02/01 18:48:49 Starting playbook execution for snapshot ff46ef75-3570-4ae6-bc17-168671a28084
+2026/02/01 18:48:58 Playbook execution finished for snapshot ff46ef75-3570-4ae6-bc17-168671a28084
+2026/02/01 18:48:58 Saving snapshot ff46ef75-3570-4ae6-bc17-168671a28084 to store
+2026/02/01 18:48:58 Snapshot ff46ef75-3570-4ae6-bc17-168671a28084 saved successfully
+2026/02/01 18:49:24 Triggering snapshot due to event: interface_up
+2026/02/01 18:49:24 Starting playbook execution for snapshot ad267969-75aa-449d-95d7-9f0a9c696659
+2026/02/01 18:49:34 Playbook execution finished for snapshot ad267969-75aa-449d-95d7-9f0a9c696659
+2026/02/01 18:49:34 Saving snapshot ad267969-75aa-449d-95d7-9f0a9c696659 to store
+2026/02/01 18:49:34 Snapshot ad267969-75aa-449d-95d7-9f0a9c696659 saved successfully
+2026/02/01 18:50:05 Triggering snapshot due to event: interface_up
+2026/02/01 18:50:05 Starting playbook execution for snapshot 2257ee70-80e8-4ee6-a51d-f1e0e46342ea
+2026/02/01 18:50:15 Playbook execution finished for snapshot 2257ee70-80e8-4ee6-a51d-f1e0e46342ea
+2026/02/01 18:50:15 Saving snapshot 2257ee70-80e8-4ee6-a51d-f1e0e46342ea to store
+2026/02/01 18:50:15 Snapshot 2257ee70-80e8-4ee6-a51d-f1e0e46342ea saved successfully
+2026/02/01 18:50:38 Triggering snapshot due to event: interface_up
+2026/02/01 18:50:38 Starting playbook execution for snapshot 864f9d68-8d0c-4b69-a944-9cd8886222fa
+2026/02/01 18:50:47 Playbook execution finished for snapshot 864f9d68-8d0c-4b69-a944-9cd8886222fa
+2026/02/01 18:50:47 Saving snapshot 864f9d68-8d0c-4b69-a944-9cd8886222fa to store
+2026/02/01 18:50:47 Snapshot 864f9d68-8d0c-4b69-a944-9cd8886222fa saved successfully
+2026/02/01 18:51:20 Triggering snapshot due to event: interface_up
+2026/02/01 18:51:20 Starting playbook execution for snapshot 62252ac6-b72e-482a-b5e6-1638875291ba
+2026/02/01 18:51:30 Playbook execution finished for snapshot 62252ac6-b72e-482a-b5e6-1638875291ba
+2026/02/01 18:51:30 Saving snapshot 62252ac6-b72e-482a-b5e6-1638875291ba to store
+2026/02/01 18:51:30 Snapshot 62252ac6-b72e-482a-b5e6-1638875291ba saved successfully
+2026/02/01 18:51:55 Triggering snapshot due to event: interface_up
+2026/02/01 18:51:55 Starting playbook execution for snapshot ebc62ded-5663-44b7-9385-a0700ba9654f
+2026/02/01 18:52:04 Playbook execution finished for snapshot ebc62ded-5663-44b7-9385-a0700ba9654f
+2026/02/01 18:52:04 Saving snapshot ebc62ded-5663-44b7-9385-a0700ba9654f to store
+2026/02/01 18:52:04 Snapshot ebc62ded-5663-44b7-9385-a0700ba9654f saved successfully
+2026/02/01 18:52:34 Triggering snapshot due to event: interface_up
+2026/02/01 18:52:34 Starting playbook execution for snapshot d3cd5837-f645-4b54-8672-2c021b0eacc1
+2026/02/01 18:52:44 Playbook execution finished for snapshot d3cd5837-f645-4b54-8672-2c021b0eacc1
+2026/02/01 18:52:44 Saving snapshot d3cd5837-f645-4b54-8672-2c021b0eacc1 to store
+2026/02/01 18:52:44 Snapshot d3cd5837-f645-4b54-8672-2c021b0eacc1 saved successfully
+2026/02/01 18:53:09 Triggering snapshot due to event: interface_up
+2026/02/01 18:53:09 Starting playbook execution for snapshot e4d71d00-d85b-4ea7-9f4f-64762a990389
+2026/02/01 18:53:19 Playbook execution finished for snapshot e4d71d00-d85b-4ea7-9f4f-64762a990389
+2026/02/01 18:53:19 Saving snapshot e4d71d00-d85b-4ea7-9f4f-64762a990389 to store
+2026/02/01 18:53:19 Snapshot e4d71d00-d85b-4ea7-9f4f-64762a990389 saved successfully
+2026/02/01 18:53:49 Triggering snapshot due to event: interface_up
+2026/02/01 18:53:49 Starting playbook execution for snapshot 08a01c2f-0ad6-4342-be77-294147a81c17
+2026/02/01 18:53:59 Playbook execution finished for snapshot 08a01c2f-0ad6-4342-be77-294147a81c17
+2026/02/01 18:53:59 Saving snapshot 08a01c2f-0ad6-4342-be77-294147a81c17 to store
+2026/02/01 18:53:59 Snapshot 08a01c2f-0ad6-4342-be77-294147a81c17 saved successfully
+2026/02/01 18:54:26 Triggering snapshot due to event: interface_up
+2026/02/01 18:54:26 Starting playbook execution for snapshot 9588d1c4-0205-47b0-ab09-401b82e54c3d
+2026/02/01 18:54:36 Playbook execution finished for snapshot 9588d1c4-0205-47b0-ab09-401b82e54c3d
+2026/02/01 18:54:36 Saving snapshot 9588d1c4-0205-47b0-ab09-401b82e54c3d to store
+2026/02/01 18:54:36 Snapshot 9588d1c4-0205-47b0-ab09-401b82e54c3d saved successfully
+2026/02/01 18:55:04 Triggering snapshot due to event: interface_up
+2026/02/01 18:55:04 Starting playbook execution for snapshot 3decc624-b688-4574-bb30-8a45a240dfe9
+2026/02/01 18:55:14 Playbook execution finished for snapshot 3decc624-b688-4574-bb30-8a45a240dfe9
+2026/02/01 18:55:14 Saving snapshot 3decc624-b688-4574-bb30-8a45a240dfe9 to store
+2026/02/01 18:55:14 Snapshot 3decc624-b688-4574-bb30-8a45a240dfe9 saved successfully
+2026/02/01 18:55:48 Triggering snapshot due to event: interface_up
+2026/02/01 18:55:48 Starting playbook execution for snapshot df6af6b2-a6e5-43ae-99a0-516fe2ea0472
+2026/02/01 18:55:58 Playbook execution finished for snapshot df6af6b2-a6e5-43ae-99a0-516fe2ea0472
+2026/02/01 18:55:58 Saving snapshot df6af6b2-a6e5-43ae-99a0-516fe2ea0472 to store
+2026/02/01 18:55:58 Snapshot df6af6b2-a6e5-43ae-99a0-516fe2ea0472 saved successfully
+2026/02/01 18:56:34 Triggering snapshot due to event: interface_up
+2026/02/01 18:56:34 Starting playbook execution for snapshot 47939992-fe5b-4c12-9021-9f3982079a14
+2026/02/01 18:56:44 Playbook execution finished for snapshot 47939992-fe5b-4c12-9021-9f3982079a14
+2026/02/01 18:56:44 Saving snapshot 47939992-fe5b-4c12-9021-9f3982079a14 to store
+2026/02/01 18:56:44 Snapshot 47939992-fe5b-4c12-9021-9f3982079a14 saved successfully
+2026/02/01 18:57:19 Triggering snapshot due to event: interface_up
+2026/02/01 18:57:19 Starting playbook execution for snapshot 9c45ae30-c260-451f-8e98-dc09c3f98bf4
+2026/02/01 18:57:29 Playbook execution finished for snapshot 9c45ae30-c260-451f-8e98-dc09c3f98bf4
+2026/02/01 18:57:29 Saving snapshot 9c45ae30-c260-451f-8e98-dc09c3f98bf4 to store
+2026/02/01 18:57:29 Snapshot 9c45ae30-c260-451f-8e98-dc09c3f98bf4 saved successfully
+2026/02/01 18:57:59 Triggering snapshot due to event: interface_up
+2026/02/01 18:57:59 Starting playbook execution for snapshot 4bdc2722-d5be-4294-8dde-789c5fc3d253
+2026/02/01 18:58:08 Playbook execution finished for snapshot 4bdc2722-d5be-4294-8dde-789c5fc3d253
+2026/02/01 18:58:08 Saving snapshot 4bdc2722-d5be-4294-8dde-789c5fc3d253 to store
+2026/02/01 18:58:08 Snapshot 4bdc2722-d5be-4294-8dde-789c5fc3d253 saved successfully
+2026/02/01 18:58:40 Triggering snapshot due to event: interface_up
+2026/02/01 18:58:40 Starting playbook execution for snapshot fd146f18-fe7b-4434-9d1e-693ee471e9ab
+2026/02/01 18:58:50 Playbook execution finished for snapshot fd146f18-fe7b-4434-9d1e-693ee471e9ab
+2026/02/01 18:58:50 Saving snapshot fd146f18-fe7b-4434-9d1e-693ee471e9ab to store
+2026/02/01 18:58:50 Snapshot fd146f18-fe7b-4434-9d1e-693ee471e9ab saved successfully
+2026/02/01 18:59:25 Triggering snapshot due to event: interface_up
+2026/02/01 18:59:25 Starting playbook execution for snapshot 53fd9601-e59c-4955-a6d6-dbac82b3cfad
+2026/02/01 18:59:35 Playbook execution finished for snapshot 53fd9601-e59c-4955-a6d6-dbac82b3cfad
+2026/02/01 18:59:35 Saving snapshot 53fd9601-e59c-4955-a6d6-dbac82b3cfad to store
+2026/02/01 18:59:35 Snapshot 53fd9601-e59c-4955-a6d6-dbac82b3cfad saved successfully
+2026/02/01 19:00:04 Triggering snapshot due to event: interface_up
+2026/02/01 19:00:04 Starting playbook execution for snapshot 17a94c42-0dad-4a5a-ae8a-8d99811529b0
+2026/02/01 19:00:13 Playbook execution finished for snapshot 17a94c42-0dad-4a5a-ae8a-8d99811529b0
+2026/02/01 19:00:13 Saving snapshot 17a94c42-0dad-4a5a-ae8a-8d99811529b0 to store
+2026/02/01 19:00:13 Snapshot 17a94c42-0dad-4a5a-ae8a-8d99811529b0 saved successfully
+2026/02/01 19:00:39 [GPS] STATUS: LOST FIX
+2026/02/01 19:00:40 [GPS] STATUS: ACQUIRED FIX (51.969852499999995, 5.657706500000001)
+2026/02/01 19:00:49 Triggering snapshot due to event: interface_up
+2026/02/01 19:00:49 Starting playbook execution for snapshot 9749ccda-d31d-4849-ae16-1de3ad9fd076
+2026/02/01 19:00:52 [GPS] STATUS: LOST FIX
+2026/02/01 19:00:56 [GPS] STATUS: ACQUIRED FIX (51.969834999999996, 5.657609000000001)
+2026/02/01 19:00:59 Playbook execution finished for snapshot 9749ccda-d31d-4849-ae16-1de3ad9fd076
+2026/02/01 19:00:59 Saving snapshot 9749ccda-d31d-4849-ae16-1de3ad9fd076 to store
+2026/02/01 19:00:59 Snapshot 9749ccda-d31d-4849-ae16-1de3ad9fd076 saved successfully
+2026/02/01 19:01:34 Triggering snapshot due to event: interface_up
+2026/02/01 19:01:34 Starting playbook execution for snapshot ffdf4668-697d-411d-993a-76cae1704403
+2026/02/01 19:01:44 Playbook execution finished for snapshot ffdf4668-697d-411d-993a-76cae1704403
+2026/02/01 19:01:44 Saving snapshot ffdf4668-697d-411d-993a-76cae1704403 to store
+2026/02/01 19:01:44 Snapshot ffdf4668-697d-411d-993a-76cae1704403 saved successfully
+2026/02/01 19:02:13 Triggering snapshot due to event: interface_up
+2026/02/01 19:02:13 Starting playbook execution for snapshot 90b4f536-1bf3-4488-bc86-a5085c4ddda8
+2026/02/01 19:02:23 Playbook execution finished for snapshot 90b4f536-1bf3-4488-bc86-a5085c4ddda8
+2026/02/01 19:02:23 Saving snapshot 90b4f536-1bf3-4488-bc86-a5085c4ddda8 to store
+2026/02/01 19:02:23 Snapshot 90b4f536-1bf3-4488-bc86-a5085c4ddda8 saved successfully
+2026/02/01 19:02:58 Triggering snapshot due to event: interface_up
+2026/02/01 19:02:58 Starting playbook execution for snapshot 6ab2a920-d8bd-47d9-bc74-5751ce61f89e
+2026/02/01 19:03:08 Playbook execution finished for snapshot 6ab2a920-d8bd-47d9-bc74-5751ce61f89e
+2026/02/01 19:03:08 Saving snapshot 6ab2a920-d8bd-47d9-bc74-5751ce61f89e to store
+2026/02/01 19:03:08 Snapshot 6ab2a920-d8bd-47d9-bc74-5751ce61f89e saved successfully
+2026/02/01 19:03:40 Triggering snapshot due to event: interface_up
+2026/02/01 19:03:40 Starting playbook execution for snapshot dabbe9fa-9904-41d6-ac27-44947dd43f98
+2026/02/01 19:03:49 Playbook execution finished for snapshot dabbe9fa-9904-41d6-ac27-44947dd43f98
+2026/02/01 19:03:49 Saving snapshot dabbe9fa-9904-41d6-ac27-44947dd43f98 to store
+2026/02/01 19:03:49 Snapshot dabbe9fa-9904-41d6-ac27-44947dd43f98 saved successfully
+2026/02/01 19:04:24 Triggering snapshot due to event: interface_up
+2026/02/01 19:04:24 Starting playbook execution for snapshot 7ce0c10b-7a7e-4e8e-a6fd-7941540534f2
+2026/02/01 19:04:34 Playbook execution finished for snapshot 7ce0c10b-7a7e-4e8e-a6fd-7941540534f2
+2026/02/01 19:04:34 Saving snapshot 7ce0c10b-7a7e-4e8e-a6fd-7941540534f2 to store
+2026/02/01 19:04:34 Snapshot 7ce0c10b-7a7e-4e8e-a6fd-7941540534f2 saved successfully
+2026/02/01 19:05:04 Triggering snapshot due to event: interface_up
+2026/02/01 19:05:04 Starting playbook execution for snapshot 1b31467d-682a-44da-8a39-7202f752ca89
+2026/02/01 19:05:13 Playbook execution finished for snapshot 1b31467d-682a-44da-8a39-7202f752ca89
+2026/02/01 19:05:13 Saving snapshot 1b31467d-682a-44da-8a39-7202f752ca89 to store
+2026/02/01 19:05:13 Snapshot 1b31467d-682a-44da-8a39-7202f752ca89 saved successfully
+2026/02/01 19:05:46 Triggering snapshot due to event: interface_up
+2026/02/01 19:05:46 Starting playbook execution for snapshot 84ee47ef-a0ab-46e3-96db-a1d4c8295afa
+2026/02/01 19:05:55 Playbook execution finished for snapshot 84ee47ef-a0ab-46e3-96db-a1d4c8295afa
+2026/02/01 19:05:55 Saving snapshot 84ee47ef-a0ab-46e3-96db-a1d4c8295afa to store
+2026/02/01 19:05:55 Snapshot 84ee47ef-a0ab-46e3-96db-a1d4c8295afa saved successfully
+2026/02/01 19:06:19 Triggering snapshot due to event: interface_up
+2026/02/01 19:06:19 Starting playbook execution for snapshot cd5e33ab-fc5d-4e5c-99d1-a7af3bbf974a
+2026/02/01 19:06:29 Playbook execution finished for snapshot cd5e33ab-fc5d-4e5c-99d1-a7af3bbf974a
+2026/02/01 19:06:29 Saving snapshot cd5e33ab-fc5d-4e5c-99d1-a7af3bbf974a to store
+2026/02/01 19:06:29 Snapshot cd5e33ab-fc5d-4e5c-99d1-a7af3bbf974a saved successfully
+2026/02/01 19:06:58 Triggering snapshot due to event: interface_up
+2026/02/01 19:06:58 Starting playbook execution for snapshot e9283d8a-316d-40dc-9306-6f816907c6f5
+2026/02/01 19:07:07 Playbook execution finished for snapshot e9283d8a-316d-40dc-9306-6f816907c6f5
+2026/02/01 19:07:07 Saving snapshot e9283d8a-316d-40dc-9306-6f816907c6f5 to store
+2026/02/01 19:07:07 Snapshot e9283d8a-316d-40dc-9306-6f816907c6f5 saved successfully
+2026/02/01 19:07:35 [GPS] STATUS: LOST FIX
+2026/02/01 19:07:36 [GPS] STATUS: ACQUIRED FIX (51.969787333333336, 5.6578013333333335)
+2026/02/01 19:07:40 Triggering snapshot due to event: interface_up
+2026/02/01 19:07:40 Starting playbook execution for snapshot 183498e3-677b-4832-92be-4bb4a9aef5db
+2026/02/01 19:07:49 Playbook execution finished for snapshot 183498e3-677b-4832-92be-4bb4a9aef5db
+2026/02/01 19:07:49 Saving snapshot 183498e3-677b-4832-92be-4bb4a9aef5db to store
+2026/02/01 19:07:49 Snapshot 183498e3-677b-4832-92be-4bb4a9aef5db saved successfully
+2026/02/01 19:08:14 Triggering snapshot due to event: interface_up
+2026/02/01 19:08:14 Starting playbook execution for snapshot 0a790e6a-79ee-4061-8082-b1ecd7fb7755
+2026/02/01 19:08:23 Playbook execution finished for snapshot 0a790e6a-79ee-4061-8082-b1ecd7fb7755
+2026/02/01 19:08:23 Saving snapshot 0a790e6a-79ee-4061-8082-b1ecd7fb7755 to store
+2026/02/01 19:08:23 Snapshot 0a790e6a-79ee-4061-8082-b1ecd7fb7755 saved successfully
+2026/02/01 19:08:49 Triggering snapshot due to event: interface_up
+2026/02/01 19:08:49 Starting playbook execution for snapshot 5fe66330-f601-45d3-980e-aa0dd8281a36
+2026/02/01 19:08:58 Playbook execution finished for snapshot 5fe66330-f601-45d3-980e-aa0dd8281a36
+2026/02/01 19:08:58 Saving snapshot 5fe66330-f601-45d3-980e-aa0dd8281a36 to store
+2026/02/01 19:08:58 Snapshot 5fe66330-f601-45d3-980e-aa0dd8281a36 saved successfully
+2026/02/01 19:09:23 Triggering snapshot due to event: interface_up
+2026/02/01 19:09:23 Starting playbook execution for snapshot 76ba6fb9-e5f5-46f4-beaa-1aad96e28cb2
+2026/02/01 19:09:32 Playbook execution finished for snapshot 76ba6fb9-e5f5-46f4-beaa-1aad96e28cb2
+2026/02/01 19:09:32 Saving snapshot 76ba6fb9-e5f5-46f4-beaa-1aad96e28cb2 to store
+2026/02/01 19:09:32 Snapshot 76ba6fb9-e5f5-46f4-beaa-1aad96e28cb2 saved successfully
+2026/02/01 19:10:04 Triggering snapshot due to event: interface_up
+2026/02/01 19:10:04 Starting playbook execution for snapshot 9e987039-ece3-47a8-80f4-5241fd0fef62
+2026/02/01 19:10:15 Playbook execution finished for snapshot 9e987039-ece3-47a8-80f4-5241fd0fef62
+2026/02/01 19:10:15 Saving snapshot 9e987039-ece3-47a8-80f4-5241fd0fef62 to store
+2026/02/01 19:10:15 Snapshot 9e987039-ece3-47a8-80f4-5241fd0fef62 saved successfully
+2026/02/01 19:10:43 Triggering snapshot due to event: interface_up
+2026/02/01 19:10:43 Starting playbook execution for snapshot 39065a8b-4603-42b4-bee2-5ae2151d01d8
+2026/02/01 19:10:52 Playbook execution finished for snapshot 39065a8b-4603-42b4-bee2-5ae2151d01d8
+2026/02/01 19:10:52 Saving snapshot 39065a8b-4603-42b4-bee2-5ae2151d01d8 to store
+2026/02/01 19:10:52 Snapshot 39065a8b-4603-42b4-bee2-5ae2151d01d8 saved successfully
+2026/02/01 19:11:24 Triggering snapshot due to event: interface_up
+2026/02/01 19:11:24 Starting playbook execution for snapshot 8273175d-1cc9-43e5-b9e4-d7fc348d5327
+2026/02/01 19:11:34 Playbook execution finished for snapshot 8273175d-1cc9-43e5-b9e4-d7fc348d5327
+2026/02/01 19:11:34 Saving snapshot 8273175d-1cc9-43e5-b9e4-d7fc348d5327 to store
+2026/02/01 19:11:34 Snapshot 8273175d-1cc9-43e5-b9e4-d7fc348d5327 saved successfully
+2026/02/01 19:12:00 Triggering snapshot due to event: interface_up
+2026/02/01 19:12:00 Starting playbook execution for snapshot 9a616c8d-d451-463f-8df5-22596d0185df
+2026/02/01 19:12:09 Playbook execution finished for snapshot 9a616c8d-d451-463f-8df5-22596d0185df
+2026/02/01 19:12:09 Saving snapshot 9a616c8d-d451-463f-8df5-22596d0185df to store
+2026/02/01 19:12:09 Snapshot 9a616c8d-d451-463f-8df5-22596d0185df saved successfully
+2026/02/01 19:12:40 Triggering snapshot due to event: interface_up
+2026/02/01 19:12:40 Starting playbook execution for snapshot 8cf992af-fe9f-4cb5-925a-566a582474ce
+2026/02/01 19:12:49 Playbook execution finished for snapshot 8cf992af-fe9f-4cb5-925a-566a582474ce
+2026/02/01 19:12:49 Saving snapshot 8cf992af-fe9f-4cb5-925a-566a582474ce to store
+2026/02/01 19:12:49 Snapshot 8cf992af-fe9f-4cb5-925a-566a582474ce saved successfully
+2026/02/01 19:13:13 Triggering snapshot due to event: interface_up
+2026/02/01 19:13:13 Starting playbook execution for snapshot ed1a84be-a26f-441a-b1df-704c2a8c76dd
+2026/02/01 19:13:23 Playbook execution finished for snapshot ed1a84be-a26f-441a-b1df-704c2a8c76dd
+2026/02/01 19:13:23 Saving snapshot ed1a84be-a26f-441a-b1df-704c2a8c76dd to store
+2026/02/01 19:13:23 Snapshot ed1a84be-a26f-441a-b1df-704c2a8c76dd saved successfully
+2026/02/01 19:13:49 Triggering snapshot due to event: interface_up
+2026/02/01 19:13:49 Starting playbook execution for snapshot 7db7bfb9-e234-4905-b523-7d8f0ce85cab
+2026/02/01 19:13:58 Playbook execution finished for snapshot 7db7bfb9-e234-4905-b523-7d8f0ce85cab
+2026/02/01 19:13:58 Saving snapshot 7db7bfb9-e234-4905-b523-7d8f0ce85cab to store
+2026/02/01 19:13:58 Snapshot 7db7bfb9-e234-4905-b523-7d8f0ce85cab saved successfully
+2026/02/01 19:14:25 Triggering snapshot due to event: interface_up
+2026/02/01 19:14:25 Starting playbook execution for snapshot 0974805f-532c-4230-92a3-61edda76a640
+2026/02/01 19:14:34 Playbook execution finished for snapshot 0974805f-532c-4230-92a3-61edda76a640
+2026/02/01 19:14:34 Saving snapshot 0974805f-532c-4230-92a3-61edda76a640 to store
+2026/02/01 19:14:34 Snapshot 0974805f-532c-4230-92a3-61edda76a640 saved successfully
+2026/02/01 19:15:04 Triggering snapshot due to event: interface_up
+2026/02/01 19:15:04 Starting playbook execution for snapshot 00e1949b-5b98-4970-9a39-40cffad42f49
+2026/02/01 19:15:13 Playbook execution finished for snapshot 00e1949b-5b98-4970-9a39-40cffad42f49
+2026/02/01 19:15:13 Saving snapshot 00e1949b-5b98-4970-9a39-40cffad42f49 to store
+2026/02/01 19:15:13 Snapshot 00e1949b-5b98-4970-9a39-40cffad42f49 saved successfully
+2026/02/01 19:15:39 Triggering snapshot due to event: interface_up
+2026/02/01 19:15:39 Starting playbook execution for snapshot 516535f9-f687-47be-8f00-0d16aaea1f15
+2026/02/01 19:15:49 Playbook execution finished for snapshot 516535f9-f687-47be-8f00-0d16aaea1f15
+2026/02/01 19:15:49 Saving snapshot 516535f9-f687-47be-8f00-0d16aaea1f15 to store
+2026/02/01 19:15:49 Snapshot 516535f9-f687-47be-8f00-0d16aaea1f15 saved successfully
+2026/02/01 19:16:24 Triggering snapshot due to event: interface_up
+2026/02/01 19:16:24 Starting playbook execution for snapshot 7e494be2-c3ba-494f-aa0b-91e915fa057e
+2026/02/01 19:16:33 Playbook execution finished for snapshot 7e494be2-c3ba-494f-aa0b-91e915fa057e
+2026/02/01 19:16:33 Saving snapshot 7e494be2-c3ba-494f-aa0b-91e915fa057e to store
+2026/02/01 19:16:33 Snapshot 7e494be2-c3ba-494f-aa0b-91e915fa057e saved successfully
+2026/02/01 19:17:04 Triggering snapshot due to event: interface_up
+2026/02/01 19:17:04 Starting playbook execution for snapshot 557f1e0b-7996-470c-b8ec-d47702c37d16
+2026/02/01 19:17:13 Playbook execution finished for snapshot 557f1e0b-7996-470c-b8ec-d47702c37d16
+2026/02/01 19:17:13 Saving snapshot 557f1e0b-7996-470c-b8ec-d47702c37d16 to store
+2026/02/01 19:17:13 Snapshot 557f1e0b-7996-470c-b8ec-d47702c37d16 saved successfully
+2026/02/01 19:17:39 Triggering snapshot due to event: interface_up
+2026/02/01 19:17:39 Starting playbook execution for snapshot 0ba18c3e-97cc-417f-8966-89eb34735f63
+2026/02/01 19:17:49 Playbook execution finished for snapshot 0ba18c3e-97cc-417f-8966-89eb34735f63
+2026/02/01 19:17:49 Saving snapshot 0ba18c3e-97cc-417f-8966-89eb34735f63 to store
+2026/02/01 19:17:49 Snapshot 0ba18c3e-97cc-417f-8966-89eb34735f63 saved successfully
+2026/02/01 19:18:23 Triggering snapshot due to event: interface_up
+2026/02/01 19:18:23 Starting playbook execution for snapshot daf60381-6515-460d-a6c1-e4526d4632e6
+2026/02/01 19:18:32 Playbook execution finished for snapshot daf60381-6515-460d-a6c1-e4526d4632e6
+2026/02/01 19:18:32 Saving snapshot daf60381-6515-460d-a6c1-e4526d4632e6 to store
+2026/02/01 19:18:32 Snapshot daf60381-6515-460d-a6c1-e4526d4632e6 saved successfully
+2026/02/01 19:18:49 Triggering snapshot due to event: interface_up
+2026/02/01 19:18:49 Starting playbook execution for snapshot 9ac57870-9174-48d8-b5c7-b96f9b5af454
+2026/02/01 19:18:59 Playbook execution finished for snapshot 9ac57870-9174-48d8-b5c7-b96f9b5af454
+2026/02/01 19:18:59 Saving snapshot 9ac57870-9174-48d8-b5c7-b96f9b5af454 to store
+2026/02/01 19:18:59 Snapshot 9ac57870-9174-48d8-b5c7-b96f9b5af454 saved successfully
+2026/02/01 19:19:23 Triggering snapshot due to event: interface_up
+2026/02/01 19:19:23 Starting playbook execution for snapshot 9ee9c628-2f39-476f-adf1-9a0a03aa6ea3
+2026/02/01 19:19:33 Playbook execution finished for snapshot 9ee9c628-2f39-476f-adf1-9a0a03aa6ea3
+2026/02/01 19:19:33 Saving snapshot 9ee9c628-2f39-476f-adf1-9a0a03aa6ea3 to store
+2026/02/01 19:19:33 Snapshot 9ee9c628-2f39-476f-adf1-9a0a03aa6ea3 saved successfully
+2026/02/01 19:20:08 Triggering snapshot due to event: interface_up
+2026/02/01 19:20:08 Starting playbook execution for snapshot 712edba7-1967-4ac9-939f-171189face29
+2026/02/01 19:20:17 Playbook execution finished for snapshot 712edba7-1967-4ac9-939f-171189face29
+2026/02/01 19:20:17 Saving snapshot 712edba7-1967-4ac9-939f-171189face29 to store
+2026/02/01 19:20:17 Snapshot 712edba7-1967-4ac9-939f-171189face29 saved successfully
+2026/02/01 19:20:51 Triggering snapshot due to event: interface_up
+2026/02/01 19:20:51 Starting playbook execution for snapshot 56dc13dd-fc80-48a7-bdd3-779df63111fa
+2026/02/01 19:21:00 Playbook execution finished for snapshot 56dc13dd-fc80-48a7-bdd3-779df63111fa
+2026/02/01 19:21:00 Saving snapshot 56dc13dd-fc80-48a7-bdd3-779df63111fa to store
+2026/02/01 19:21:00 Snapshot 56dc13dd-fc80-48a7-bdd3-779df63111fa saved successfully
+2026/02/01 19:21:24 Triggering snapshot due to event: interface_up
+2026/02/01 19:21:24 Starting playbook execution for snapshot 4ef73daf-363c-4408-b0a9-cbdcbce79603
+2026/02/01 19:21:33 Playbook execution finished for snapshot 4ef73daf-363c-4408-b0a9-cbdcbce79603
+2026/02/01 19:21:33 Saving snapshot 4ef73daf-363c-4408-b0a9-cbdcbce79603 to store
+2026/02/01 19:21:33 Snapshot 4ef73daf-363c-4408-b0a9-cbdcbce79603 saved successfully
+2026/02/01 19:22:08 Triggering snapshot due to event: interface_up
+2026/02/01 19:22:08 Starting playbook execution for snapshot 6b39c780-564f-42d6-b69a-d899a74eb743
+2026/02/01 19:22:11 [GPS] STATUS: LOST FIX
+2026/02/01 19:22:15 [GPS] STATUS: ACQUIRED FIX (51.96959149999999, 5.657677833333334)
+2026/02/01 19:22:17 Playbook execution finished for snapshot 6b39c780-564f-42d6-b69a-d899a74eb743
+2026/02/01 19:22:17 Saving snapshot 6b39c780-564f-42d6-b69a-d899a74eb743 to store
+2026/02/01 19:22:17 Snapshot 6b39c780-564f-42d6-b69a-d899a74eb743 saved successfully
+2026/02/01 19:22:53 Triggering snapshot due to event: interface_up
+2026/02/01 19:22:53 Starting playbook execution for snapshot d0765781-017e-45ac-b12d-fc6b0a1b82b1
+2026/02/01 19:23:02 Playbook execution finished for snapshot d0765781-017e-45ac-b12d-fc6b0a1b82b1
+2026/02/01 19:23:02 Saving snapshot d0765781-017e-45ac-b12d-fc6b0a1b82b1 to store
+2026/02/01 19:23:02 Snapshot d0765781-017e-45ac-b12d-fc6b0a1b82b1 saved successfully
+2026/02/01 19:23:34 Triggering snapshot due to event: interface_up
+2026/02/01 19:23:34 Starting playbook execution for snapshot 9535378e-eb81-4195-a3bf-40c6a49c9341
+2026/02/01 19:23:45 Playbook execution finished for snapshot 9535378e-eb81-4195-a3bf-40c6a49c9341
+2026/02/01 19:23:45 Saving snapshot 9535378e-eb81-4195-a3bf-40c6a49c9341 to store
+2026/02/01 19:23:45 Snapshot 9535378e-eb81-4195-a3bf-40c6a49c9341 saved successfully
+2026/02/01 19:23:49 Triggering snapshot due to event: interface_up
+2026/02/01 19:23:49 Starting playbook execution for snapshot 578fe268-87ae-4693-8ace-693e3b188127
+2026/02/01 19:23:58 Playbook execution finished for snapshot 578fe268-87ae-4693-8ace-693e3b188127
+2026/02/01 19:23:58 Saving snapshot 578fe268-87ae-4693-8ace-693e3b188127 to store
+2026/02/01 19:23:58 Snapshot 578fe268-87ae-4693-8ace-693e3b188127 saved successfully
+2026/02/01 19:24:25 Triggering snapshot due to event: interface_up
+2026/02/01 19:24:25 Starting playbook execution for snapshot a86669a7-8dc1-4ee4-89cb-ae2e43d5d92c
+2026/02/01 19:24:34 Playbook execution finished for snapshot a86669a7-8dc1-4ee4-89cb-ae2e43d5d92c
+2026/02/01 19:24:34 Saving snapshot a86669a7-8dc1-4ee4-89cb-ae2e43d5d92c to store
+2026/02/01 19:24:34 Snapshot a86669a7-8dc1-4ee4-89cb-ae2e43d5d92c saved successfully
+2026/02/01 19:25:04 [GPS] STATUS: LOST FIX
+2026/02/01 19:25:05 Triggering snapshot due to event: interface_up
+2026/02/01 19:25:05 Starting playbook execution for snapshot eab4009a-1207-416e-a570-c0ce806a5ddb
+2026/02/01 19:25:07 [GPS] STATUS: ACQUIRED FIX (51.969344333333325, 5.657699166666667)
+2026/02/01 19:25:15 Playbook execution finished for snapshot eab4009a-1207-416e-a570-c0ce806a5ddb
+2026/02/01 19:25:15 Saving snapshot eab4009a-1207-416e-a570-c0ce806a5ddb to store
+2026/02/01 19:25:15 Snapshot eab4009a-1207-416e-a570-c0ce806a5ddb saved successfully
+2026/02/01 19:25:39 Triggering snapshot due to event: interface_up
+2026/02/01 19:25:39 Starting playbook execution for snapshot 3ac7e139-1287-464d-87cf-bb3c138dfc17
+2026/02/01 19:25:48 Playbook execution finished for snapshot 3ac7e139-1287-464d-87cf-bb3c138dfc17
+2026/02/01 19:25:48 Saving snapshot 3ac7e139-1287-464d-87cf-bb3c138dfc17 to store
+2026/02/01 19:25:48 Snapshot 3ac7e139-1287-464d-87cf-bb3c138dfc17 saved successfully
+2026/02/01 19:26:20 Triggering snapshot due to event: interface_up
+2026/02/01 19:26:20 Starting playbook execution for snapshot 51a25282-f0ac-4027-9838-d2fe3d599ea8
+2026/02/01 19:26:30 Playbook execution finished for snapshot 51a25282-f0ac-4027-9838-d2fe3d599ea8
+2026/02/01 19:26:30 Saving snapshot 51a25282-f0ac-4027-9838-d2fe3d599ea8 to store
+2026/02/01 19:26:30 Snapshot 51a25282-f0ac-4027-9838-d2fe3d599ea8 saved successfully
+2026/02/01 19:26:54 Triggering snapshot due to event: interface_up
+2026/02/01 19:26:54 Starting playbook execution for snapshot 62d541d0-2a54-4aa3-b8d2-178b3f965f43
+2026/02/01 19:27:08 Playbook execution finished for snapshot 62d541d0-2a54-4aa3-b8d2-178b3f965f43
+2026/02/01 19:27:08 Saving snapshot 62d541d0-2a54-4aa3-b8d2-178b3f965f43 to store
+2026/02/01 19:27:08 Snapshot 62d541d0-2a54-4aa3-b8d2-178b3f965f43 saved successfully
+2026/02/01 19:27:39 Triggering snapshot due to event: interface_up
+2026/02/01 19:27:39 Starting playbook execution for snapshot 9976b019-6954-4202-adb6-69a2803a6f97
+2026/02/01 19:27:48 Playbook execution finished for snapshot 9976b019-6954-4202-adb6-69a2803a6f97
+2026/02/01 19:27:48 Saving snapshot 9976b019-6954-4202-adb6-69a2803a6f97 to store
+2026/02/01 19:27:48 Snapshot 9976b019-6954-4202-adb6-69a2803a6f97 saved successfully
+2026/02/01 19:28:19 Triggering snapshot due to event: interface_up
+2026/02/01 19:28:19 Starting playbook execution for snapshot 47ab12c5-a557-4460-b781-ac470426cabd
+2026/02/01 19:28:26 [GPS] STATUS: LOST FIX
+2026/02/01 19:28:28 Playbook execution finished for snapshot 47ab12c5-a557-4460-b781-ac470426cabd
+2026/02/01 19:28:28 Saving snapshot 47ab12c5-a557-4460-b781-ac470426cabd to store
+2026/02/01 19:28:28 Snapshot 47ab12c5-a557-4460-b781-ac470426cabd saved successfully
+2026/02/01 19:28:31 [GPS] STATUS: ACQUIRED FIX (51.96953283333334, 5.658057)
+2026/02/01 19:28:49 Triggering snapshot due to event: interface_up
+2026/02/01 19:28:49 Starting playbook execution for snapshot 7b90c356-3f3a-4b7d-a855-487066f638a7
+2026/02/01 19:28:58 Playbook execution finished for snapshot 7b90c356-3f3a-4b7d-a855-487066f638a7
+2026/02/01 19:28:58 Saving snapshot 7b90c356-3f3a-4b7d-a855-487066f638a7 to store
+2026/02/01 19:28:58 Snapshot 7b90c356-3f3a-4b7d-a855-487066f638a7 saved successfully
+2026/02/01 19:29:25 Triggering snapshot due to event: interface_up
+2026/02/01 19:29:25 Starting playbook execution for snapshot 95c27ed8-da60-401c-b2a9-6707e116426d
+2026/02/01 19:29:34 Playbook execution finished for snapshot 95c27ed8-da60-401c-b2a9-6707e116426d
+2026/02/01 19:29:34 Saving snapshot 95c27ed8-da60-401c-b2a9-6707e116426d to store
+2026/02/01 19:29:34 Snapshot 95c27ed8-da60-401c-b2a9-6707e116426d saved successfully
+2026/02/01 19:30:04 Triggering snapshot due to event: interface_up
+2026/02/01 19:30:04 Starting playbook execution for snapshot 8679cd70-57b5-42c0-a3d7-8e87f61e643c
+2026/02/01 19:30:13 Playbook execution finished for snapshot 8679cd70-57b5-42c0-a3d7-8e87f61e643c
+2026/02/01 19:30:13 Saving snapshot 8679cd70-57b5-42c0-a3d7-8e87f61e643c to store
+2026/02/01 19:30:13 Snapshot 8679cd70-57b5-42c0-a3d7-8e87f61e643c saved successfully
+2026/02/01 19:30:39 Triggering snapshot due to event: interface_up
+2026/02/01 19:30:39 Starting playbook execution for snapshot 2610652c-00f9-46ab-9bd9-72292a54433f
+2026/02/01 19:30:48 Playbook execution finished for snapshot 2610652c-00f9-46ab-9bd9-72292a54433f
+2026/02/01 19:30:48 Saving snapshot 2610652c-00f9-46ab-9bd9-72292a54433f to store
+2026/02/01 19:30:48 Snapshot 2610652c-00f9-46ab-9bd9-72292a54433f saved successfully
+2026/02/01 19:31:24 Triggering snapshot due to event: interface_up
+2026/02/01 19:31:24 Starting playbook execution for snapshot bee3b41e-8fcc-4691-8d9a-b6970bb05d53
+2026/02/01 19:31:34 Playbook execution finished for snapshot bee3b41e-8fcc-4691-8d9a-b6970bb05d53
+2026/02/01 19:31:34 Saving snapshot bee3b41e-8fcc-4691-8d9a-b6970bb05d53 to store
+2026/02/01 19:31:34 Snapshot bee3b41e-8fcc-4691-8d9a-b6970bb05d53 saved successfully
+2026/02/01 19:32:03 Triggering snapshot due to event: interface_up
+2026/02/01 19:32:03 Starting playbook execution for snapshot 6f07c537-2839-446d-9428-22ee4dea14d8
+2026/02/01 19:32:13 Playbook execution finished for snapshot 6f07c537-2839-446d-9428-22ee4dea14d8
+2026/02/01 19:32:13 Saving snapshot 6f07c537-2839-446d-9428-22ee4dea14d8 to store
+2026/02/01 19:32:13 Snapshot 6f07c537-2839-446d-9428-22ee4dea14d8 saved successfully
+2026/02/01 19:32:42 Triggering snapshot due to event: interface_up
+2026/02/01 19:32:42 Starting playbook execution for snapshot cceeec07-0d52-46cf-8861-2be933bd6a1f
+2026/02/01 19:32:52 Playbook execution finished for snapshot cceeec07-0d52-46cf-8861-2be933bd6a1f
+2026/02/01 19:32:52 Saving snapshot cceeec07-0d52-46cf-8861-2be933bd6a1f to store
+2026/02/01 19:32:52 Snapshot cceeec07-0d52-46cf-8861-2be933bd6a1f saved successfully
+2026/02/01 19:33:27 Triggering snapshot due to event: interface_up
+2026/02/01 19:33:27 Starting playbook execution for snapshot 92c8230a-a3aa-44e4-911e-36020a141dab
+2026/02/01 19:33:30 [GPS] STATUS: LOST FIX
+2026/02/01 19:33:32 [GPS] STATUS: ACQUIRED FIX (51.969615499999996, 5.658009333333332)
+2026/02/01 19:33:37 Playbook execution finished for snapshot 92c8230a-a3aa-44e4-911e-36020a141dab
+2026/02/01 19:33:37 Saving snapshot 92c8230a-a3aa-44e4-911e-36020a141dab to store
+2026/02/01 19:33:37 Snapshot 92c8230a-a3aa-44e4-911e-36020a141dab saved successfully
+2026/02/01 19:33:49 [GPS] STATUS: LOST FIX
+2026/02/01 19:33:49 Triggering snapshot due to event: interface_up
+2026/02/01 19:33:49 Starting playbook execution for snapshot 6e227fc8-2fb8-4563-8a4d-af95c99c9d06
+2026/02/01 19:33:51 [GPS] STATUS: ACQUIRED FIX (51.96973266666667, 5.658222499999999)
+2026/02/01 19:33:59 Playbook execution finished for snapshot 6e227fc8-2fb8-4563-8a4d-af95c99c9d06
+2026/02/01 19:33:59 Saving snapshot 6e227fc8-2fb8-4563-8a4d-af95c99c9d06 to store
+2026/02/01 19:33:59 Snapshot 6e227fc8-2fb8-4563-8a4d-af95c99c9d06 saved successfully
+2026/02/01 19:34:23 Triggering snapshot due to event: interface_up
+2026/02/01 19:34:23 Starting playbook execution for snapshot f4035bfa-6f15-4b33-aeb9-66e41ee82f68
+2026/02/01 19:34:33 Playbook execution finished for snapshot f4035bfa-6f15-4b33-aeb9-66e41ee82f68
+2026/02/01 19:34:33 Saving snapshot f4035bfa-6f15-4b33-aeb9-66e41ee82f68 to store
+2026/02/01 19:34:33 Snapshot f4035bfa-6f15-4b33-aeb9-66e41ee82f68 saved successfully
+2026/02/01 19:35:00 [GPS] STATUS: LOST FIX
+2026/02/01 19:35:07 Triggering snapshot due to event: interface_up
+2026/02/01 19:35:07 Starting playbook execution for snapshot b680f85c-b8b8-4ba2-a302-8d6dbbc7d8a9
+2026/02/01 19:35:08 [GPS] STATUS: ACQUIRED FIX (51.96964633333334, 5.657959333333334)
+2026/02/01 19:35:17 Playbook execution finished for snapshot b680f85c-b8b8-4ba2-a302-8d6dbbc7d8a9
+2026/02/01 19:35:17 Saving snapshot b680f85c-b8b8-4ba2-a302-8d6dbbc7d8a9 to store
+2026/02/01 19:35:17 Snapshot b680f85c-b8b8-4ba2-a302-8d6dbbc7d8a9 saved successfully
+2026/02/01 19:35:30 [GPS] STATUS: LOST FIX
+2026/02/01 19:35:36 [GPS] STATUS: ACQUIRED FIX (51.96973416666666, 5.658073333333334)
+2026/02/01 19:35:45 [GPS] STATUS: LOST FIX
+2026/02/01 19:35:48 Triggering snapshot due to event: interface_up
+2026/02/01 19:35:48 Starting playbook execution for snapshot 3355746b-6c35-4a45-9190-172b37b92a3b
+2026/02/01 19:35:57 Playbook execution finished for snapshot 3355746b-6c35-4a45-9190-172b37b92a3b
+2026/02/01 19:35:57 Saving snapshot 3355746b-6c35-4a45-9190-172b37b92a3b to store
+2026/02/01 19:35:57 Snapshot 3355746b-6c35-4a45-9190-172b37b92a3b saved successfully
+2026/02/01 19:36:06 [GPS] STATUS: ACQUIRED FIX (51.96940883333333, 5.657598)
+2026/02/01 19:36:14 [GPS] STATUS: LOST FIX
+2026/02/01 19:36:19 [GPS] STATUS: ACQUIRED FIX (51.96977766666667, 5.657605000000001)
+2026/02/01 19:36:29 Triggering snapshot due to event: interface_up
+2026/02/01 19:36:29 Starting playbook execution for snapshot 114da2f2-d735-4cf6-96f0-c8bb44f2d340
+2026/02/01 19:36:38 [GPS] STATUS: LOST FIX
+2026/02/01 19:36:39 Playbook execution finished for snapshot 114da2f2-d735-4cf6-96f0-c8bb44f2d340
+2026/02/01 19:36:39 Saving snapshot 114da2f2-d735-4cf6-96f0-c8bb44f2d340 to store
+2026/02/01 19:36:39 Snapshot 114da2f2-d735-4cf6-96f0-c8bb44f2d340 saved successfully
+2026/02/01 19:36:44 [GPS] STATUS: ACQUIRED FIX (51.9697905, 5.657681999999999)
+2026/02/01 19:37:13 Triggering snapshot due to event: interface_up
+2026/02/01 19:37:13 Starting playbook execution for snapshot e97368bd-8bda-465e-93b4-b2d1d61a79a9
+2026/02/01 19:37:23 Playbook execution finished for snapshot e97368bd-8bda-465e-93b4-b2d1d61a79a9
+2026/02/01 19:37:23 Saving snapshot e97368bd-8bda-465e-93b4-b2d1d61a79a9 to store
+2026/02/01 19:37:23 Snapshot e97368bd-8bda-465e-93b4-b2d1d61a79a9 saved successfully
+2026/02/01 19:37:54 Triggering snapshot due to event: interface_up
+2026/02/01 19:37:54 Starting playbook execution for snapshot cd076f7d-2905-4c6b-9e6a-618919b5b038
+2026/02/01 19:38:04 Playbook execution finished for snapshot cd076f7d-2905-4c6b-9e6a-618919b5b038
+2026/02/01 19:38:04 Saving snapshot cd076f7d-2905-4c6b-9e6a-618919b5b038 to store
+2026/02/01 19:38:04 Snapshot cd076f7d-2905-4c6b-9e6a-618919b5b038 saved successfully
+2026/02/01 19:38:29 [GPS] STATUS: LOST FIX
+2026/02/01 19:38:34 [GPS] STATUS: ACQUIRED FIX (51.969605833333326, 5.658094666666667)
+2026/02/01 19:38:38 Triggering snapshot due to event: interface_up
+2026/02/01 19:38:38 Starting playbook execution for snapshot 136cb838-6ba6-40b3-9be1-0252ec9b781c
+2026/02/01 19:38:47 Playbook execution finished for snapshot 136cb838-6ba6-40b3-9be1-0252ec9b781c
+2026/02/01 19:38:47 Saving snapshot 136cb838-6ba6-40b3-9be1-0252ec9b781c to store
+2026/02/01 19:38:47 Snapshot 136cb838-6ba6-40b3-9be1-0252ec9b781c saved successfully
+2026/02/01 19:38:49 Triggering snapshot due to event: interface_up
+2026/02/01 19:38:49 Starting playbook execution for snapshot d64b32c6-28e6-4a0e-b81b-c4e14c78c3d9
+2026/02/01 19:38:59 Playbook execution finished for snapshot d64b32c6-28e6-4a0e-b81b-c4e14c78c3d9
+2026/02/01 19:38:59 Saving snapshot d64b32c6-28e6-4a0e-b81b-c4e14c78c3d9 to store
+2026/02/01 19:38:59 Snapshot d64b32c6-28e6-4a0e-b81b-c4e14c78c3d9 saved successfully
+2026/02/01 19:39:02 [GPS] STATUS: LOST FIX
+2026/02/01 19:39:08 [GPS] STATUS: ACQUIRED FIX (51.969573999999994, 5.658011833333334)
+2026/02/01 19:39:12 [GPS] STATUS: LOST FIX
+2026/02/01 19:39:16 [GPS] STATUS: ACQUIRED FIX (51.969604333333336, 5.657904)
+2026/02/01 19:39:19 [GPS] STATUS: LOST FIX
+2026/02/01 19:39:23 Triggering snapshot due to event: interface_up
+2026/02/01 19:39:23 Starting playbook execution for snapshot 2d8b18f6-8aeb-478b-8831-78585c8946a5
+2026/02/01 19:39:33 Playbook execution finished for snapshot 2d8b18f6-8aeb-478b-8831-78585c8946a5
+2026/02/01 19:39:33 Saving snapshot 2d8b18f6-8aeb-478b-8831-78585c8946a5 to store
+2026/02/01 19:39:33 Snapshot 2d8b18f6-8aeb-478b-8831-78585c8946a5 saved successfully
+2026/02/01 19:39:35 [GPS] STATUS: ACQUIRED FIX (51.969833666666666, 5.657710166666668)
+2026/02/01 19:39:40 [GPS] STATUS: LOST FIX
+2026/02/01 19:39:47 [GPS] STATUS: ACQUIRED FIX (51.96953716666667, 5.658350166666666)
+2026/02/01 19:39:52 [GPS] STATUS: LOST FIX
+2026/02/01 19:40:08 Triggering snapshot due to event: interface_up
+2026/02/01 19:40:08 Starting playbook execution for snapshot 0cfee280-f112-47b7-8d8b-d72292e1046b
+2026/02/01 19:40:17 Playbook execution finished for snapshot 0cfee280-f112-47b7-8d8b-d72292e1046b
+2026/02/01 19:40:17 Saving snapshot 0cfee280-f112-47b7-8d8b-d72292e1046b to store
+2026/02/01 19:40:17 Snapshot 0cfee280-f112-47b7-8d8b-d72292e1046b saved successfully
+2026/02/01 19:40:50 Triggering snapshot due to event: interface_up
+2026/02/01 19:40:50 Starting playbook execution for snapshot ff0e3ca2-3777-4141-b3db-c899bdbad6f9
+2026/02/01 19:41:00 Playbook execution finished for snapshot ff0e3ca2-3777-4141-b3db-c899bdbad6f9
+2026/02/01 19:41:00 Saving snapshot ff0e3ca2-3777-4141-b3db-c899bdbad6f9 to store
+2026/02/01 19:41:00 Snapshot ff0e3ca2-3777-4141-b3db-c899bdbad6f9 saved successfully
+2026/02/01 19:41:23 Triggering snapshot due to event: interface_up
+2026/02/01 19:41:23 Starting playbook execution for snapshot f55097f5-8a36-4c1b-83df-2a1ef2103992
+2026/02/01 19:41:32 Playbook execution finished for snapshot f55097f5-8a36-4c1b-83df-2a1ef2103992
+2026/02/01 19:41:32 Saving snapshot f55097f5-8a36-4c1b-83df-2a1ef2103992 to store
+2026/02/01 19:41:32 Snapshot f55097f5-8a36-4c1b-83df-2a1ef2103992 saved successfully
+2026/02/01 19:42:08 Triggering snapshot due to event: interface_up
+2026/02/01 19:42:08 Starting playbook execution for snapshot 597ac689-90bc-41fb-b55e-7a70a6b5eca2
+2026/02/01 19:42:17 Playbook execution finished for snapshot 597ac689-90bc-41fb-b55e-7a70a6b5eca2
+2026/02/01 19:42:17 Saving snapshot 597ac689-90bc-41fb-b55e-7a70a6b5eca2 to store
+2026/02/01 19:42:17 Snapshot 597ac689-90bc-41fb-b55e-7a70a6b5eca2 saved successfully
+2026/02/01 19:42:18 Triggering snapshot due to event: interface_up
+2026/02/01 19:42:18 Starting playbook execution for snapshot d2e9445b-d56b-40c3-a37e-22c2434e1471
+2026/02/01 19:42:27 Playbook execution finished for snapshot d2e9445b-d56b-40c3-a37e-22c2434e1471
+2026/02/01 19:42:27 Saving snapshot d2e9445b-d56b-40c3-a37e-22c2434e1471 to store
+2026/02/01 19:42:27 Snapshot d2e9445b-d56b-40c3-a37e-22c2434e1471 saved successfully
+2026/02/01 19:42:55 Triggering snapshot due to event: interface_up
+2026/02/01 19:42:55 Starting playbook execution for snapshot 39fe2953-55f4-47e2-9460-c6ca84443483
+2026/02/01 19:43:04 Playbook execution finished for snapshot 39fe2953-55f4-47e2-9460-c6ca84443483
+2026/02/01 19:43:04 Saving snapshot 39fe2953-55f4-47e2-9460-c6ca84443483 to store
+2026/02/01 19:43:04 Snapshot 39fe2953-55f4-47e2-9460-c6ca84443483 saved successfully
+2026/02/01 19:43:08 [GPS] STATUS: ACQUIRED FIX (51.96969300000001, 5.657663666666667)
+2026/02/01 19:43:20 Shutting down...
