@@ -28,6 +28,16 @@ logic that a CLI, Tk app, or web app could all call later.
 If we add a GUI again, it should be a thin client over the same backend/service
 layer, not a second implementation of project logic.
 
+## Rewrite Direction
+
+Current decision:
+
+- perform a clean-room rewrite in Python
+- do not line-by-line port the current Go code
+- treat the Go collector and Flask UI as legacy/reference only
+- build the new architecture around CLI-first Python entrypoints
+- only keep legacy code long enough to compare behavior during the rewrite
+
 ## Command Model
 
 Recommended command behavior:
@@ -65,6 +75,17 @@ Preferred behavior:
   storage-safe way.
 
 This avoids conflicting writes and duplicate collectors.
+
+## Configuration Direction
+
+The application should work locally without required environment variables.
+
+Preferred policy:
+
+- autodetect sensible local paths and runtime defaults
+- use config files only when explicit configuration is actually needed
+- reserve secrets/credentials mainly for future sync or shared deployment cases
+- do not make environment-variable setup part of the normal user workflow
 
 ## Collector Defaults
 

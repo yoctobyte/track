@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netinventory"
+version = "0.1.0"
+description = "CLI-first network inventory and topology mapping tool"
+readme = "PROJECT_GOALS.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+netinv = "netinventory.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["netinventory*"]
