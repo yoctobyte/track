@@ -9,6 +9,25 @@ Default behavior should be simple:
 
 This keeps the common workflow short while still allowing headless and remote use.
 
+## UI Direction
+
+We should not actively build and maintain three frontends at once.
+
+Current decision:
+
+- CLI is the primary user interface
+- Backend/business logic must stay clearly separated from any UI
+- Other UIs are optional and secondary
+- The existing Flask web UI is temporary and should not receive major new feature
+  work unless it directly supports backend development
+
+This means we should avoid putting important aggregation, summarization, or
+topology logic inside UI-specific code. Those capabilities belong in shared core
+logic that a CLI, Tk app, or web app could all call later.
+
+If we add a GUI again, it should be a thin client over the same backend/service
+layer, not a second implementation of project logic.
+
 ## Command Model
 
 Recommended command behavior:
@@ -205,6 +224,16 @@ GUI is important for:
 - viewing transitions and confidence
 - visualizing inferred topology
 - editing annotations
+
+Near-term priority is CLI, not GUI expansion.
+
+Notes to self:
+
+- Keep UI code thin
+- Do not duplicate workflows across multiple frontends yet
+- Move summary and topology logic out of `ui/analysis_module.py`
+- Treat the current web UI as disposable once a proper CLI/service exists
+- Only revisit Tk or web after the backend model stabilizes
 
 ## Multi-Device Gathering
 
