@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html><head><title>map3d demo</title>
+<style>
+  body { font-family: sans-serif; max-width: 800px; margin: 2em auto; }
+  a { margin-right: 1em; }
+  .tree { margin-left: 1.5em; }
+</style>
+</head><body>
+  <h1>map3d — FastAPI demo</h1>
+  <nav><a href="/">Home</a><a href="/upload">Upload</a><a href="/gallery">Gallery</a><a href="/docs">API docs (auto!)</a><a href="/api/locations">API: locations</a></nav>
+  <hr>
+  <h2>Locations</h2>
+  {% macro render_tree(locations) %}
+    <ul class="tree">
+    {% for loc in locations %}
+      <li>{{ loc.name }}
+        {% if loc.children %}{{ render_tree(loc.children) }}{% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  {% endmacro %}
+  {{ render_tree(locations) }}
+</body></html>

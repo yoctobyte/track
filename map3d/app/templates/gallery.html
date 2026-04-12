@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Gallery — map3d{% endblock %}
+{% block content %}
+<h1>Gallery</h1>
+
+<div class="card mb">
+  <form method="get" style="display:flex; gap:1em; flex-wrap:wrap; align-items:end;">
+    <div>
+      <label>Building
+        <select name="building_id">
+          <option value="">All</option>
+          {% for b in buildings %}
+            <option value="{{ b.id }}" {% if current_building_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div>
+      <label>Session
+        <select name="session_id">
+          <option value="">All</option>
+          {% for s in sessions %}
+            <option value="{{ s.id }}" {% if current_session_id == s.id %}selected{% endif %}>
+              {{ s.label }} ({{ s.start_time.strftime('%Y-%m-%d %H:%M') if s.start_time }})
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <button type="submit">Filter</button>
+  </form>
+</div>
+
+{% if frames %}
+<p class="muted mb">{{ frames | length }} image(s)</p>
+<div class="grid">
+  {% for f in frames %}
+  <a href="/frame/{{ f.id }}" class="thumb" style="text-decoration:none; color:inherit;">
+    {% if f.preview_path %}
+      <img src="/data/{{ f.preview_path }}" alt="{{ f.asset.original_filename }}">
+    {% else %}
+      <div style="height:180px; display:flex; align-items:center; justify-content:center;">
+        No preview
+      </div>
+    {% endif %}
+    <div class="info">
+      {{ f.asset.original_filename | truncate(25) }}<br>
+      {% set obs = f.observations.first() %}
+      {% if obs and obs.location %}
+        {{ obs.location.name }}
+      {% else %}
+        <em class="muted">no location</em>
+      {% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="muted">No images found. <a href="/upload">Upload some.</a></p>
+{% endif %}
+{% endblock %}

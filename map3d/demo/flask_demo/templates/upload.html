@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html><head><title>Upload — map3d</title>
+<style>
+  body { font-family: sans-serif; max-width: 800px; margin: 2em auto; }
+  a { margin-right: 1em; }
+  form { margin-top: 1em; }
+  label, select, input { display: block; margin: 0.5em 0; }
+</style>
+</head><body>
+  <h1>Upload Photo</h1>
+  <nav><a href="/">Home</a><a href="/upload">Upload</a><a href="/gallery">Gallery</a></nav>
+  <hr>
+  <form method="post" enctype="multipart/form-data">
+    <label>Location:
+      <select name="location_id">
+        {% for loc in locations %}
+          <option value="{{ loc.id }}">{{ loc.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Photo: <input type="file" name="photo" accept="image/*"></label>
+    <button type="submit">Upload</button>
+  </form>
+</body></html>

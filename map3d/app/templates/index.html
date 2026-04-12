@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Buildings — map3d{% endblock %}
+{% block content %}
+<h1>Buildings</h1>
+
+{% if buildings %}
+<table>
+  <tr><th>Name</th><th>Description</th><th>GPS</th><th></th></tr>
+  {% for b in buildings %}
+  <tr>
+    <td><a href="/buildings/{{ b.id }}">{{ b.name }}</a></td>
+    <td>{{ b.description or '—' }}</td>
+    <td>{% if b.latitude %}{{ b.latitude | round(5) }}, {{ b.longitude | round(5) }} (±{{ b.geo_radius | int }}m){% else %}<span class="muted">not set</span>{% endif %}</td>
+    <td>{{ b.locations.count() }} locations</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted mb">No buildings yet. Create one below.</p>
+{% endif %}
+
+<div class="card">
+  <h2>New Building</h2>
+  <form method="post" action="/buildings/new">
+    <label>Name <input type="text" name="name" required></label>
+    <label>Description <input type="text" name="description"></label>
+    <div style="display:flex; gap:1em; flex-wrap:wrap; align-items:end;">
+      <label>Latitude <input type="text" name="latitude" id="lat" placeholder="e.g. 52.0907" style="max-width:160px;"></label>
+      <label>Longitude <input type="text" name="longitude" id="lon" placeholder="e.g. 5.1214" style="max-width:160px;"></label>
+      <label>Radius (m) <input type="number" name="geo_radius" value="100" style="max-width:100px;"></label>
+      <button type="button" class="btn-sm" onclick="fillGPS()">Use my location</button>
+    </div>
+    <button type="submit">Create</button>
+    <script>
+    function fillGPS() {
+      navigator.geolocation.getCurrentPosition(pos => {
+        document.getElementById('lat').value = pos.coords.latitude.toFixed(6);
+        document.getElementById('lon').value = pos.coords.longitude.toFixed(6);
+      }, err => alert('Location error: ' + err.message), {enableHighAccuracy: true});
+    }
+    </script>
+  </form>
+</div>
+{% endblock %}

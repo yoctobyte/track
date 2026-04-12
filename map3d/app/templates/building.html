@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ building.name }} — map3d{% endblock %}
+{% block content %}
+<h1>{{ building.name }}</h1>
+<p class="muted mb">{{ building.description }}</p>
+
+<h2>Locations</h2>
+
+{% macro render_tree(locations, depth=0) %}
+  <ul class="tree">
+  {% for loc in locations %}
+    <li>
+      <strong>{{ loc.name }}</strong>
+      <span class="muted">({{ loc.type }}, {{ loc.effective_environment }})</span>
+      {% if loc.observations.count() > 0 %}
+        — {{ loc.observations.count() }} photo(s)
+      {% endif %}
+      <form class="inline-form" method="post" action="/locations/{{ loc.id }}/edit">
+        <input type="hidden" name="name" value="{{ loc.name }}">
+        <input type="hidden" name="type" value="{{ loc.type }}">
+      </form>
+      {% if not loc.children and loc.observations.count() == 0 %}
+        <form class="inline-form" method="post" action="/locations/{{ loc.id }}/delete">
+          <button class="btn-sm btn-danger" type="submit" onclick="return confirm('Delete {{ loc.name }}?')">x</button>
+        </form>
+      {% endif %}
+      {% if loc.children %}
+        {{ render_tree(loc.children, depth + 1) }}
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+{% endmacro %}
+
+{% if roots %}
+  {{ render_tree(roots) }}
+{% else %}
+  <p class="muted mb">No locations yet.</p>
+{% endif %}
+
+<div class="card">
+  <h3>Add Location</h3>
+  <form method="post" action="/buildings/{{ building.id }}/locations/new">
+    <label>Name <input type="text" name="name" required></label>
+    <label>Type
+      <select name="type">
+        {% for t in ["floor", "corridor", "room", "cabinet", "wall", "corner",
+                     "grounds", "parking", "facade", "garden", "roof", "yard", "terrace", "balcony",
+                     "area", "other"] %}
+          <option value="{{ t }}">{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Environment
+      <select name="environment">
+        <option value="auto">auto (from type)</option>
+        <option value="indoor">indoor</option>
+        <option value="outdoor">outdoor</option>
+      </select>
+    </label>
+    <label>Parent
+      <select name="parent_id">
+        <option value="">(top level)</option>
+        {% for loc in building.locations.order_by("sort_order", "name") %}
+          <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.type }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Notes <input type="text" name="notes"></label>
+    <button type="submit">Add</button>
+  </form>
+</div>
+
+<p class="mb"><a class="btn" href="/upload?building_id={{ building.id }}">Upload photos to this building</a></p>
+{% endblock %}

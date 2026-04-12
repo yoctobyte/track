@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Upload — map3d{% endblock %}
+{% block content %}
+<h1>Upload Photos</h1>
+
+<div class="card">
+  <form method="post" enctype="multipart/form-data">
+    <label>Building
+      <select name="building_id" id="building-select" required>
+        <option value="">— select —</option>
+        {% for b in buildings %}
+          <option value="{{ b.id }}" {% if request.args.get('building_id')|int == b.id %}selected{% endif %}>
+            {{ b.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>Location (optional)
+      <select name="location_id" id="location-select">
+        <option value="">(no location — assign later)</option>
+      </select>
+    </label>
+
+    <label>Photos
+      <input type="file" name="photos" accept="image/*" multiple required>
+    </label>
+
+    <button type="submit">Upload</button>
+  </form>
+</div>
+
+<script>
+const locsByBuilding = {{ locations_by_building_json | safe }};
+const buildingSel = document.getElementById('building-select');
+const locationSel = document.getElementById('location-select');
+
+function updateLocations() {
+  const bid = buildingSel.value;
+  locationSel.innerHTML = '<option value="">(no location — assign later)</option>';
+  if (bid && locsByBuilding[bid]) {
+    locsByBuilding[bid].forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.id;
+      opt.textContent = l.name + ' (' + l.type + ')';
+      locationSel.appendChild(opt);
+    });
+  }
+}
+buildingSel.addEventListener('change', updateLocations);
+updateLocations();
+</script>
+{% endblock %}

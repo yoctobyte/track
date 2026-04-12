@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html><head><title>Gallery — map3d</title>
+<style>
+  body { font-family: sans-serif; max-width: 800px; margin: 2em auto; }
+  a { margin-right: 1em; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1em; }
+  th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+  .status-done { color: green; }
+  .status-processing { color: orange; }
+</style>
+</head><body>
+  <h1>Gallery</h1>
+  <nav><a href="/">Home</a><a href="/upload">Upload</a><a href="/gallery">Gallery</a></nav>
+  <hr>
+  {% if photos %}
+  <table>
+    <tr><th>#</th><th>Filename</th><th>Location</th><th>SHA256</th><th>Status</th></tr>
+    {% for p in photos %}
+    <tr>
+      <td>{{ p.id }}</td>
+      <td>{{ p.filename }}</td>
+      <td>{{ p.location.name if p.location else '—' }}</td>
+      <td><code>{{ p.sha256[:12] }}…</code></td>
+      <td class="status-{{ p.status }}">{{ p.status }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>No photos yet. <a href="/upload">Upload one.</a></p>
+  {% endif %}
+</body></html>
