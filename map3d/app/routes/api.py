@@ -65,6 +65,73 @@ def nearest_building():
     return jsonify({"building": None, "distance_m": None})
 
 
+@bp.route("/buildings/resolve", methods=["POST"])
+def resolve_building():
+    """Find or create a building by name (case-insensitive).
+
+    Expects JSON: {name: str, latitude?: float, longitude?: float, geo_radius?: float}
+    Returns: {id, name, created}
+    """
+    data = request.get_json()
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+
+    existing = Building.query.filter(
+        db.func.lower(Building.name) == name.lower()
+    ).first()
+
+    if existing:
+        return jsonify({"id": existing.id, "name": existing.name, "created": False})
+
+    b = Building(
+        name=name,
+        latitude=data.get("latitude"),
+        longitude=data.get("longitude"),
+        geo_radius=data.get("geo_radius", 100.0),
+    )
+    db.session.add(b)
+    db.session.commit()
+    return jsonify({"id": b.id, "name": b.name, "created": True}), 201
+
+
+@bp.route("/buildings/<int:building_id>/locations/resolve", methods=["POST"])
+def resolve_location(building_id):
+    """Find or create a location by name within a building (case-insensitive).
+
+    Expects JSON: {name: str, type?: str, environment?: str, parent_id?: int}
+    Returns: {id, name, created}
+    """
+    data = request.get_json()
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+
+    query = Location.query.filter(
+        Location.building_id == building_id,
+        db.func.lower(Location.name) == name.lower(),
+    )
+    parent_id = data.get("parent_id")
+    if parent_id:
+        query = query.filter(Location.parent_id == parent_id)
+
+    existing = query.first()
+
+    if existing:
+        return jsonify({"id": existing.id, "name": existing.name, "created": False})
+
+    loc = Location(
+        building_id=building_id,
+        name=name,
+        type=data.get("type", "room"),
+        environment=data.get("environment", "auto"),
+        parent_id=parent_id,
+    )
+    db.session.add(loc)
+    db.session.commit()
+    return jsonify({"id": loc.id, "name": loc.name, "created": True}), 201
+
+
 @bp.route("/buildings/<int:building_id>/locations")
 def list_locations(building_id):
     locations = Location.query.filter_by(building_id=building_id).order_by(

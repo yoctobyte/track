@@ -57,7 +57,7 @@ def upload():
             building_id=b.id
         ).order_by(Location.sort_order, Location.name).all()
 
-    # JSON for the dynamic location dropdown
+    buildings_json = [{"id": b.id, "name": b.name} for b in buildings]
     locs_json = {
         str(b.id): [{"id": l.id, "name": l.name, "type": l.type}
                      for l in locations_by_building[b.id]]
@@ -66,4 +66,5 @@ def upload():
 
     return render_template("upload.html",
                            buildings=buildings,
+                           buildings_json=json.dumps(buildings_json),
                            locations_by_building_json=json.dumps(locs_json))

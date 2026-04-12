@@ -3,23 +3,32 @@
 {% block content %}
 <h1>Capture</h1>
 
+<!-- Permission banner -->
+<div id="perm-banner" class="card mb" style="background:#fff3cd; border-color:#ffc107; display:none;">
+  <strong>Permissions needed</strong>
+  <p style="margin:0.3em 0;">This page works best with camera, location, and motion sensor access.</p>
+  <button id="btn-permissions" style="margin-top:0.3em;">Grant Permissions</button>
+  <span id="perm-status" class="muted" style="margin-left:1em;"></span>
+</div>
+
 <div class="card mb">
   <div style="display:flex; gap:1em; flex-wrap:wrap; align-items:end;">
     <div>
       <label>Building
-        <select id="building-select" required>
-          <option value="">— select —</option>
+        <input type="text" id="building-input" list="building-list"
+               placeholder="Select or type new..." autocomplete="off">
+        <datalist id="building-list">
           {% for b in buildings %}
-            <option value="{{ b.id }}">{{ b.name }}</option>
+            <option value="{{ b.name }}" data-id="{{ b.id }}">
           {% endfor %}
-        </select>
+        </datalist>
       </label>
     </div>
     <div>
       <label>Location
-        <select id="location-select">
-          <option value="">(assign later)</option>
-        </select>
+        <input type="text" id="location-input" list="location-list"
+               placeholder="Select or type new..." autocomplete="off">
+        <datalist id="location-list"></datalist>
       </label>
     </div>
   </div>
@@ -41,6 +50,14 @@
 
   <div>
     <div class="card">
+      <h3>Permissions</h3>
+      <table class="meta-table" style="font-size:0.85em;">
+        <tr><td>Camera</td><td id="p-camera" class="muted">pending</td></tr>
+        <tr><td>Location</td><td id="p-geo" class="muted">pending</td></tr>
+        <tr><td>Motion/Orient.</td><td id="p-motion" class="muted">pending</td></tr>
+      </table>
+    </div>
+    <div class="card">
       <h3>Sensor Status</h3>
       <table class="meta-table" style="font-size:0.85em;">
         <tr><td>Orientation</td><td id="s-orient" class="muted">—</td></tr>
@@ -59,141 +76,339 @@
 </div>
 
 <script>
+// --- State ---
+const buildings = {{ buildings_json | safe }};
 const locsByBuilding = {{ locations_by_building_json | safe }};
-const buildingSel = document.getElementById('building-select');
-const locationSel = document.getElementById('location-select');
-function updateLocations() {
-  const bid = buildingSel.value;
-  locationSel.innerHTML = '<option value="">(assign later)</option>';
-  if (bid && locsByBuilding[bid]) {
-    locsByBuilding[bid].forEach(l => {
-      const opt = document.createElement('option');
-      opt.value = l.id;
-      opt.textContent = l.name + ' (' + l.type + ')';
-      locationSel.appendChild(opt);
-    });
-  }
-}
-buildingSel.addEventListener('change', updateLocations);
-
-// --- Auto-detect building from GPS ---
+let resolvedBuildingId = null;
+let resolvedLocationId = null;
+let captureCount = 0;
+let facingMode = 'environment';
+let stream = null;
 let geoAutoDetected = false;
-async function autoDetectBuilding(lat, lon) {
-  if (geoAutoDetected) return;
-  try {
-    const r = await fetch(`/api/buildings/nearest?lat=${lat}&lon=${lon}`);
-    const data = await r.json();
-    if (data.building) {
-      buildingSel.value = data.building.id;
-      updateLocations();
-      geoAutoDetected = true;
-      document.getElementById('s-geo').textContent +=
-        ` → ${data.building.name} (${data.distance_m}m)`;
-    }
-  } catch (e) {}
-}
+const sensorState = {};
 
-// --- Camera ---
+// --- DOM refs ---
+const buildingInput = document.getElementById('building-input');
+const buildingList = document.getElementById('building-list');
+const locationInput = document.getElementById('location-input');
+const locationList = document.getElementById('location-list');
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const btnCapture = document.getElementById('btn-capture');
 const btnSwitch = document.getElementById('btn-switch');
 const statusEl = document.getElementById('capture-status');
-let captureCount = 0;
-let facingMode = 'environment';  // rear camera
-let stream = null;
 
+// --- Combo-box: Building ---
+function findBuildingByName(name) {
+  return buildings.find(b => b.name.toLowerCase() === name.toLowerCase());
+}
+
+function updateLocationDatalist() {
+  locationList.innerHTML = '';
+  locationInput.value = '';
+  resolvedLocationId = null;
+  if (!resolvedBuildingId || !locsByBuilding[resolvedBuildingId]) return;
+  locsByBuilding[resolvedBuildingId].forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.name;
+    opt.dataset.id = l.id;
+    opt.textContent = l.type;
+    locationList.appendChild(opt);
+  });
+}
+
+buildingInput.addEventListener('input', () => {
+  const match = findBuildingByName(buildingInput.value);
+  if (match) {
+    resolvedBuildingId = match.id;
+    updateLocationDatalist();
+  } else {
+    resolvedBuildingId = null;
+  }
+});
+
+buildingInput.addEventListener('change', () => {
+  const match = findBuildingByName(buildingInput.value);
+  if (match) {
+    resolvedBuildingId = match.id;
+    buildingInput.value = match.name;  // normalize case
+    updateLocationDatalist();
+  }
+  // If no match, it's a new building — will be created on capture
+});
+
+// --- Combo-box: Location ---
+function findLocationByName(name) {
+  if (!resolvedBuildingId || !locsByBuilding[resolvedBuildingId]) return null;
+  return locsByBuilding[resolvedBuildingId].find(
+    l => l.name.toLowerCase() === name.toLowerCase()
+  );
+}
+
+locationInput.addEventListener('input', () => {
+  const match = findLocationByName(locationInput.value);
+  resolvedLocationId = match ? match.id : null;
+});
+
+locationInput.addEventListener('change', () => {
+  const match = findLocationByName(locationInput.value);
+  if (match) {
+    resolvedLocationId = match.id;
+    locationInput.value = match.name;
+  }
+});
+
+// --- Resolve building/location, creating if needed ---
+async function resolveIds() {
+  const bName = buildingInput.value.trim();
+  if (!bName) return { buildingId: null, locationId: null };
+
+  // Resolve building
+  let buildingId = resolvedBuildingId;
+  if (!buildingId) {
+    const gps = sensorState.geolocation || {};
+    const r = await fetch('/api/buildings/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: bName,
+        latitude: gps.latitude || null,
+        longitude: gps.longitude || null,
+      }),
+    });
+    const data = await r.json();
+    buildingId = data.id;
+    resolvedBuildingId = data.id;
+    if (data.created) {
+      buildings.push({ id: data.id, name: data.name });
+      locsByBuilding[data.id] = [];
+      const opt = document.createElement('option');
+      opt.value = data.name;
+      opt.dataset.id = data.id;
+      buildingList.appendChild(opt);
+    }
+  }
+
+  // Resolve location
+  const lName = locationInput.value.trim();
+  let locationId = resolvedLocationId;
+  if (lName && !locationId) {
+    const r = await fetch(`/api/buildings/${buildingId}/locations/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: lName }),
+    });
+    const data = await r.json();
+    locationId = data.id;
+    resolvedLocationId = data.id;
+    if (data.created) {
+      locsByBuilding[buildingId].push({ id: data.id, name: data.name, type: 'room' });
+      const opt = document.createElement('option');
+      opt.value = data.name;
+      opt.dataset.id = data.id;
+      locationList.appendChild(opt);
+    }
+  }
+
+  return { buildingId, locationId };
+}
+
+// --- Permissions ---
+const permEls = {
+  camera: document.getElementById('p-camera'),
+  geo: document.getElementById('p-geo'),
+  motion: document.getElementById('p-motion'),
+};
+
+function setPerm(key, state) {
+  const el = permEls[key];
+  el.textContent = state;
+  el.className = state === 'granted' ? 'status-done' :
+                 state === 'denied' ? 'status-failed' : 'muted';
+}
+
+async function requestAllPermissions() {
+  // Camera
+  try {
+    await startCamera();
+    setPerm('camera', 'granted');
+  } catch (e) {
+    setPerm('camera', 'denied');
+  }
+
+  // Geolocation — requesting it starts the watcher
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      () => setPerm('geo', 'granted'),
+      () => setPerm('geo', 'denied'),
+      { enableHighAccuracy: true }
+    );
+  } else {
+    setPerm('geo', 'n/a');
+  }
+
+  // Motion/Orientation — iOS 13+ needs explicit permission
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const orient = await DeviceOrientationEvent.requestPermission();
+      setPerm('motion', orient);
+    } catch (e) {
+      setPerm('motion', 'denied');
+    }
+    try {
+      await DeviceMotionEvent.requestPermission();
+    } catch (e) {}
+  } else if (typeof DeviceOrientationEvent !== 'undefined') {
+    // Android — no permission API, just works
+    setPerm('motion', 'granted');
+  } else {
+    setPerm('motion', 'n/a');
+  }
+
+  // Start sensor listeners after permissions
+  startSensors();
+
+  // Hide banner
+  document.getElementById('perm-banner').style.display = 'none';
+}
+
+// Check if we need to show the permission banner
+async function checkPermissions() {
+  let needsBanner = false;
+
+  if (navigator.permissions) {
+    try {
+      const cam = await navigator.permissions.query({ name: 'camera' });
+      setPerm('camera', cam.state);
+      if (cam.state === 'prompt') needsBanner = true;
+    } catch (e) { needsBanner = true; }
+
+    try {
+      const geo = await navigator.permissions.query({ name: 'geolocation' });
+      setPerm('geo', geo.state);
+      if (geo.state === 'prompt') needsBanner = true;
+    } catch (e) { needsBanner = true; }
+  } else {
+    needsBanner = true;
+  }
+
+  // iOS motion always needs user gesture
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    setPerm('motion', 'prompt');
+    needsBanner = true;
+  }
+
+  if (needsBanner) {
+    document.getElementById('perm-banner').style.display = 'block';
+  } else {
+    // Already granted — just start everything
+    startCamera();
+    startSensors();
+  }
+}
+
+document.getElementById('btn-permissions').addEventListener('click', requestAllPermissions);
+
+// --- Camera ---
 async function startCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
-      audio: false,
-    });
-    video.srcObject = stream;
-    btnCapture.disabled = false;
-    statusEl.textContent = 'Camera ready';
-  } catch (e) {
-    statusEl.textContent = 'Camera error: ' + e.message;
-  }
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    audio: false,
+  });
+  video.srcObject = stream;
+  btnCapture.disabled = false;
+  statusEl.textContent = 'Camera ready';
+  setPerm('camera', 'granted');
 }
 
 btnSwitch.addEventListener('click', () => {
   facingMode = facingMode === 'environment' ? 'user' : 'environment';
-  startCamera();
+  startCamera().catch(e => { statusEl.textContent = 'Camera error: ' + e.message; });
 });
 
-// --- Sensor data collection ---
-const sensorState = {};
+// --- Sensors ---
+function round(v) { return v !== null && v !== undefined ? Math.round(v * 100) / 100 : null; }
 
-// DeviceOrientation (works on most phones without permission on Android, needs permission on iOS)
-window.addEventListener('deviceorientation', e => {
-  if (e.alpha !== null) {
-    sensorState.orientation = {
-      alpha: round(e.alpha), beta: round(e.beta), gamma: round(e.gamma),
-      absolute: e.absolute || false,
-    };
-    document.getElementById('s-orient').textContent =
-      `a:${round(e.alpha)} b:${round(e.beta)} g:${round(e.gamma)}`;
-    document.getElementById('s-orient').className = '';
-  }
-});
-
-// DeviceMotion (accelerometer + gyroscope)
-window.addEventListener('devicemotion', e => {
-  if (e.accelerationIncludingGravity) {
-    const a = e.accelerationIncludingGravity;
-    sensorState.accelerometer = { x: round(a.x), y: round(a.y), z: round(a.z) };
-    document.getElementById('s-accel').textContent = `${round(a.x)} ${round(a.y)} ${round(a.z)}`;
-    document.getElementById('s-accel').className = '';
-  }
-  if (e.rotationRate) {
-    const r = e.rotationRate;
-    sensorState.gyroscope = { alpha: round(r.alpha), beta: round(r.beta), gamma: round(r.gamma) };
-    document.getElementById('s-gyro').textContent = `${round(r.alpha)} ${round(r.beta)} ${round(r.gamma)}`;
-    document.getElementById('s-gyro').className = '';
-  }
-});
-
-// Geolocation (continuous watch)
-if ('geolocation' in navigator) {
-  navigator.geolocation.watchPosition(
-    pos => {
-      sensorState.geolocation = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-        altitude: pos.coords.altitude,
-        accuracy: pos.coords.accuracy,
-        altitudeAccuracy: pos.coords.altitudeAccuracy,
-        heading: pos.coords.heading,
-        speed: pos.coords.speed,
+function startSensors() {
+  // DeviceOrientation
+  window.addEventListener('deviceorientation', e => {
+    if (e.alpha !== null) {
+      sensorState.orientation = {
+        alpha: round(e.alpha), beta: round(e.beta), gamma: round(e.gamma),
+        absolute: e.absolute || false,
       };
-      document.getElementById('s-geo').textContent =
-        `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)} (±${Math.round(pos.coords.accuracy)}m)`;
-      document.getElementById('s-geo').className = '';
-      // Auto-detect building if not manually selected
-      if (!buildingSel.value) {
-        autoDetectBuilding(pos.coords.latitude, pos.coords.longitude);
-      }
-    },
-    err => {
-      document.getElementById('s-geo').textContent = err.message;
-    },
-    { enableHighAccuracy: true, maximumAge: 2000 }
-  );
+      document.getElementById('s-orient').textContent =
+        `a:${round(e.alpha)} b:${round(e.beta)} g:${round(e.gamma)}`;
+      document.getElementById('s-orient').className = '';
+    }
+  });
+
+  // DeviceMotion
+  window.addEventListener('devicemotion', e => {
+    if (e.accelerationIncludingGravity) {
+      const a = e.accelerationIncludingGravity;
+      sensorState.accelerometer = { x: round(a.x), y: round(a.y), z: round(a.z) };
+      document.getElementById('s-accel').textContent = `${round(a.x)} ${round(a.y)} ${round(a.z)}`;
+      document.getElementById('s-accel').className = '';
+    }
+    if (e.rotationRate) {
+      const r = e.rotationRate;
+      sensorState.gyroscope = { alpha: round(r.alpha), beta: round(r.beta), gamma: round(r.gamma) };
+      document.getElementById('s-gyro').textContent = `${round(r.alpha)} ${round(r.beta)} ${round(r.gamma)}`;
+      document.getElementById('s-gyro').className = '';
+    }
+  });
+
+  // Geolocation
+  if ('geolocation' in navigator) {
+    navigator.geolocation.watchPosition(
+      pos => {
+        sensorState.geolocation = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          altitude: pos.coords.altitude,
+          accuracy: pos.coords.accuracy,
+          altitudeAccuracy: pos.coords.altitudeAccuracy,
+          heading: pos.coords.heading,
+          speed: pos.coords.speed,
+        };
+        document.getElementById('s-geo').textContent =
+          `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)} (±${Math.round(pos.coords.accuracy)}m)`;
+        document.getElementById('s-geo').className = '';
+        setPerm('geo', 'granted');
+        if (!buildingInput.value) {
+          autoDetectBuilding(pos.coords.latitude, pos.coords.longitude);
+        }
+      },
+      err => {
+        document.getElementById('s-geo').textContent = err.message;
+        setPerm('geo', 'denied');
+      },
+      { enableHighAccuracy: true, maximumAge: 2000 }
+    );
+  }
+
+  // Magnetometer (Generic Sensor API)
+  tryGenericSensor('Magnetometer', 'magnetometer', 's-mag', s => ({ x: s.x, y: s.y, z: s.z }));
+  // Barometer
+  tryGenericSensor('PressureSensor', 'barometer', 's-baro', s => ({ pressure: s.pressure }));
 }
 
-// Generic Sensor API (magnetometer, barometer) — requires HTTPS and permissions
-function tryGenericSensor(SensorClass, name, elId, formatter) {
+function tryGenericSensor(className, name, elId, formatter) {
+  const Ctor = window[className];
+  if (!Ctor) { document.getElementById(elId).textContent = 'n/a'; return; }
   try {
-    const sensor = new SensorClass({ frequency: 10 });
+    const sensor = new Ctor({ frequency: 10 });
     sensor.addEventListener('reading', () => {
       sensorState[name] = formatter(sensor);
       document.getElementById(elId).textContent = Object.values(sensorState[name])
         .map(v => typeof v === 'number' ? round(v) : v).join(' ');
       document.getElementById(elId).className = '';
     });
-    sensor.addEventListener('error', e => {
+    sensor.addEventListener('error', () => {
       document.getElementById(elId).textContent = 'n/a';
     });
     sensor.start();
@@ -202,53 +417,55 @@ function tryGenericSensor(SensorClass, name, elId, formatter) {
   }
 }
 
-if (typeof Magnetometer !== 'undefined') {
-  tryGenericSensor(Magnetometer, 'magnetometer', 's-mag', s => ({ x: s.x, y: s.y, z: s.z }));
-}
-// AmbientLightSensor could be barometer on some devices — actual barometer is not standard web API yet
-// We try PressureSensor if available (very few browsers)
-if (typeof PressureSensor !== 'undefined') {
-  tryGenericSensor(PressureSensor, 'barometer', 's-baro', s => ({ pressure: s.pressure }));
-}
-
-function round(v) { return v !== null && v !== undefined ? Math.round(v * 100) / 100 : null; }
-
-// --- iOS 13+ permission request ---
-if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-  btnCapture.addEventListener('click', async function iosPermOnce() {
-    try {
-      await DeviceOrientationEvent.requestPermission();
-      await DeviceMotionEvent.requestPermission();
-    } catch (e) {}
-    btnCapture.removeEventListener('click', iosPermOnce);
-  }, { once: true });
+// --- Auto-detect building from GPS ---
+async function autoDetectBuilding(lat, lon) {
+  if (geoAutoDetected) return;
+  try {
+    const r = await fetch(`/api/buildings/nearest?lat=${lat}&lon=${lon}`);
+    const data = await r.json();
+    if (data.building) {
+      buildingInput.value = data.building.name;
+      resolvedBuildingId = data.building.id;
+      updateLocationDatalist();
+      geoAutoDetected = true;
+      document.getElementById('s-geo').textContent +=
+        ` → ${data.building.name} (${data.distance_m}m)`;
+    }
+  } catch (e) {}
 }
 
 // --- Capture ---
 btnCapture.addEventListener('click', async () => {
-  if (!buildingSel.value) { statusEl.textContent = 'Select a building first!'; return; }
+  const bName = buildingInput.value.trim();
+  if (!bName) { statusEl.textContent = 'Enter a building name first!'; return; }
 
-  // Grab frame from video
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-  const imageData = canvas.toDataURL('image/jpeg', 0.92);
-
-  // Snapshot sensor state at this moment
-  const sensorSnapshot = JSON.parse(JSON.stringify(sensorState));
-  sensorSnapshot.timestamp = Date.now();
-
-  statusEl.textContent = 'Uploading...';
+  statusEl.textContent = 'Resolving...';
   btnCapture.disabled = true;
 
   try {
+    // Resolve (or create) building and location
+    const { buildingId, locationId } = await resolveIds();
+    if (!buildingId) { statusEl.textContent = 'Could not resolve building'; btnCapture.disabled = false; return; }
+
+    // Grab frame from video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const imageData = canvas.toDataURL('image/jpeg', 0.92);
+
+    // Snapshot sensor state
+    const sensorSnapshot = JSON.parse(JSON.stringify(sensorState));
+    sensorSnapshot.timestamp = Date.now();
+
+    statusEl.textContent = 'Uploading...';
+
     const resp = await fetch('/api/capture', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         image: imageData,
-        building_id: parseInt(buildingSel.value),
-        location_id: locationSel.value ? parseInt(locationSel.value) : null,
+        building_id: buildingId,
+        location_id: locationId,
         sensor: sensorSnapshot,
       }),
     });
@@ -256,20 +473,19 @@ btnCapture.addEventListener('click', async () => {
     if (result.ok) {
       captureCount++;
       document.getElementById('capture-count').textContent = captureCount;
-      statusEl.textContent = `Saved frame #${result.frame_id} (sensors: ${result.sensor_keys.join(', ') || 'none'})`;
-      // Show small thumbnail of last capture
+      statusEl.textContent = `Saved #${result.frame_id} (sensors: ${result.sensor_keys.join(', ') || 'none'})`;
       document.getElementById('last-capture').innerHTML =
         `<img src="${imageData}" style="max-width:150px; border-radius:4px; opacity:0.7;">`;
     } else {
       statusEl.textContent = 'Error: ' + (result.error || 'unknown');
     }
   } catch (e) {
-    statusEl.textContent = 'Upload failed: ' + e.message;
+    statusEl.textContent = 'Failed: ' + e.message;
   }
   btnCapture.disabled = false;
 });
 
-// Start camera on load
-startCamera();
+// --- Init ---
+checkPermissions();
 </script>
 {% endblock %}

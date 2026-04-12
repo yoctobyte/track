@@ -4,22 +4,24 @@
 <h1>Upload Photos</h1>
 
 <div class="card">
-  <form method="post" enctype="multipart/form-data">
+  <form id="upload-form" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="building_id" id="building-id-hidden">
+    <input type="hidden" name="location_id" id="location-id-hidden">
+
     <label>Building
-      <select name="building_id" id="building-select" required>
-        <option value="">— select —</option>
+      <input type="text" id="building-input" list="building-list"
+             placeholder="Select or type new..." autocomplete="off" required>
+      <datalist id="building-list">
         {% for b in buildings %}
-          <option value="{{ b.id }}" {% if request.args.get('building_id')|int == b.id %}selected{% endif %}>
-            {{ b.name }}
-          </option>
+          <option value="{{ b.name }}" data-id="{{ b.id }}">
         {% endfor %}
-      </select>
+      </datalist>
     </label>
 
     <label>Location (optional)
-      <select name="location_id" id="location-select">
-        <option value="">(no location — assign later)</option>
-      </select>
+      <input type="text" id="location-input" list="location-list"
+             placeholder="Select or type new..." autocomplete="off">
+      <datalist id="location-list"></datalist>
     </label>
 
     <label>Photos
@@ -27,27 +29,111 @@
     </label>
 
     <button type="submit">Upload</button>
+    <span id="upload-status" class="muted"></span>
   </form>
 </div>
 
 <script>
+const buildings = {{ buildings_json | safe }};
 const locsByBuilding = {{ locations_by_building_json | safe }};
-const buildingSel = document.getElementById('building-select');
-const locationSel = document.getElementById('location-select');
+let resolvedBuildingId = null;
+let resolvedLocationId = null;
 
-function updateLocations() {
-  const bid = buildingSel.value;
-  locationSel.innerHTML = '<option value="">(no location — assign later)</option>';
-  if (bid && locsByBuilding[bid]) {
-    locsByBuilding[bid].forEach(l => {
-      const opt = document.createElement('option');
-      opt.value = l.id;
-      opt.textContent = l.name + ' (' + l.type + ')';
-      locationSel.appendChild(opt);
-    });
-  }
+const buildingInput = document.getElementById('building-input');
+const locationInput = document.getElementById('location-input');
+const locationList = document.getElementById('location-list');
+
+// Pre-select building if passed in URL
+{% if request.args.get('building_id') %}
+  const preselect = buildings.find(b => b.id === {{ request.args.get('building_id', 0) | int }});
+  if (preselect) { buildingInput.value = preselect.name; resolvedBuildingId = preselect.id; }
+{% endif %}
+
+function findBuildingByName(name) {
+  return buildings.find(b => b.name.toLowerCase() === name.toLowerCase());
 }
-buildingSel.addEventListener('change', updateLocations);
-updateLocations();
+
+function updateLocationDatalist() {
+  locationList.innerHTML = '';
+  locationInput.value = '';
+  resolvedLocationId = null;
+  if (!resolvedBuildingId || !locsByBuilding[resolvedBuildingId]) return;
+  locsByBuilding[resolvedBuildingId].forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.name;
+    opt.dataset.id = l.id;
+    opt.textContent = l.type;
+    locationList.appendChild(opt);
+  });
+}
+
+buildingInput.addEventListener('input', () => {
+  const match = findBuildingByName(buildingInput.value);
+  resolvedBuildingId = match ? match.id : null;
+  if (match) updateLocationDatalist();
+});
+
+buildingInput.addEventListener('change', () => {
+  const match = findBuildingByName(buildingInput.value);
+  if (match) { resolvedBuildingId = match.id; buildingInput.value = match.name; updateLocationDatalist(); }
+});
+
+locationInput.addEventListener('input', () => {
+  if (!resolvedBuildingId || !locsByBuilding[resolvedBuildingId]) return;
+  const match = locsByBuilding[resolvedBuildingId].find(
+    l => l.name.toLowerCase() === locationInput.value.toLowerCase()
+  );
+  resolvedLocationId = match ? match.id : null;
+});
+
+locationInput.addEventListener('change', () => {
+  if (!resolvedBuildingId || !locsByBuilding[resolvedBuildingId]) return;
+  const match = locsByBuilding[resolvedBuildingId].find(
+    l => l.name.toLowerCase() === locationInput.value.toLowerCase()
+  );
+  if (match) { resolvedLocationId = match.id; locationInput.value = match.name; }
+});
+
+if (resolvedBuildingId) updateLocationDatalist();
+
+// On submit: resolve building/location (create if new), then submit form
+document.getElementById('upload-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const statusEl = document.getElementById('upload-status');
+  const bName = buildingInput.value.trim();
+  if (!bName) { statusEl.textContent = 'Enter a building name'; return; }
+
+  statusEl.textContent = 'Resolving...';
+
+  // Resolve building
+  let buildingId = resolvedBuildingId;
+  if (!buildingId) {
+    const r = await fetch('/api/buildings/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: bName }),
+    });
+    const data = await r.json();
+    buildingId = data.id;
+  }
+
+  // Resolve location
+  const lName = locationInput.value.trim();
+  let locationId = resolvedLocationId;
+  if (lName && !locationId) {
+    const r = await fetch(`/api/buildings/${buildingId}/locations/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: lName }),
+    });
+    const data = await r.json();
+    locationId = data.id;
+  }
+
+  document.getElementById('building-id-hidden').value = buildingId;
+  document.getElementById('location-id-hidden').value = locationId || '';
+  statusEl.textContent = '';
+  e.target.submit();
+});
 </script>
 {% endblock %}

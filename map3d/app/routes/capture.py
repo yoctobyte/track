@@ -10,6 +10,8 @@ bp = Blueprint("capture", __name__)
 def capture():
     buildings = Building.query.order_by(Building.name).all()
 
+    buildings_json = [{"id": b.id, "name": b.name} for b in buildings]
+
     locations_by_building = {}
     for b in buildings:
         locations_by_building[b.id] = Location.query.filter_by(
@@ -24,4 +26,5 @@ def capture():
 
     return render_template("capture.html",
                            buildings=buildings,
+                           buildings_json=json.dumps(buildings_json),
                            locations_by_building_json=json.dumps(locs_json))
