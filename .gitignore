@@ -37,3 +37,9 @@ Thumbs.db
 # Logs
 *.log
 nohup.out
+
+# Local CUDA COLMAP build artifacts (rebuilt locally, not repo content)
+tmp-colmap-build/
+
+# Claude Code session state
+.claude/
