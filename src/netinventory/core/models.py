@@ -43,3 +43,23 @@ class NetworkSummary:
             "display_name": self.display_name,
             "notes": self.notes,
         }
+
+
+@dataclass(frozen=True)
+class ObservationIngestResult:
+    observation_id: str
+    network_id: str
+    stored: bool
+    material_change: bool
+    active_network_changed: bool
+    reason: str
+
+    def to_dict(self) -> dict[str, str | bool]:
+        return {
+            "observation_id": self.observation_id,
+            "network_id": self.network_id,
+            "stored": self.stored,
+            "material_change": self.material_change,
+            "active_network_changed": self.active_network_changed,
+            "reason": self.reason,
+        }

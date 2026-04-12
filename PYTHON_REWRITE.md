@@ -72,12 +72,14 @@ Current remote-agent surface:
 - `GET /api/v1/status`
 - `GET /api/v1/current`
 - `GET /api/v1/networks`
+- `GET /api/v1/tasks`
 - `GET /api/v1/export`
 
 CLI additions:
 
 - `netinv serve`
 - `netinv export`
+- `netinv import`
 
 Current auth model:
 
@@ -92,6 +94,30 @@ Current collector progress:
 - writes one observation into SQLite
 - updates active network and minimal network summary state
 - uses a simple initial local fingerprint based on host identity and detected IP
+- observations now store structured fact payloads, not just summary text
+- consecutive duplicate probe results are now suppressed to reduce needless writes
+- the local probe now captures gateway, resolver, and interface state from the host
+
+Current task-runtime progress:
+
+- task definition model added
+- task runs stored in SQLite
+- `current_network_probe` is the first scheduler-driven task
+- `recent` now reports recent task activity
+- remote agent can expose task definitions and recent task runs
+
+Current user-context progress:
+
+- user annotations are now stored as structured records
+- CLI can attach context to arbitrary entity kinds
+- remote agent can expose stored user context
+- user context and task runs now keep source-device attribution for replication
+
+Current sync-transport progress:
+
+- export bundles now emit replication-style records rather than only local tables
+- import can merge observations, task runs, and user context from a bundle
+- imported records are deduplicated by stable record IDs already stored in SQLite
 
 ## Port Status Checkpoint
 
@@ -111,10 +137,10 @@ What is not ported and should be rebuilt rather than translated:
 
 Immediate next backend targets:
 
-1. structured fact storage instead of summary-only observation text
-2. material-change detection and duplicate suppression
-3. richer network sensing inputs
-4. workstation-side import path for exported agent bundles
+1. network/site/port relationship inference
+2. long-running task execution and summarization
+3. richer per-task reporting and freshness summaries
+4. device identity and signed replication envelopes
 
 ## Legacy Status
 

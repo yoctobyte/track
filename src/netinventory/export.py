@@ -39,3 +39,19 @@ def write_export_bundle(output_path: str | None = None) -> Path:
 
     output.write_bytes(build_export_bundle_bytes())
     return output
+
+
+def read_export_bundle(input_path: str) -> dict[str, object]:
+    bundle_path = Path(input_path).expanduser()
+    with tarfile.open(bundle_path, mode="r:gz") as archive:
+        member = archive.getmember("export.json")
+        handle = archive.extractfile(member)
+        if handle is None:
+            raise ValueError("export bundle is missing export.json")
+        return json.load(handle)
+
+
+def import_export_bundle(input_path: str) -> dict[str, int]:
+    db = Database(get_app_paths())
+    payload = read_export_bundle(input_path)
+    return db.import_bundle_data(payload)
