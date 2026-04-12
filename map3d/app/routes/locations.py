@@ -5,6 +5,12 @@ from ..models import Building, Location
 bp = Blueprint("locations", __name__)
 
 
+def delete_location_subtree(loc: Location):
+    for child in list(loc.children):
+        delete_location_subtree(child)
+    db.session.delete(loc)
+
+
 @bp.route("/")
 def index():
     buildings = Building.query.order_by(Building.name).all()
@@ -73,9 +79,10 @@ def edit_location(location_id):
 @bp.route("/locations/<int:location_id>/delete", methods=["POST"])
 def delete_location(location_id):
     loc = db.session.get(Location, location_id)
+    if not loc:
+        return redirect(url_for("locations.index"))
     building_id = loc.building_id
-    # Only delete if no children and no observations
-    if not loc.children and loc.observations.count() == 0:
-        db.session.delete(loc)
+    if loc.can_delete:
+        delete_location_subtree(loc)
         db.session.commit()
     return redirect(url_for("locations.building_detail", building_id=building_id))

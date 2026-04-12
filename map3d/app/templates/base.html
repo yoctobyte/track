@@ -6,27 +6,27 @@
   <title>{% block title %}map3d{% endblock %}</title>
   <style>
     :root {
-      --bg-deep:     #0d0a12;
-      --bg-surface:  #1a1525;
-      --bg-card:     #231d30;
-      --bg-raised:   #2e2640;
-      --purple:      #8b5cf6;
-      --purple-dim:  #6d3fd4;
-      --purple-glow: #a78bfa;
-      --pink:        #ec4899;
-      --pink-hot:    #f472b6;
-      --neon-green:  #39ff7f;
-      --neon-cyan:   #22d3ee;
-      --neon-orange: #fb923c;
-      --brown-70s:   #a0714f;
-      --brown-warm:  #7c5c3e;
-      --text:        #e8e0f0;
-      --text-dim:    #9890a8;
-      --text-bright: #ffffff;
-      --border:      #3d3450;
-      --border-glow: rgba(139, 92, 246, 0.3);
-      --shadow:      0 4px 20px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
-      --shadow-glow: 0 4px 20px rgba(139, 92, 246, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+      --bg-deep:     #d7c89b;
+      --bg-surface:  #413628;
+      --bg-card:     #efe4bc;
+      --bg-raised:   #5b4a37;
+      --purple:      #7d4bdb;
+      --purple-dim:  #5f35b4;
+      --purple-glow: #c5a7ff;
+      --pink:        #df4d91;
+      --pink-hot:    #ff72b3;
+      --neon-green:  #4eea77;
+      --neon-cyan:   #18d3d7;
+      --neon-orange: #ff9447;
+      --brown-70s:   #8b6941;
+      --brown-warm:  #5f472f;
+      --text:        #2f261d;
+      --text-dim:    #6f604f;
+      --text-bright: #fff8e7;
+      --border:      #9d875d;
+      --border-glow: rgba(125, 75, 219, 0.22);
+      --shadow:      0 12px 28px rgba(72, 57, 34, 0.18), 0 2px 6px rgba(72, 57, 34, 0.12);
+      --shadow-glow: 0 12px 28px rgba(125, 75, 219, 0.18), 0 2px 6px rgba(72, 57, 34, 0.12);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,7 +34,10 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       max-width: 1100px; margin: 0 auto; padding: 1em;
-      color: var(--text); background: var(--bg-deep);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(255, 247, 214, 0.7), transparent 38%),
+        linear-gradient(180deg, #e3d4a3 0%, #d7c89b 48%, #ccb985 100%);
     }
 
     /* --- Nav --- */
@@ -51,28 +54,28 @@
     }
     nav a:hover {
       color: var(--text-bright); background: var(--purple-dim);
-      box-shadow: 0 0 12px rgba(139, 92, 246, 0.3);
+      box-shadow: 0 0 12px rgba(125, 75, 219, 0.34);
     }
 
     /* --- Typography --- */
-    h1, h2, h3 { margin-bottom: 0.5em; color: var(--text-bright); }
+    h1, h2, h3 { margin-bottom: 0.5em; color: var(--brown-warm); }
     h1 { font-size: 1.5em; }
     h1::after {
       content: ''; display: block; width: 60px; height: 2px; margin-top: 0.3em;
-      background: linear-gradient(90deg, var(--pink), var(--purple), transparent);
+      background: linear-gradient(90deg, var(--pink-hot), var(--purple), transparent);
     }
     a { color: var(--pink-hot); }
     a:hover { color: var(--neon-cyan); }
 
     /* --- Flash messages --- */
     .flash {
-      background: linear-gradient(135deg, rgba(57, 255, 127, 0.1), rgba(57, 255, 127, 0.05));
-      border: 1px solid rgba(57, 255, 127, 0.3); color: var(--neon-green);
+      background: linear-gradient(135deg, rgba(78, 234, 119, 0.14), rgba(78, 234, 119, 0.06));
+      border: 1px solid rgba(78, 234, 119, 0.35); color: #246235;
       padding: 0.6em 1em; border-radius: 6px; margin-bottom: 1em;
     }
     .flash.error {
-      background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(236, 72, 153, 0.05));
-      border-color: rgba(236, 72, 153, 0.3); color: var(--pink);
+      background: linear-gradient(135deg, rgba(223, 77, 145, 0.14), rgba(223, 77, 145, 0.06));
+      border-color: rgba(223, 77, 145, 0.32); color: #8a1d57;
     }
 
     /* --- Forms --- */
@@ -81,7 +84,7 @@
     input, select, textarea, button { font-size: 1em; padding: 0.4em 0.6em; }
     input[type="text"], input[type="number"], input[type="file"], select, textarea {
       width: 100%; max-width: 400px;
-      background: var(--bg-deep); color: var(--text); border: 1px solid var(--border);
+      background: rgba(255, 251, 236, 0.86); color: var(--text); border: 1px solid var(--border);
       border-radius: 6px; transition: border-color 0.15s, box-shadow 0.15s;
     }
     input:focus, select:focus, textarea:focus {
@@ -97,28 +100,29 @@
       color: var(--text-bright); border: none; padding: 0.5em 1.2em;
       border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block;
       font-weight: 600; transition: all 0.15s;
-      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.25);
+      box-shadow: 0 2px 8px rgba(125, 75, 219, 0.24);
     }
     button:hover, .btn:hover {
       background: linear-gradient(135deg, var(--purple-glow) 0%, var(--purple) 100%);
-      box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+      box-shadow: 0 4px 16px rgba(125, 75, 219, 0.36);
       transform: translateY(-1px);
     }
     .btn-sm { padding: 0.3em 0.8em; font-size: 0.85em; }
     .btn-danger {
-      background: linear-gradient(135deg, var(--pink) 0%, #be185d 100%);
-      box-shadow: 0 2px 8px rgba(236, 72, 153, 0.25);
+      background: linear-gradient(135deg, var(--pink) 0%, #b72a68 100%);
+      box-shadow: 0 2px 8px rgba(223, 77, 145, 0.26);
     }
     .btn-danger:hover {
       background: linear-gradient(135deg, var(--pink-hot) 0%, var(--pink) 100%);
-      box-shadow: 0 4px 16px rgba(236, 72, 153, 0.4);
+      box-shadow: 0 4px 16px rgba(223, 77, 145, 0.34);
     }
 
     /* --- Tables --- */
     table { border-collapse: collapse; width: 100%; margin: 1em 0; }
     th, td { border: 1px solid var(--border); padding: 0.5em 0.8em; text-align: left; }
     th { background: var(--bg-raised); color: var(--purple-glow); font-weight: 600; }
-    tr:hover td { background: rgba(139, 92, 246, 0.05); }
+    td { background: rgba(251, 244, 213, 0.8); }
+    tr:hover td { background: rgba(163, 130, 79, 0.09); }
 
     /* --- Cards --- */
     .card {
@@ -138,7 +142,7 @@
     }
     .grid .thumb:hover {
       border-color: var(--pink); transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(236, 72, 153, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 8px 30px rgba(223, 77, 145, 0.18), 0 2px 6px rgba(72, 57, 34, 0.16);
     }
     .grid .thumb img { width: 100%; height: 180px; object-fit: cover; display: block; }
     .grid .thumb .info { padding: 0.5em; font-size: 0.85em; color: var(--text-dim); }
@@ -146,7 +150,7 @@
     /* --- Location tree --- */
     .tree { list-style: none; padding-left: 1.5em; }
     .tree > li { margin: 0.3em 0; }
-    .tree strong { color: var(--neon-cyan); }
+    .tree strong { color: var(--neon-cyan); text-shadow: 0 0 8px rgba(24, 211, 215, 0.15); }
 
     /* --- Meta tables --- */
     .meta-table td:first-child { font-weight: 500; width: 180px; color: var(--brown-70s); }
@@ -167,7 +171,7 @@
 
     /* --- Scrollbar --- */
     ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-track { background: #d3c18c; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--purple-dim); }
 
@@ -176,12 +180,15 @@
   </style>
 </head>
 <body>
+  {% if session.get('authenticated') %}
   <nav>
     <a href="/">Buildings</a>
     <a href="/capture">Capture</a>
     <a href="/upload">Upload</a>
     <a href="/gallery">Gallery</a>
+    <a href="/logout">Logout</a>
   </nav>
+  {% endif %}
   {% with messages = get_flashed_messages() %}
     {% for msg in messages %}
       <div class="flash">{{ msg }}</div>

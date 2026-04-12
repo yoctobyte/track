@@ -55,6 +55,16 @@ class Location(db.Model):
     observations = db.relationship("Observation", backref="location", lazy="dynamic")
     apriltags = db.relationship("AprilTag", backref="linked_location", lazy="dynamic")
 
+    @property
+    def has_data(self):
+        if self.observations.count() > 0 or self.apriltags.count() > 0:
+            return True
+        return any(child.has_data for child in self.children)
+
+    @property
+    def can_delete(self):
+        return not self.has_data
+
 
 class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)

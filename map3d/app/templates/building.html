@@ -19,9 +19,9 @@
         <input type="hidden" name="name" value="{{ loc.name }}">
         <input type="hidden" name="type" value="{{ loc.type }}">
       </form>
-      {% if not loc.children and loc.observations.count() == 0 %}
+      {% if loc.can_delete %}
         <form class="inline-form" method="post" action="/locations/{{ loc.id }}/delete">
-          <button class="btn-sm btn-danger" type="submit" onclick="return confirm('Delete {{ loc.name }}?')">x</button>
+          <button class="btn-sm btn-danger" type="submit" onclick="return confirm('Delete {{ loc.name }} and any empty child locations?')">x</button>
         </form>
       {% endif %}
       {% if loc.children %}

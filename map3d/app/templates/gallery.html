@@ -48,6 +48,8 @@
       {% set obs = f.observations.first() %}
       {% if obs and obs.location %}
         {{ obs.location.name }}
+      {% elif f.asset.session.building %}
+        <span title="No specific location assigned">Building: {{ f.asset.session.building.name }}</span>
       {% else %}
         <em class="muted">no location</em>
       {% endif %}

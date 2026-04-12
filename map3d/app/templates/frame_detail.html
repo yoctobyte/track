@@ -18,6 +18,12 @@
       {% if observation and observation.location %}
         <p><strong>{{ observation.location.name }}</strong>
            <span class="muted">({{ observation.assignment_method }})</span></p>
+        {% if frame.asset.session.building %}
+          <p class="muted">Building: {{ frame.asset.session.building.name }}</p>
+        {% endif %}
+      {% elif frame.asset.session.building %}
+        <p><strong>{{ frame.asset.session.building.name }}</strong></p>
+        <p class="muted">No specific location assigned for this frame.</p>
       {% else %}
         <p class="muted">Not assigned</p>
       {% endif %}

@@ -1,76 +1,500 @@
 {% extends "base.html" %}
 {% block title %}Capture — map3d{% endblock %}
 {% block content %}
-<h1>Capture</h1>
+<style>
+  body {
+    max-width: none;
+    padding: 0;
+    overflow-x: hidden;
+  }
+  nav {
+    position: absolute;
+    top: 0.9rem;
+    left: 1rem;
+    right: 1rem;
+    z-index: 3;
+    margin-bottom: 0;
+    background: rgba(35, 28, 24, 0.42);
+    border-color: rgba(244, 230, 186, 0.18);
+    backdrop-filter: blur(10px);
+  }
+  .flash {
+    position: absolute;
+    top: 4.9rem;
+    left: 1rem;
+    right: 1rem;
+    z-index: 3;
+    max-width: 34rem;
+  }
+  .capture-shell {
+    position: relative;
+    width: 100vw;
+    min-height: 100vh;
+    margin: 0 calc(50% - 50vw);
+    border-radius: 0;
+    overflow: hidden;
+    background: #120f13;
+    box-shadow: 0 18px 40px rgba(54, 35, 28, 0.22);
+  }
+  .capture-video-wrap {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at top right, rgba(255, 114, 179, 0.16), transparent 28%),
+      radial-gradient(circle at bottom left, rgba(24, 211, 215, 0.12), transparent 25%),
+      #0b0a0e;
+  }
+  .capture-video-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(11, 10, 14, 0.62) 0%, rgba(11, 10, 14, 0.14) 28%, rgba(11, 10, 14, 0.18) 68%, rgba(11, 10, 14, 0.7) 100%);
+    pointer-events: none;
+  }
+  #video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: saturate(1.02) contrast(1.04);
+  }
+  .capture-overlay {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    padding: 4.8rem 0.85rem 0.6rem;
+    gap: 0.45rem;
+    color: #fff8e7;
+  }
+  .capture-topbar,
+  .capture-bottombar {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .capture-panel {
+    background: rgba(35, 28, 24, 0.62);
+    border: 1px solid rgba(244, 230, 186, 0.22);
+    border-radius: 16px;
+    padding: 0.55rem 0.75rem;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+  }
+  .capture-panel h3,
+  .capture-panel strong,
+  .capture-title {
+    color: #fff8e7;
+  }
+  .capture-grid {
+    display: flex;
+    gap: 0.6rem;
+    align-items: end;
+    flex-wrap: nowrap;
+  }
+  .capture-grid label,
+  .capture-bottombar label {
+    color: rgba(255, 248, 231, 0.86);
+  }
+  .capture-grid label {
+    display: flex;
+    flex-direction: column;
+    flex: 0 1 calc(50% - 0.3rem);
+    max-width: calc(50% - 0.3rem);
+    margin: 0;
+  }
+  .capture-grid input[type="text"] {
+    max-width: none;
+    background: rgba(255, 251, 236, 0.92);
+  }
+  .capture-middle {
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .capture-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .capture-actions-left,
+  .capture-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .capture-main-btn {
+    font-size: 1.05rem;
+    padding: 0.85rem 1.5rem;
+    min-width: 9rem;
+  }
+  .capture-burst-input {
+    width: 5.25rem;
+    max-width: 5.25rem;
+    min-width: 5.25rem;
+    padding: 0.45rem 0.55rem;
+  }
+  .capture-status {
+    min-height: 1.5rem;
+    color: rgba(255, 248, 231, 0.86);
+  }
+  .capture-status-indicator {
+    display: inline-block;
+    min-width: 1.2rem;
+    color: var(--neon-cyan);
+  }
+  .capture-reading {
+    font-family: "SFMono-Regular", "Cascadia Code", "Fira Code", monospace;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+  }
+  .capture-status-panel {
+    margin-top: auto;
+    background: rgba(22, 18, 17, 0.1);
+    border: none;
+    box-shadow: none;
+    backdrop-filter: blur(10px);
+    padding: 0.55rem 0.7rem;
+  }
+  .capture-status-list {
+    display: grid;
+    gap: 0.32rem;
+  }
+  .capture-status-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 0.8rem;
+    align-items: baseline;
+  }
+  .capture-status-name {
+    color: rgba(255, 248, 231, 0.62);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .capture-status-value {
+    color: rgba(255, 248, 231, 0.95);
+  }
+  .capture-count-number {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 14px rgba(24, 211, 215, 0.22);
+  }
+  .capture-thumb {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(244, 230, 186, 0.25);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  }
+  .capture-side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    align-self: center;
+  }
+  .capture-side-left {
+    align-items: flex-start;
+  }
+  .capture-side-right {
+    align-items: flex-end;
+  }
+  .capture-square {
+    width: 108px;
+    min-height: 108px;
+    padding: 0.75rem 0.65rem;
+    border-radius: 18px;
+    border: 1px solid rgba(244, 230, 186, 0.18);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.45rem;
+    text-align: left;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 14px 24px rgba(0, 0, 0, 0.18);
+  }
+  .capture-square-action {
+    background: rgba(78, 32, 68, 0.48);
+  }
+  .capture-square-config {
+    background: rgba(44, 58, 74, 0.48);
+  }
+  .capture-square:hover {
+    transform: translateY(-1px);
+  }
+  .capture-square-kicker {
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--text-bright);
+  }
+  .capture-square-label {
+    font-size: 0.74rem;
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 248, 231, 0.78);
+  }
+  .capture-square-value {
+    font-family: "SFMono-Regular", "Cascadia Code", "Fira Code", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.1rem;
+    color: var(--neon-cyan);
+  }
+  .capture-overlay-picker {
+    position: absolute;
+    inset: auto 1rem 1rem auto;
+    z-index: 2;
+    width: min(320px, calc(100vw - 2rem));
+    background: rgba(20, 17, 18, 0.88);
+    border: 1px solid rgba(244, 230, 186, 0.18);
+    border-radius: 16px;
+    padding: 0.8rem;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+  }
+  .capture-overlay-picker[hidden] {
+    display: none;
+  }
+  .capture-picker-title {
+    margin-bottom: 0.55rem;
+    color: rgba(255, 248, 231, 0.9);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .capture-picker-options {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.55rem;
+  }
+  .capture-picker-option {
+    min-width: 4rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 10px;
+    border: 1px solid rgba(244, 230, 186, 0.16);
+    background: rgba(255, 248, 231, 0.08);
+    color: rgba(255, 248, 231, 0.92);
+    cursor: pointer;
+  }
+  .capture-picker-option:hover {
+    background: rgba(125, 75, 219, 0.28);
+  }
+  .capture-picker-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .capture-picker-row input {
+    max-width: none;
+    margin: 0;
+  }
+  .capture-center-status {
+    flex: 1;
+    min-height: 14rem;
+  }
+  @media (max-width: 900px) {
+    .capture-shell,
+    .capture-overlay {
+      min-height: 100vh;
+    }
+    .capture-shell {
+      margin-top: 0;
+    }
+    .capture-grid {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: stretch;
+    }
+    .capture-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .capture-actions-left,
+    .capture-actions-right {
+      width: 100%;
+    }
+    nav {
+      top: 0;
+      left: 0;
+      right: 0;
+      border-radius: 0;
+    }
+    .flash {
+      top: 4.4rem;
+      left: 0.75rem;
+      right: 0.75rem;
+    }
+    .capture-overlay {
+      padding-top: 4.65rem;
+    }
+    .capture-status-row {
+      grid-template-columns: 92px 1fr;
+      gap: 0.55rem;
+    }
+    .capture-middle {
+      align-items: flex-end;
+    }
+    .capture-side {
+      gap: 0.5rem;
+    }
+    .capture-square {
+      width: 88px;
+      min-height: 88px;
+      padding: 0.6rem 0.55rem;
+    }
+    .capture-center-status {
+      min-height: 8rem;
+    }
+  }
+  @media (max-width: 500px) {
+    .capture-grid {
+      flex-wrap: wrap;
+    }
+    .capture-grid label {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+    .capture-middle {
+      gap: 0.45rem;
+    }
+    .capture-square {
+      width: 78px;
+      min-height: 78px;
+      padding: 0.5rem 0.45rem;
+      border-radius: 14px;
+    }
+    .capture-square-label {
+      font-size: 0.65rem;
+    }
+    .capture-square-value {
+      font-size: 0.92rem;
+    }
+  }
+</style>
 
-<!-- Permission banner -->
-<div id="perm-banner" class="card mb" style="border-color:var(--neon-orange); display:none;">
-  <strong style="color:var(--neon-orange);">Permissions needed</strong>
-  <p style="margin:0.3em 0;">This page works best with camera, location, and motion sensor access.</p>
-  <button id="btn-permissions" style="margin-top:0.3em;">Grant Permissions</button>
-  <span id="perm-status" class="muted" style="margin-left:1em;"></span>
-</div>
-
-<div class="card mb">
-  <div style="display:flex; gap:1em; flex-wrap:wrap; align-items:end;">
-    <div>
-      <label>Building
-        <input type="text" id="building-input" list="building-list"
-               placeholder="Select or type new..." autocomplete="off">
-        <datalist id="building-list">
-          {% for b in buildings %}
-            <option value="{{ b.name }}" data-id="{{ b.id }}">
-          {% endfor %}
-        </datalist>
-      </label>
-    </div>
-    <div>
-      <label>Location
-        <input type="text" id="location-input" list="location-list"
-               placeholder="Select or type new..." autocomplete="off">
-        <datalist id="location-list"></datalist>
-      </label>
-    </div>
+<div class="capture-shell">
+  <div class="capture-video-wrap">
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display:none;"></canvas>
   </div>
-</div>
 
-<div style="display:grid; grid-template-columns:1fr 300px; gap:1.5em;">
-  <div>
-    <div style="position:relative; background:#000; border-radius:6px; overflow:hidden;">
-      <video id="video" autoplay playsinline style="width:100%; display:block;"></video>
-      <canvas id="canvas" style="display:none;"></canvas>
+  <div class="capture-overlay">
+    <div class="capture-topbar">
+      <div id="perm-banner" class="capture-panel" style="border-color:var(--neon-orange); display:none; max-width:460px;">
+        <strong style="color:var(--neon-orange);">Permissions needed</strong>
+        <p style="margin:0.3em 0; color:rgba(255, 248, 231, 0.82);">This page works best with camera, location, and motion sensor access.</p>
+        <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+          <button id="btn-permissions">Grant Permissions</button>
+          <span id="perm-status" class="muted" style="color:rgba(255, 248, 231, 0.68);"></span>
+        </div>
+      </div>
     </div>
-    <div style="margin-top:0.8em; display:flex; gap:0.5em;">
-      <button id="btn-capture" disabled>Take Photo</button>
-      <button id="btn-switch" class="btn-sm" style="background:var(--brown-70s);">Switch Camera</button>
-      <span id="capture-status" class="muted" style="line-height:2.2em;"></span>
-    </div>
-    <div id="last-capture" style="margin-top:1em;"></div>
-  </div>
 
-  <div>
-    <div class="card">
-      <h3>Permissions</h3>
-      <table class="meta-table" style="font-size:0.85em;">
-        <tr><td>Camera</td><td id="p-camera" class="muted">pending</td></tr>
-        <tr><td>Location</td><td id="p-geo" class="muted">pending</td></tr>
-        <tr><td>Motion/Orient.</td><td id="p-motion" class="muted">pending</td></tr>
-      </table>
+    <div class="capture-panel">
+      <div class="capture-grid">
+        <label>Building
+          <input type="text" id="building-input" list="building-list"
+                 placeholder="Select or type new..." autocomplete="off">
+          <datalist id="building-list">
+            {% for b in buildings %}
+              <option value="{{ b.name }}" data-id="{{ b.id }}">
+            {% endfor %}
+          </datalist>
+        </label>
+        <label>Location
+          <input type="text" id="location-input" list="location-list"
+                 placeholder="Optional specific location..." autocomplete="off">
+          <datalist id="location-list"></datalist>
+        </label>
+      </div>
     </div>
-    <div class="card">
-      <h3>Sensor Status</h3>
-      <table class="meta-table" style="font-size:0.85em;">
-        <tr><td>Orientation</td><td id="s-orient" class="muted">—</td></tr>
-        <tr><td>Accelerometer</td><td id="s-accel" class="muted">—</td></tr>
-        <tr><td>Gyroscope</td><td id="s-gyro" class="muted">—</td></tr>
-        <tr><td>Magnetometer</td><td id="s-mag" class="muted">—</td></tr>
-        <tr><td>Geolocation</td><td id="s-geo" class="muted">—</td></tr>
-        <tr><td>Barometer</td><td id="s-baro" class="muted">—</td></tr>
-      </table>
+
+    <div class="capture-bottombar">
+      <div class="capture-panel" style="flex:1 1 540px;">
+        <div class="capture-actions">
+          <div class="capture-actions-left"></div>
+          <div class="capture-actions-right"></div>
+        </div>
+        <div class="capture-status capture-reading" style="margin-top:0.55rem;"><span id="capture-state" class="capture-status-indicator">○</span><span id="capture-status"></span></div>
+      </div>
     </div>
-    <div class="card">
-      <h3>Captures this session</h3>
-      <p id="capture-count">0</p>
+
+    <div class="capture-middle">
+      <div class="capture-side capture-side-left">
+        <button id="btn-side-capture" class="capture-square capture-square-action" type="button">
+          <span class="capture-square-kicker">◉</span>
+          <span class="capture-square-label">Take<br>Photo</span>
+        </button>
+        <button id="btn-side-burst" class="capture-square capture-square-action" type="button">
+          <span class="capture-square-kicker">◈</span>
+          <span class="capture-square-label">Start<br>Burst</span>
+        </button>
+        <button id="btn-side-burst-10" class="capture-square capture-square-action" type="button">
+          <span class="capture-square-kicker">⏱</span>
+          <span class="capture-square-label">Burst<br>10s</span>
+        </button>
+        <button id="btn-side-burst-timed" class="capture-square capture-square-action" type="button">
+          <span class="capture-square-kicker">⌛</span>
+          <span class="capture-square-label">Burst<br>Timed</span>
+        </button>
+        <button id="btn-side-burst-stop" class="capture-square capture-square-action" type="button" disabled>
+          <span class="capture-square-kicker">■</span>
+          <span class="capture-square-label">Stop<br>Burst</span>
+        </button>
+      </div>
+      <div class="capture-center-status"></div>
+      <div class="capture-side capture-side-right">
+        <button id="btn-side-interval" class="capture-square capture-square-config" type="button">
+          <span class="capture-square-kicker">⋮</span>
+          <span class="capture-square-label">Interval</span>
+          <span id="side-interval-value" class="capture-square-value">1.0</span>
+        </button>
+        <button id="btn-side-duration" class="capture-square capture-square-config" type="button">
+          <span class="capture-square-kicker">⧖</span>
+          <span class="capture-square-label">Timed</span>
+          <span id="side-duration-value" class="capture-square-value">30</span>
+        </button>
+        <button id="btn-side-camera" class="capture-square capture-square-config" type="button">
+          <span class="capture-square-kicker">⇄</span>
+          <span class="capture-square-label">Switch<br>Camera</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="config-picker" class="capture-overlay-picker" hidden>
+      <div id="config-picker-title" class="capture-picker-title">Configure</div>
+      <div id="config-picker-options" class="capture-picker-options"></div>
+      <div class="capture-picker-row">
+        <input id="config-picker-input" type="number" step="0.1">
+        <button id="config-picker-apply" class="btn-sm" type="button">Apply</button>
+        <button id="config-picker-close" class="btn-sm btn-danger" type="button">Close</button>
+      </div>
+    </div>
+
+    <div class="capture-panel capture-status-panel">
+      <div class="capture-status-list">
+        <div class="capture-status-row"><div class="capture-status-name">Permissions</div><div class="capture-status-value capture-reading"><span id="p-camera" class="muted">○ camera</span>  <span id="p-geo" class="muted">○ location</span>  <span id="p-motion" class="muted">○ motion</span></div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Orientation</div><div id="s-orient" class="capture-status-value capture-reading muted">—</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Accel</div><div id="s-accel" class="capture-status-value capture-reading muted">—</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Gyro</div><div id="s-gyro" class="capture-status-value capture-reading muted">—</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Mag</div><div id="s-mag" class="capture-status-value capture-reading muted">—</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Geo</div><div id="s-geo" class="capture-status-value capture-reading muted">—</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Baro</div><div id="s-baro" class="capture-status-value capture-reading muted">—</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Count</div><div id="capture-count" class="capture-status-value capture-count-number capture-reading">0</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Last</div><div id="last-capture"></div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -86,6 +510,13 @@ let facingMode = 'environment';
 let stream = null;
 let geoAutoDetected = false;
 const sensorState = {};
+let sensorsStarted = false;
+let geoWatchId = null;
+let captureInFlight = false;
+let burstTimerId = null;
+let burstStopId = null;
+let burstActive = false;
+let audioCtx = null;
 
 // --- DOM refs ---
 const buildingInput = document.getElementById('building-input');
@@ -94,9 +525,27 @@ const locationInput = document.getElementById('location-input');
 const locationList = document.getElementById('location-list');
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
-const btnCapture = document.getElementById('btn-capture');
-const btnSwitch = document.getElementById('btn-switch');
+const btnSideCapture = document.getElementById('btn-side-capture');
+const btnSideBurst = document.getElementById('btn-side-burst');
+const btnSideBurst10 = document.getElementById('btn-side-burst-10');
+const btnSideBurstTimed = document.getElementById('btn-side-burst-timed');
+const btnSideBurstStop = document.getElementById('btn-side-burst-stop');
+const btnSideInterval = document.getElementById('btn-side-interval');
+const btnSideDuration = document.getElementById('btn-side-duration');
+const btnSideCamera = document.getElementById('btn-side-camera');
+const sideIntervalValue = document.getElementById('side-interval-value');
+const sideDurationValue = document.getElementById('side-duration-value');
+const configPicker = document.getElementById('config-picker');
+const configPickerTitle = document.getElementById('config-picker-title');
+const configPickerOptions = document.getElementById('config-picker-options');
+const configPickerInput = document.getElementById('config-picker-input');
+const configPickerApply = document.getElementById('config-picker-apply');
+const configPickerClose = document.getElementById('config-picker-close');
 const statusEl = document.getElementById('capture-status');
+const stateEl = document.getElementById('capture-state');
+const permBanner = document.getElementById('perm-banner');
+const permStatusEl = document.getElementById('perm-status');
+let activePicker = null;
 
 // --- Combo-box: Building ---
 function findBuildingByName(name) {
@@ -222,27 +671,64 @@ const permEls = {
 
 function setPerm(key, state) {
   const el = permEls[key];
-  el.textContent = state;
+  const label = key === 'camera' ? 'camera' : key === 'geo' ? 'location' : 'motion';
+  const prefix = state === 'granted' ? '☑' : state === 'denied' ? '☒' : state === 'n/a' ? '∅' : '○';
+  el.textContent = `${prefix} ${label}`;
   el.className = state === 'granted' ? 'status-done' :
                  state === 'denied' ? 'status-failed' : 'muted';
+  el.classList.add('capture-reading');
+}
+
+function showPermissionBanner(message = '') {
+  permBanner.style.display = 'block';
+  permStatusEl.textContent = message;
+}
+
+function hidePermissionBanner() {
+  permBanner.style.display = 'none';
+  permStatusEl.textContent = '';
+}
+
+function isSecureCaptureContext() {
+  return window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 }
 
 async function requestAllPermissions() {
+  permStatusEl.textContent = '';
+
+  if (!isSecureCaptureContext()) {
+    showPermissionBanner('Camera and sensor access require HTTPS or localhost.');
+    statusEl.textContent = 'Open this page over HTTPS to use camera and sensors.';
+    setPerm('camera', 'blocked');
+    setPerm('geo', 'blocked');
+    setPerm('motion', 'blocked');
+    return;
+  }
+
   // Camera
   try {
     await startCamera();
     setPerm('camera', 'granted');
   } catch (e) {
     setPerm('camera', 'denied');
+    statusEl.textContent = 'Camera error: ' + e.message;
   }
 
   // Geolocation — requesting it starts the watcher
   if ('geolocation' in navigator) {
-    navigator.geolocation.getCurrentPosition(
-      () => setPerm('geo', 'granted'),
-      () => setPerm('geo', 'denied'),
-      { enableHighAccuracy: true }
-    );
+    await new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          setPerm('geo', 'granted');
+          resolve();
+        },
+        () => {
+          setPerm('geo', 'denied');
+          resolve();
+        },
+        { enableHighAccuracy: true }
+      );
+    });
   } else {
     setPerm('geo', 'n/a');
   }
@@ -250,17 +736,34 @@ async function requestAllPermissions() {
   // Motion/Orientation — iOS 13+ needs explicit permission
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
+    let orient = 'denied';
     try {
-      const orient = await DeviceOrientationEvent.requestPermission();
+      orient = await DeviceOrientationEvent.requestPermission();
       setPerm('motion', orient);
     } catch (e) {
       setPerm('motion', 'denied');
     }
     try {
-      await DeviceMotionEvent.requestPermission();
+      if (typeof DeviceMotionEvent !== 'undefined' &&
+          typeof DeviceMotionEvent.requestPermission === 'function') {
+        const motion = await DeviceMotionEvent.requestPermission();
+        if (orient !== 'granted' || motion !== 'granted') {
+          setPerm('motion', 'denied');
+        }
+      }
     } catch (e) {}
+  } else if (typeof DeviceMotionEvent !== 'undefined' &&
+             typeof DeviceMotionEvent.requestPermission === 'function') {
+    try {
+      const motion = await DeviceMotionEvent.requestPermission();
+      setPerm('motion', motion);
+    } catch (e) {
+      setPerm('motion', 'denied');
+    }
   } else if (typeof DeviceOrientationEvent !== 'undefined') {
     // Android — no permission API, just works
+    setPerm('motion', 'granted');
+  } else if (typeof DeviceMotionEvent !== 'undefined') {
     setPerm('motion', 'granted');
   } else {
     setPerm('motion', 'n/a');
@@ -269,13 +772,28 @@ async function requestAllPermissions() {
   // Start sensor listeners after permissions
   startSensors();
 
-  // Hide banner
-  document.getElementById('perm-banner').style.display = 'none';
+  if (permEls.camera.textContent === 'granted' ||
+      permEls.geo.textContent === 'granted' ||
+      permEls.motion.textContent === 'granted') {
+    hidePermissionBanner();
+  } else {
+    showPermissionBanner('Permission request was denied or blocked by the browser.');
+  }
 }
 
 // Check if we need to show the permission banner
 async function checkPermissions() {
   let needsBanner = false;
+
+  if (!isSecureCaptureContext()) {
+    showPermissionBanner('Camera and sensor access require HTTPS or localhost.');
+    statusEl.textContent = 'Open this page over HTTPS to use camera and sensors.';
+    setCaptureState('error');
+    setPerm('camera', 'blocked');
+    setPerm('geo', 'blocked');
+    setPerm('motion', 'blocked');
+    return;
+  }
 
   if (navigator.permissions) {
     try {
@@ -298,13 +816,23 @@ async function checkPermissions() {
       typeof DeviceOrientationEvent.requestPermission === 'function') {
     setPerm('motion', 'prompt');
     needsBanner = true;
+  } else if (typeof DeviceMotionEvent !== 'undefined' &&
+             typeof DeviceMotionEvent.requestPermission === 'function') {
+    setPerm('motion', 'prompt');
+    needsBanner = true;
   }
 
   if (needsBanner) {
-    document.getElementById('perm-banner').style.display = 'block';
+    showPermissionBanner('Tap "Grant Permissions" to enable camera and sensors.');
   } else {
     // Already granted — just start everything
-    startCamera();
+    try {
+      await startCamera();
+    } catch (e) {
+      showPermissionBanner('Tap "Grant Permissions" to enable camera access.');
+      statusEl.textContent = 'Camera error: ' + e.message;
+      return;
+    }
     startSensors();
   }
 }
@@ -313,36 +841,307 @@ document.getElementById('btn-permissions').addEventListener('click', requestAllP
 
 // --- Camera ---
 async function startCamera() {
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    throw new Error('This browser does not support camera access.');
+  }
+  if (!isSecureCaptureContext()) {
+    throw new Error('Camera access requires HTTPS or localhost.');
+  }
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
     audio: false,
   });
   video.srcObject = stream;
-  btnCapture.disabled = false;
   statusEl.textContent = 'Camera ready';
+  setCaptureState('idle');
   setPerm('camera', 'granted');
 }
 
-btnSwitch.addEventListener('click', () => {
+function switchCamera() {
   facingMode = facingMode === 'environment' ? 'user' : 'environment';
   startCamera().catch(e => { statusEl.textContent = 'Camera error: ' + e.message; });
-});
+}
 
 // --- Sensors ---
-function round(v) { return v !== null && v !== undefined ? Math.round(v * 100) / 100 : null; }
+function round(v, digits = 2) {
+  if (v === null || v === undefined || Number.isNaN(v)) return null;
+  return Number(v.toFixed(digits));
+}
+
+function fixed(v, digits = 1, width = 6) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '';
+  return v.toFixed(digits);
+}
+
+function fixedSigned(v, digits = 1, width = 7) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '';
+  return `${v >= 0 ? '+' : ''}${v.toFixed(digits)}`;
+}
+
+function setReading(elId, text, stateClass = '') {
+  const el = document.getElementById(elId);
+  el.textContent = text;
+  el.className = `capture-reading ${stateClass}`.trim();
+}
+
+function getAudioContext() {
+  if (!window.AudioContext && !window.webkitAudioContext) return null;
+  if (!audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new Ctx();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+  }
+  return audioCtx;
+}
+
+function playTone({ frequency = 440, duration = 0.08, type = 'sine', gain = 0.03, sweepTo = null, delay = 0 }) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const start = ctx.currentTime + delay;
+  const end = start + duration;
+  const osc = ctx.createOscillator();
+  const amp = ctx.createGain();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(frequency, start);
+  if (sweepTo !== null) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, sweepTo), end);
+  }
+
+  amp.gain.setValueAtTime(0.0001, start);
+  amp.gain.exponentialRampToValueAtTime(gain, start + 0.01);
+  amp.gain.exponentialRampToValueAtTime(0.0001, end);
+
+  osc.connect(amp);
+  amp.connect(ctx.destination);
+  osc.start(start);
+  osc.stop(end + 0.02);
+}
+
+function soundBurstStart() {
+  playTone({ frequency: 540, sweepTo: 760, duration: 0.09, type: 'triangle', gain: 0.025 });
+  playTone({ frequency: 760, sweepTo: 980, duration: 0.08, type: 'triangle', gain: 0.02, delay: 0.07 });
+}
+
+function soundBurstWhoosh() {
+  playTone({ frequency: 240, sweepTo: 420, duration: 0.06, type: 'sine', gain: 0.012 });
+}
+
+function soundShutter() {
+  playTone({ frequency: 1480, sweepTo: 1020, duration: 0.045, type: 'square', gain: 0.02 });
+  playTone({ frequency: 720, sweepTo: 620, duration: 0.06, type: 'triangle', gain: 0.015, delay: 0.012 });
+}
+
+function soundBurstDone() {
+  playTone({ frequency: 420, sweepTo: 780, duration: 0.14, type: 'triangle', gain: 0.028 });
+  playTone({ frequency: 780, sweepTo: 1180, duration: 0.16, type: 'sawtooth', gain: 0.022, delay: 0.08 });
+  playTone({ frequency: 1180, sweepTo: 1680, duration: 0.18, type: 'triangle', gain: 0.018, delay: 0.18 });
+}
+
+function getBurstIntervalMs() {
+  const seconds = Number.parseFloat(sideIntervalValue.textContent);
+  if (!Number.isFinite(seconds) || seconds <= 0) return 1000;
+  return Math.max(200, Math.round(seconds * 1000));
+}
+
+function getBurstDurationMs() {
+  const seconds = Number.parseFloat(sideDurationValue.textContent);
+  if (!Number.isFinite(seconds) || seconds <= 0) return 30000;
+  return Math.max(1000, Math.round(seconds * 1000));
+}
+
+function setBurstButtons() {
+  btnSideBurst.disabled = burstActive;
+  btnSideBurst10.disabled = burstActive;
+  btnSideBurstTimed.disabled = burstActive;
+  btnSideBurstStop.disabled = !burstActive;
+  btnSideCapture.disabled = false;
+  btnSideCamera.disabled = burstActive;
+}
+
+function setCaptureState(state) {
+  stateEl.textContent =
+    state === 'burst' ? '◉' :
+    state === 'timed' ? '⌛' :
+    state === 'busy' ? '…' :
+    state === 'error' ? '⚠' :
+    '○';
+}
+
+function openConfigPicker(kind) {
+  activePicker = kind;
+  configPicker.hidden = false;
+  const presets = kind === 'interval' ? ['0.5', '1.0', '2.0', '3.0'] : ['10', '20', '30', '60'];
+  const current = kind === 'interval' ? sideIntervalValue.textContent : sideDurationValue.textContent;
+  configPickerTitle.textContent = kind === 'interval' ? 'Burst Interval (s)' : 'Timed Burst (s)';
+  configPickerInput.step = kind === 'interval' ? '0.1' : '1';
+  configPickerInput.min = kind === 'interval' ? '0.2' : '1';
+  configPickerInput.value = current;
+  configPickerOptions.innerHTML = presets.map(val =>
+    `<button class="capture-picker-option" type="button" data-value="${val}">${val}</button>`
+  ).join('');
+}
+
+function closeConfigPicker() {
+  activePicker = null;
+  configPicker.hidden = true;
+}
+
+function applyConfigValue(rawValue) {
+  if (!activePicker) return;
+  const num = Number.parseFloat(rawValue);
+  if (!Number.isFinite(num) || num <= 0) return;
+  if (activePicker === 'interval') {
+    sideIntervalValue.textContent = num.toFixed(1);
+  } else {
+    sideDurationValue.textContent = String(Math.round(num));
+  }
+  closeConfigPicker();
+}
+
+function stopBurst(reason = 'Burst stopped') {
+  if (burstTimerId) {
+    clearInterval(burstTimerId);
+    burstTimerId = null;
+  }
+  if (burstStopId) {
+    clearTimeout(burstStopId);
+    burstStopId = null;
+  }
+  if (burstActive) {
+    burstActive = false;
+    setBurstButtons();
+    statusEl.textContent = reason;
+    setCaptureState('idle');
+    soundBurstDone();
+  }
+}
+
+async function ensureCaptureReady() {
+  if (!stream) {
+    await requestAllPermissions();
+    if (!stream) {
+      statusEl.textContent = 'Camera permission is required before taking a photo.';
+      setCaptureState('error');
+      return false;
+    }
+  }
+
+  const bName = buildingInput.value.trim();
+  if (!bName) {
+    statusEl.textContent = 'Enter a building name first!';
+    setCaptureState('error');
+    return false;
+  }
+  return true;
+}
+
+async function captureFrame(source = 'single') {
+  if (captureInFlight) return false;
+  if (!(await ensureCaptureReady())) return false;
+
+  captureInFlight = true;
+  setCaptureState(source === 'burst' ? 'burst' : 'busy');
+
+  try {
+    statusEl.textContent = source === 'burst' ? 'Burst capture…' : 'Resolving…';
+
+    const { buildingId, locationId } = await resolveIds();
+    if (!buildingId) {
+      statusEl.textContent = 'Could not resolve building';
+      return false;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const imageData = canvas.toDataURL('image/jpeg', 0.92);
+
+    const sensorSnapshot = JSON.parse(JSON.stringify(sensorState));
+    sensorSnapshot.timestamp = Date.now();
+
+    statusEl.textContent = source === 'burst' ? 'Burst upload…' : 'Uploading…';
+
+    const resp = await fetch('/api/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: imageData,
+        building_id: buildingId,
+        location_id: locationId,
+        sensor: sensorSnapshot,
+      }),
+    });
+    const result = await resp.json();
+
+    if (result.ok) {
+      captureCount++;
+      document.getElementById('capture-count').textContent = captureCount;
+      statusEl.textContent = `Saved #${result.frame_id}${burstActive ? ' burst' : ''}`;
+      setCaptureState(burstActive ? 'burst' : 'idle');
+      soundShutter();
+      document.getElementById('last-capture').innerHTML =
+        `<img src="${imageData}" class="capture-thumb" alt="Last capture">`;
+      return true;
+    }
+
+    statusEl.textContent = 'Error: ' + (result.error || 'unknown');
+    setCaptureState('error');
+    return false;
+  } catch (e) {
+    statusEl.textContent = 'Failed: ' + e.message;
+    setCaptureState('error');
+    return false;
+  } finally {
+    captureInFlight = false;
+    if (!burstActive && stateEl.textContent !== '⚠') setCaptureState('idle');
+  }
+}
+
+async function startBurst(durationMs = null) {
+  if (burstActive) return;
+  if (!(await ensureCaptureReady())) return;
+
+  burstActive = true;
+  setBurstButtons();
+  statusEl.textContent = `Burst running @ ${(getBurstIntervalMs() / 1000).toFixed(1)}s`;
+  setCaptureState(durationMs !== null ? 'timed' : 'burst');
+  soundBurstStart();
+
+  const tick = async () => {
+    if (!burstActive || captureInFlight) return;
+    soundBurstWhoosh();
+    await captureFrame('burst');
+  };
+
+  await tick();
+  if (!burstActive) return;
+
+  burstTimerId = setInterval(tick, getBurstIntervalMs());
+  if (durationMs !== null) {
+    burstStopId = setTimeout(() => stopBurst('Timed burst complete'), durationMs);
+  }
+}
 
 function startSensors() {
+  if (sensorsStarted) return;
+  sensorsStarted = true;
+
   // DeviceOrientation
   window.addEventListener('deviceorientation', e => {
     if (e.alpha !== null) {
       sensorState.orientation = {
-        alpha: round(e.alpha), beta: round(e.beta), gamma: round(e.gamma),
+        alpha: round(e.alpha, 1), beta: round(e.beta, 1), gamma: round(e.gamma, 1),
         absolute: e.absolute || false,
       };
-      document.getElementById('s-orient').textContent =
-        `a:${round(e.alpha)} b:${round(e.beta)} g:${round(e.gamma)}`;
-      document.getElementById('s-orient').className = '';
+      setReading(
+        's-orient',
+        `a ${fixed(e.alpha, 1, 6)}  b ${fixedSigned(e.beta, 1, 7)}  g ${fixedSigned(e.gamma, 1, 7)}`
+      );
     }
   });
 
@@ -350,21 +1149,25 @@ function startSensors() {
   window.addEventListener('devicemotion', e => {
     if (e.accelerationIncludingGravity) {
       const a = e.accelerationIncludingGravity;
-      sensorState.accelerometer = { x: round(a.x), y: round(a.y), z: round(a.z) };
-      document.getElementById('s-accel').textContent = `${round(a.x)} ${round(a.y)} ${round(a.z)}`;
-      document.getElementById('s-accel').className = '';
+      sensorState.accelerometer = { x: round(a.x, 2), y: round(a.y, 2), z: round(a.z, 2) };
+      setReading(
+        's-accel',
+        `x ${fixedSigned(a.x, 2, 8)}  y ${fixedSigned(a.y, 2, 8)}  z ${fixedSigned(a.z, 2, 8)}`
+      );
     }
     if (e.rotationRate) {
       const r = e.rotationRate;
-      sensorState.gyroscope = { alpha: round(r.alpha), beta: round(r.beta), gamma: round(r.gamma) };
-      document.getElementById('s-gyro').textContent = `${round(r.alpha)} ${round(r.beta)} ${round(r.gamma)}`;
-      document.getElementById('s-gyro').className = '';
+      sensorState.gyroscope = { alpha: round(r.alpha, 1), beta: round(r.beta, 1), gamma: round(r.gamma, 1) };
+      setReading(
+        's-gyro',
+        `a ${fixedSigned(r.alpha, 1, 7)}  b ${fixedSigned(r.beta, 1, 7)}  g ${fixedSigned(r.gamma, 1, 7)}`
+      );
     }
   });
 
   // Geolocation
   if ('geolocation' in navigator) {
-    navigator.geolocation.watchPosition(
+    geoWatchId = navigator.geolocation.watchPosition(
       pos => {
         sensorState.geolocation = {
           latitude: pos.coords.latitude,
@@ -375,20 +1178,23 @@ function startSensors() {
           heading: pos.coords.heading,
           speed: pos.coords.speed,
         };
-        document.getElementById('s-geo').textContent =
-          `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)} (±${Math.round(pos.coords.accuracy)}m)`;
-        document.getElementById('s-geo').className = '';
+        setReading(
+          's-geo',
+          `${pos.coords.latitude.toFixed(5)}  ${pos.coords.longitude.toFixed(5)}  ±${Math.round(pos.coords.accuracy)}m`
+        );
         setPerm('geo', 'granted');
         if (!buildingInput.value) {
           autoDetectBuilding(pos.coords.latitude, pos.coords.longitude);
         }
       },
       err => {
-        document.getElementById('s-geo').textContent = err.message;
+        setReading('s-geo', err.message, 'status-failed');
         setPerm('geo', 'denied');
       },
       { enableHighAccuracy: true, maximumAge: 2000 }
     );
+  } else {
+    setPerm('geo', 'n/a');
   }
 
   // Magnetometer (Generic Sensor API)
@@ -399,21 +1205,23 @@ function startSensors() {
 
 function tryGenericSensor(className, name, elId, formatter) {
   const Ctor = window[className];
-  if (!Ctor) { document.getElementById(elId).textContent = 'n/a'; return; }
+  if (!Ctor) { setReading(elId, 'n/a', 'muted'); return; }
   try {
     const sensor = new Ctor({ frequency: 10 });
     sensor.addEventListener('reading', () => {
       sensorState[name] = formatter(sensor);
-      document.getElementById(elId).textContent = Object.values(sensorState[name])
-        .map(v => typeof v === 'number' ? round(v) : v).join(' ');
-      document.getElementById(elId).className = '';
+      const text = Object.entries(sensorState[name]).map(([key, val]) => {
+        if (typeof val === 'number') return `${key} ${fixedSigned(val, 2, 8)}`;
+        return `${key} ${val}`;
+      }).join('  ');
+      setReading(elId, text);
     });
     sensor.addEventListener('error', () => {
-      document.getElementById(elId).textContent = 'n/a';
+      setReading(elId, 'n/a', 'muted');
     });
     sensor.start();
   } catch (e) {
-    document.getElementById(elId).textContent = 'n/a';
+    setReading(elId, 'n/a', 'muted');
   }
 }
 
@@ -428,64 +1236,40 @@ async function autoDetectBuilding(lat, lon) {
       resolvedBuildingId = data.building.id;
       updateLocationDatalist();
       geoAutoDetected = true;
-      document.getElementById('s-geo').textContent +=
-        ` → ${data.building.name} (${data.distance_m}m)`;
+      setReading(
+        's-geo',
+        `${sensorState.geolocation.latitude.toFixed(5)}  ${sensorState.geolocation.longitude.toFixed(5)}  ±${Math.round(sensorState.geolocation.accuracy)}m  → ${data.building.name}`
+      );
     }
   } catch (e) {}
 }
 
 // --- Capture ---
-btnCapture.addEventListener('click', async () => {
-  const bName = buildingInput.value.trim();
-  if (!bName) { statusEl.textContent = 'Enter a building name first!'; return; }
-
-  statusEl.textContent = 'Resolving...';
-  btnCapture.disabled = true;
-
-  try {
-    // Resolve (or create) building and location
-    const { buildingId, locationId } = await resolveIds();
-    if (!buildingId) { statusEl.textContent = 'Could not resolve building'; btnCapture.disabled = false; return; }
-
-    // Grab frame from video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    const imageData = canvas.toDataURL('image/jpeg', 0.92);
-
-    // Snapshot sensor state
-    const sensorSnapshot = JSON.parse(JSON.stringify(sensorState));
-    sensorSnapshot.timestamp = Date.now();
-
-    statusEl.textContent = 'Uploading...';
-
-    const resp = await fetch('/api/capture', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image: imageData,
-        building_id: buildingId,
-        location_id: locationId,
-        sensor: sensorSnapshot,
-      }),
-    });
-    const result = await resp.json();
-    if (result.ok) {
-      captureCount++;
-      document.getElementById('capture-count').textContent = captureCount;
-      statusEl.textContent = `Saved #${result.frame_id} (sensors: ${result.sensor_keys.join(', ') || 'none'})`;
-      document.getElementById('last-capture').innerHTML =
-        `<img src="${imageData}" style="max-width:150px; border-radius:4px; opacity:0.7;">`;
-    } else {
-      statusEl.textContent = 'Error: ' + (result.error || 'unknown');
-    }
-  } catch (e) {
-    statusEl.textContent = 'Failed: ' + e.message;
+btnSideCapture.addEventListener('click', () => { captureFrame('single'); });
+btnSideBurst.addEventListener('click', () => { startBurst(); });
+btnSideBurst10.addEventListener('click', () => { startBurst(10000); });
+btnSideBurstTimed.addEventListener('click', () => { startBurst(getBurstDurationMs()); });
+btnSideBurstStop.addEventListener('click', () => { stopBurst('Burst stopped'); });
+btnSideCamera.addEventListener('click', switchCamera);
+btnSideInterval.addEventListener('click', () => { openConfigPicker('interval'); });
+btnSideDuration.addEventListener('click', () => { openConfigPicker('duration'); });
+configPickerOptions.addEventListener('click', e => {
+  const btn = e.target.closest('[data-value]');
+  if (!btn) return;
+  applyConfigValue(btn.dataset.value);
+});
+configPickerApply.addEventListener('click', () => { applyConfigValue(configPickerInput.value); });
+configPickerClose.addEventListener('click', closeConfigPicker);
+document.addEventListener('click', e => {
+  if (configPicker.hidden) return;
+  if (configPicker.contains(e.target) || e.target.closest('#btn-side-interval') || e.target.closest('#btn-side-duration')) {
+    return;
   }
-  btnCapture.disabled = false;
+  closeConfigPicker();
 });
 
 // --- Init ---
 checkPermissions();
+setBurstButtons();
 </script>
 {% endblock %}
