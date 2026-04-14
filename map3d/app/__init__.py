@@ -4,10 +4,27 @@ from datetime import timedelta
 from flask import Flask, jsonify, redirect, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from pathlib import Path
+from sqlalchemy import text
 
 db = SQLAlchemy()
 
 DATA_DIR = Path(__file__).parent.parent / "data"
+
+
+def ensure_schema(app):
+    with app.app_context():
+        columns = {
+            row[1] for row in db.session.execute(text("PRAGMA table_info(session)")).fetchall()
+        }
+        if "capture_run_key" not in columns:
+            db.session.execute(text(
+                "ALTER TABLE session ADD COLUMN capture_run_key VARCHAR(64) DEFAULT ''"
+            ))
+        if "capture_mode" not in columns:
+            db.session.execute(text(
+                "ALTER TABLE session ADD COLUMN capture_mode VARCHAR(20) DEFAULT ''"
+            ))
+        db.session.commit()
 
 
 def create_app():
@@ -24,13 +41,14 @@ def create_app():
     db.init_app(app)
 
     from . import models  # noqa: F401
-    from .routes import auth, locations, upload, gallery, capture, api
+    from .routes import auth, locations, upload, gallery, capture, api, viewer
     app.register_blueprint(auth.bp)
     app.register_blueprint(locations.bp)
     app.register_blueprint(upload.bp)
     app.register_blueprint(gallery.bp)
     app.register_blueprint(capture.bp)
     app.register_blueprint(api.bp)
+    app.register_blueprint(viewer.bp)
 
     @app.before_request
     def require_password():
@@ -46,5 +64,6 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        ensure_schema(app)
 
     return app

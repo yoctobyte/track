@@ -59,6 +59,13 @@
     display: block;
     filter: saturate(1.02) contrast(1.04);
   }
+  .capture-video-wrap.view-fit {
+    background: #000;
+  }
+  .capture-video-wrap.view-fit::after {
+    background:
+      linear-gradient(180deg, rgba(11, 10, 14, 0.42) 0%, rgba(11, 10, 14, 0.08) 28%, rgba(11, 10, 14, 0.12) 68%, rgba(11, 10, 14, 0.46) 100%);
+  }
   .capture-overlay {
     position: relative;
     z-index: 1;
@@ -358,6 +365,31 @@
       min-height: 8rem;
     }
   }
+  @media (max-width: 900px) and (orientation: portrait) {
+    .capture-middle {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+    .capture-center-status {
+      min-height: 2rem;
+    }
+    .capture-side {
+      flex-direction: row;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .capture-side-left,
+    .capture-side-right {
+      align-items: center;
+    }
+    .capture-square {
+      width: 82px;
+      min-height: 82px;
+    }
+  }
   @media (max-width: 500px) {
     .capture-grid {
       flex-wrap: wrap;
@@ -456,6 +488,21 @@
       </div>
       <div class="capture-center-status"></div>
       <div class="capture-side capture-side-right">
+        <button id="btn-side-lens" class="capture-square capture-square-config" type="button">
+          <span class="capture-square-kicker">◐</span>
+          <span class="capture-square-label">Lens</span>
+          <span id="side-lens-value" class="capture-square-value" style="font-size:0.78rem;">auto</span>
+        </button>
+        <button id="btn-side-zoom" class="capture-square capture-square-config" type="button">
+          <span class="capture-square-kicker">⊕</span>
+          <span class="capture-square-label">Zoom</span>
+          <span id="side-zoom-value" class="capture-square-value">1.0</span>
+        </button>
+        <button id="btn-side-view" class="capture-square capture-square-config" type="button">
+          <span class="capture-square-kicker">▣</span>
+          <span class="capture-square-label">View</span>
+          <span id="side-view-value" class="capture-square-value" style="font-size:0.78rem;">cover</span>
+        </button>
         <button id="btn-side-interval" class="capture-square capture-square-config" type="button">
           <span class="capture-square-kicker">⋮</span>
           <span class="capture-square-label">Interval</span>
@@ -468,7 +515,7 @@
         </button>
         <button id="btn-side-camera" class="capture-square capture-square-config" type="button">
           <span class="capture-square-kicker">⇄</span>
-          <span class="capture-square-label">Switch<br>Camera</span>
+          <span class="capture-square-label">Cycle<br>Camera</span>
         </button>
       </div>
     </div>
@@ -486,6 +533,9 @@
     <div class="capture-panel capture-status-panel">
       <div class="capture-status-list">
         <div class="capture-status-row"><div class="capture-status-name">Permissions</div><div class="capture-status-value capture-reading"><span id="p-camera" class="muted">○ camera</span>  <span id="p-geo" class="muted">○ location</span>  <span id="p-motion" class="muted">○ motion</span></div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Camera</div><div id="s-camera" class="capture-status-value capture-reading muted">—</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Queue</div><div id="s-queue" class="capture-status-value capture-reading muted">0 queued  0 failed</div></div>
+        <div class="capture-status-row"><div class="capture-status-name">Sharpness</div><div id="s-blur" class="capture-status-value capture-reading muted">—</div></div>
         <div class="capture-status-row"><div class="capture-status-name">Orientation</div><div id="s-orient" class="capture-status-value capture-reading muted">—</div></div>
         <div class="capture-status-row"><div class="capture-status-name">Accel</div><div id="s-accel" class="capture-status-value capture-reading muted">—</div></div>
         <div class="capture-status-row"><div class="capture-status-name">Gyro</div><div id="s-gyro" class="capture-status-value capture-reading muted">—</div></div>
@@ -512,11 +562,31 @@ let geoAutoDetected = false;
 const sensorState = {};
 let sensorsStarted = false;
 let geoWatchId = null;
-let captureInFlight = false;
+let captureSnapshotInFlight = false;
 let burstTimerId = null;
 let burstStopId = null;
 let burstActive = false;
 let audioCtx = null;
+let burstSampleBuffer = [];
+let lastUploadedSensorSnapshot = null;
+let uploadQueue = [];
+let uploadWorkerActive = false;
+let uploadFailedCount = 0;
+let queuedCaptureCount = 0;
+let latestSessionId = null;
+let availableVideoDevices = [];
+let selectedVideoDeviceId = '';
+let activeVideoLabel = '';
+let currentZoomValue = 1;
+let zoomCapability = null;
+const captureRunKey = (window.crypto && typeof window.crypto.randomUUID === 'function')
+  ? window.crypto.randomUUID()
+  : `run-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const captureDeviceName =
+  (navigator.userAgentData && navigator.userAgentData.platform) ||
+  navigator.platform ||
+  navigator.userAgent ||
+  'browser';
 
 // --- DOM refs ---
 const buildingInput = document.getElementById('building-input');
@@ -530,9 +600,15 @@ const btnSideBurst = document.getElementById('btn-side-burst');
 const btnSideBurst10 = document.getElementById('btn-side-burst-10');
 const btnSideBurstTimed = document.getElementById('btn-side-burst-timed');
 const btnSideBurstStop = document.getElementById('btn-side-burst-stop');
+const btnSideLens = document.getElementById('btn-side-lens');
+const btnSideZoom = document.getElementById('btn-side-zoom');
+const btnSideView = document.getElementById('btn-side-view');
 const btnSideInterval = document.getElementById('btn-side-interval');
 const btnSideDuration = document.getElementById('btn-side-duration');
 const btnSideCamera = document.getElementById('btn-side-camera');
+const sideLensValue = document.getElementById('side-lens-value');
+const sideZoomValue = document.getElementById('side-zoom-value');
+const sideViewValue = document.getElementById('side-view-value');
 const sideIntervalValue = document.getElementById('side-interval-value');
 const sideDurationValue = document.getElementById('side-duration-value');
 const configPicker = document.getElementById('config-picker');
@@ -545,7 +621,9 @@ const statusEl = document.getElementById('capture-status');
 const stateEl = document.getElementById('capture-state');
 const permBanner = document.getElementById('perm-banner');
 const permStatusEl = document.getElementById('perm-status');
+const videoWrap = document.querySelector('.capture-video-wrap');
 let activePicker = null;
+let videoDisplayMode = 'cover';
 
 // --- Combo-box: Building ---
 function findBuildingByName(name) {
@@ -840,6 +918,111 @@ async function checkPermissions() {
 document.getElementById('btn-permissions').addEventListener('click', requestAllPermissions);
 
 // --- Camera ---
+function updateQueueDisplay() {
+  setReading('s-queue', `${uploadQueue.length} queued  ${uploadFailedCount} failed`);
+}
+
+function summarizeDeviceLabel(label) {
+  if (!label) return 'auto';
+  const normalized = label.toLowerCase();
+  if (normalized.includes('back') || normalized.includes('rear') || normalized.includes('environment')) {
+    if (normalized.includes('ultra') || normalized.includes('wide')) return 'rear-wide';
+    if (normalized.includes('tele')) return 'rear-tele';
+    return 'rear';
+  }
+  if (normalized.includes('front') || normalized.includes('user') || normalized.includes('selfie')) {
+    return 'front';
+  }
+  return label.slice(0, 18);
+}
+
+function scoreVideoDevice(device) {
+  const label = (device.label || '').toLowerCase();
+  let score = 0;
+  if (label.includes('back') || label.includes('rear') || label.includes('environment')) score += 50;
+  if (label.includes('wide') || label.includes('ultra')) score += 20;
+  if (label.includes('tele')) score -= 10;
+  if (label.includes('front') || label.includes('user') || label.includes('selfie')) score -= 50;
+  return score;
+}
+
+async function refreshVideoDevices() {
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') {
+    availableVideoDevices = [];
+    return;
+  }
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  availableVideoDevices = devices.filter(d => d.kind === 'videoinput');
+  if (!selectedVideoDeviceId && availableVideoDevices.length) {
+    availableVideoDevices.sort((a, b) => scoreVideoDevice(b) - scoreVideoDevice(a));
+    selectedVideoDeviceId = availableVideoDevices[0].deviceId;
+  }
+}
+
+function getCurrentTrack() {
+  return stream ? stream.getVideoTracks()[0] : null;
+}
+
+function updateCameraDisplay() {
+  const track = getCurrentTrack();
+  const settings = track ? track.getSettings() : {};
+  const label = activeVideoLabel || settings.label || summarizeDeviceLabel(facingMode);
+  const zoomText = zoomCapability && Number.isFinite(currentZoomValue) ? currentZoomValue.toFixed(1) : 'n/a';
+  sideLensValue.textContent = summarizeDeviceLabel(label);
+  sideZoomValue.textContent = zoomText;
+  sideViewValue.textContent = videoDisplayMode;
+  setReading(
+    's-camera',
+    `${label || 'camera'}  ${settings.width || '?'}x${settings.height || '?'}  zoom ${zoomText}x  ${videoDisplayMode}`
+  );
+}
+
+function applyVideoDisplayMode() {
+  video.style.objectFit = videoDisplayMode === 'fit' ? 'contain' : 'cover';
+  videoWrap.classList.toggle('view-fit', videoDisplayMode === 'fit');
+  sideViewValue.textContent = videoDisplayMode;
+  updateCameraDisplay();
+}
+
+function toggleVideoDisplayMode() {
+  videoDisplayMode = videoDisplayMode === 'cover' ? 'fit' : 'cover';
+  applyVideoDisplayMode();
+}
+
+async function syncZoomCapabilities() {
+  const track = getCurrentTrack();
+  zoomCapability = null;
+  currentZoomValue = 1;
+  if (!track || typeof track.getCapabilities !== 'function') {
+    updateCameraDisplay();
+    return;
+  }
+  const capabilities = track.getCapabilities();
+  const settings = track.getSettings();
+  if (capabilities.zoom) {
+    zoomCapability = {
+      min: capabilities.zoom.min ?? 1,
+      max: capabilities.zoom.max ?? 1,
+      step: capabilities.zoom.step ?? 0.1,
+    };
+    currentZoomValue = Number.isFinite(settings.zoom) ? settings.zoom : zoomCapability.min;
+  }
+  updateCameraDisplay();
+}
+
+async function applyZoom(value) {
+  const track = getCurrentTrack();
+  if (!track || !zoomCapability) return;
+  const clamped = Math.min(zoomCapability.max, Math.max(zoomCapability.min, value));
+  try {
+    await track.applyConstraints({ advanced: [{ zoom: clamped }] });
+    currentZoomValue = clamped;
+    updateCameraDisplay();
+  } catch (e) {
+    statusEl.textContent = 'Zoom change failed: ' + e.message;
+  }
+}
+
 async function startCamera() {
   if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
     throw new Error('This browser does not support camera access.');
@@ -847,19 +1030,35 @@ async function startCamera() {
   if (!isSecureCaptureContext()) {
     throw new Error('Camera access requires HTTPS or localhost.');
   }
+  await refreshVideoDevices();
   if (stream) stream.getTracks().forEach(t => t.stop());
+  const videoConstraints = selectedVideoDeviceId
+    ? { deviceId: { exact: selectedVideoDeviceId }, width: { ideal: 2560 }, height: { ideal: 1440 } }
+    : { facingMode, width: { ideal: 2560 }, height: { ideal: 1440 } };
   stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    video: videoConstraints,
     audio: false,
   });
   video.srcObject = stream;
+  const track = getCurrentTrack();
+  const settings = track ? track.getSettings() : {};
+  activeVideoLabel = settings.label || (availableVideoDevices.find(d => d.deviceId === selectedVideoDeviceId) || {}).label || '';
+  if (settings.facingMode) facingMode = settings.facingMode;
+  await syncZoomCapabilities();
   statusEl.textContent = 'Camera ready';
   setCaptureState('idle');
   setPerm('camera', 'granted');
 }
 
 function switchCamera() {
-  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  if (availableVideoDevices.length > 1) {
+    const idx = availableVideoDevices.findIndex(d => d.deviceId === selectedVideoDeviceId);
+    const next = availableVideoDevices[(idx + 1 + availableVideoDevices.length) % availableVideoDevices.length];
+    selectedVideoDeviceId = next.deviceId;
+  } else {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    selectedVideoDeviceId = '';
+  }
   startCamera().catch(e => { statusEl.textContent = 'Camera error: ' + e.message; });
 }
 
@@ -954,6 +1153,10 @@ function getBurstDurationMs() {
   return Math.max(1000, Math.round(seconds * 1000));
 }
 
+function getBurstSampleMs() {
+  return Math.max(250, Math.round(getBurstIntervalMs() / 3));
+}
+
 function setBurstButtons() {
   btnSideBurst.disabled = burstActive;
   btnSideBurst10.disabled = burstActive;
@@ -961,6 +1164,9 @@ function setBurstButtons() {
   btnSideBurstStop.disabled = !burstActive;
   btnSideCapture.disabled = false;
   btnSideCamera.disabled = burstActive;
+  btnSideLens.disabled = burstActive;
+  btnSideZoom.disabled = burstActive || !zoomCapability;
+  btnSideView.disabled = false;
 }
 
 function setCaptureState(state) {
@@ -975,15 +1181,59 @@ function setCaptureState(state) {
 function openConfigPicker(kind) {
   activePicker = kind;
   configPicker.hidden = false;
-  const presets = kind === 'interval' ? ['0.5', '1.0', '2.0', '3.0'] : ['10', '20', '30', '60'];
-  const current = kind === 'interval' ? sideIntervalValue.textContent : sideDurationValue.textContent;
-  configPickerTitle.textContent = kind === 'interval' ? 'Burst Interval (s)' : 'Timed Burst (s)';
-  configPickerInput.step = kind === 'interval' ? '0.1' : '1';
-  configPickerInput.min = kind === 'interval' ? '0.2' : '1';
+  let presets = [];
+  let current = '';
+  let title = 'Configure';
+  let step = '0.1';
+  let min = '0';
+  let inputType = 'number';
+
+  if (kind === 'interval') {
+    presets = ['0.5', '1.0', '2.0', '3.0'];
+    current = sideIntervalValue.textContent;
+    title = 'Burst Interval (s)';
+    step = '0.1';
+    min = '0.2';
+  } else if (kind === 'duration') {
+    presets = ['10', '20', '30', '60'];
+    current = sideDurationValue.textContent;
+    title = 'Timed Burst (s)';
+    step = '1';
+    min = '1';
+  } else if (kind === 'zoom') {
+    if (!zoomCapability) {
+      statusEl.textContent = 'Zoom control is not available on this camera.';
+      return;
+    }
+    presets = [zoomCapability.min, 1, 1.5, 2, zoomCapability.max]
+      .filter(v => v >= zoomCapability.min && v <= zoomCapability.max)
+      .map(v => Number(v).toFixed(1))
+      .filter((v, idx, arr) => arr.indexOf(v) === idx);
+    current = currentZoomValue.toFixed(1);
+    title = 'Camera Zoom';
+    step = String(zoomCapability.step || 0.1);
+    min = String(zoomCapability.min);
+  } else if (kind === 'lens') {
+    presets = availableVideoDevices.map(device => ({
+      value: device.deviceId,
+      label: summarizeDeviceLabel(device.label || device.deviceId),
+    }));
+    current = selectedVideoDeviceId;
+    title = 'Select Camera';
+    inputType = 'text';
+  }
+
+  configPickerTitle.textContent = title;
+  configPickerInput.type = inputType;
+  configPickerInput.step = step;
+  configPickerInput.min = min;
   configPickerInput.value = current;
-  configPickerOptions.innerHTML = presets.map(val =>
-    `<button class="capture-picker-option" type="button" data-value="${val}">${val}</button>`
-  ).join('');
+  configPickerOptions.innerHTML = presets.map(val => {
+    if (typeof val === 'object') {
+      return `<button class="capture-picker-option" type="button" data-value="${val.value}">${val.label}</button>`;
+    }
+    return `<button class="capture-picker-option" type="button" data-value="${val}">${val}</button>`;
+  }).join('');
 }
 
 function closeConfigPicker() {
@@ -993,12 +1243,22 @@ function closeConfigPicker() {
 
 function applyConfigValue(rawValue) {
   if (!activePicker) return;
+  if (activePicker === 'lens') {
+    if (!rawValue) return;
+    selectedVideoDeviceId = rawValue;
+    closeConfigPicker();
+    startCamera().catch(e => { statusEl.textContent = 'Camera error: ' + e.message; });
+    return;
+  }
+
   const num = Number.parseFloat(rawValue);
   if (!Number.isFinite(num) || num <= 0) return;
   if (activePicker === 'interval') {
     sideIntervalValue.textContent = num.toFixed(1);
-  } else {
+  } else if (activePicker === 'duration') {
     sideDurationValue.textContent = String(Math.round(num));
+  } else if (activePicker === 'zoom') {
+    applyZoom(num);
   }
   closeConfigPicker();
 }
@@ -1014,6 +1274,7 @@ function stopBurst(reason = 'Burst stopped') {
   }
   if (burstActive) {
     burstActive = false;
+    flushBurstBuffer(reason).catch(() => {});
     setBurstButtons();
     statusEl.textContent = reason;
     setCaptureState('idle');
@@ -1040,64 +1301,262 @@ async function ensureCaptureReady() {
   return true;
 }
 
+function currentCameraMetadata() {
+  const track = getCurrentTrack();
+  const settings = track ? track.getSettings() : {};
+  const capabilities = track && typeof track.getCapabilities === 'function' ? track.getCapabilities() : {};
+  return {
+    run_key: captureRunKey,
+    device_id: selectedVideoDeviceId || settings.deviceId || '',
+    label: activeVideoLabel || settings.label || '',
+    facing_mode: settings.facingMode || facingMode || '',
+    width: settings.width || video.videoWidth || null,
+    height: settings.height || video.videoHeight || null,
+    aspect_ratio: settings.aspectRatio || null,
+    zoom: Number.isFinite(currentZoomValue) ? Number(currentZoomValue.toFixed(2)) : null,
+    zoom_min: capabilities.zoom ? capabilities.zoom.min : null,
+    zoom_max: capabilities.zoom ? capabilities.zoom.max : null,
+    display_mode: videoDisplayMode,
+  };
+}
+
+function estimateSharpness() {
+  const sampleSize = 160;
+  const sourceWidth = canvas.width;
+  const sourceHeight = canvas.height;
+  if (!sourceWidth || !sourceHeight) return null;
+
+  const ratio = sourceHeight / sourceWidth;
+  const sampleWidth = sampleSize;
+  const sampleHeight = Math.max(32, Math.round(sampleSize * ratio));
+
+  const sampleCanvas = document.createElement('canvas');
+  sampleCanvas.width = sampleWidth;
+  sampleCanvas.height = sampleHeight;
+  const ctx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(canvas, 0, 0, sampleWidth, sampleHeight);
+
+  const { data } = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
+  const gray = new Float32Array(sampleWidth * sampleHeight);
+  for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
+    gray[i] = data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114;
+  }
+
+  let laplacianSum = 0;
+  let laplacianSqSum = 0;
+  let count = 0;
+  for (let y = 1; y < sampleHeight - 1; y++) {
+    for (let x = 1; x < sampleWidth - 1; x++) {
+      const idx = y * sampleWidth + x;
+      const lap =
+        4 * gray[idx] -
+        gray[idx - 1] -
+        gray[idx + 1] -
+        gray[idx - sampleWidth] -
+        gray[idx + sampleWidth];
+      laplacianSum += lap;
+      laplacianSqSum += lap * lap;
+      count++;
+    }
+  }
+  if (!count) return null;
+
+  const mean = laplacianSum / count;
+  const variance = Math.max(0, (laplacianSqSum / count) - (mean * mean));
+  return variance;
+}
+
+function updateSharpnessDisplay(score) {
+  if (!Number.isFinite(score)) {
+    setReading('s-blur', '—', 'muted');
+    return;
+  }
+  const rounded = Math.round(score);
+  let quality = 'soft';
+  let stateClass = 'status-failed';
+  if (score >= 220) {
+    quality = 'sharp';
+    stateClass = 'status-done';
+  } else if (score >= 120) {
+    quality = 'ok';
+    stateClass = '';
+  }
+  setReading('s-blur', `${rounded}  ${quality}`, stateClass);
+}
+
+function sensorMovementScore(prev, next) {
+  if (!prev || !next) return 0;
+  let score = 0;
+
+  const prevOrient = prev.orientation || {};
+  const nextOrient = next.orientation || {};
+  const orientKeys = ['alpha', 'beta', 'gamma'];
+  for (const key of orientKeys) {
+    if (Number.isFinite(prevOrient[key]) && Number.isFinite(nextOrient[key])) {
+      score += Math.min(30, Math.abs(nextOrient[key] - prevOrient[key]));
+    }
+  }
+
+  const prevGeo = prev.geolocation || {};
+  const nextGeo = next.geolocation || {};
+  if (Number.isFinite(prevGeo.latitude) && Number.isFinite(nextGeo.latitude) &&
+      Number.isFinite(prevGeo.longitude) && Number.isFinite(nextGeo.longitude)) {
+    const latDiff = Math.abs(nextGeo.latitude - prevGeo.latitude);
+    const lonDiff = Math.abs(nextGeo.longitude - prevGeo.longitude);
+    score += Math.min(50, (latDiff + lonDiff) * 500000);
+  }
+
+  const prevAccel = prev.accelerometer || {};
+  const nextAccel = next.accelerometer || {};
+  for (const key of ['x', 'y', 'z']) {
+    if (Number.isFinite(prevAccel[key]) && Number.isFinite(nextAccel[key])) {
+      score += Math.min(10, Math.abs(nextAccel[key] - prevAccel[key]) * 2);
+    }
+  }
+
+  return score;
+}
+
+function chooseBurstWinner(candidates) {
+  if (!candidates.length) return null;
+  const ranked = candidates.map(candidate => {
+    const sharpness = Number.isFinite(candidate.sharpnessScore) ? candidate.sharpnessScore : 0;
+    const movement = sensorMovementScore(lastUploadedSensorSnapshot, candidate.sensorSnapshot);
+    return {
+      candidate,
+      totalScore: sharpness + movement,
+      sharpness,
+      movement,
+    };
+  }).sort((a, b) => b.totalScore - a.totalScore);
+  return ranked[0];
+}
+
+async function queueCaptureUpload(candidate, source = 'single') {
+  const { buildingId, locationId } = await resolveIds();
+  if (!buildingId) {
+    statusEl.textContent = 'Could not resolve building';
+    return false;
+  }
+
+  uploadQueue.push({
+    payload: {
+      image: candidate.imageData,
+      building_id: buildingId,
+      location_id: locationId,
+      capture_run_key: captureRunKey,
+      capture_mode: source === 'burst' || burstActive ? 'burst' : 'single',
+      device_name: captureDeviceName,
+      sensor: candidate.sensorSnapshot,
+    },
+  });
+  queuedCaptureCount++;
+  lastUploadedSensorSnapshot = candidate.sensorSnapshot;
+  updateQueueDisplay();
+  updateSharpnessDisplay(candidate.sharpnessScore);
+  document.getElementById('last-capture').innerHTML =
+    `<img src="${candidate.imageData}" class="capture-thumb" alt="Last capture">`;
+  processUploadQueue();
+  return true;
+}
+
+async function flushBurstBuffer(reason = 'Burst queued') {
+  if (!burstSampleBuffer.length) return false;
+  const ranked = chooseBurstWinner(burstSampleBuffer);
+  burstSampleBuffer = [];
+  if (!ranked) return false;
+  await queueCaptureUpload(ranked.candidate, 'burst');
+  statusEl.textContent = `${reason}  sharp ${Math.round(ranked.sharpness)}  move ${Math.round(ranked.movement)}`;
+  soundShutter();
+  return true;
+}
+
+async function processUploadQueue() {
+  if (uploadWorkerActive) return;
+  uploadWorkerActive = true;
+  updateQueueDisplay();
+
+  while (uploadQueue.length > 0) {
+    const item = uploadQueue[0];
+    try {
+      statusEl.textContent = `Uploading… ${uploadQueue.length} queued`;
+      const resp = await fetch('/api/capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item.payload),
+      });
+      const result = await resp.json();
+      if (!result.ok) {
+        throw new Error(result.error || 'unknown');
+      }
+      latestSessionId = result.session_id || latestSessionId;
+      captureCount++;
+      document.getElementById('capture-count').textContent = captureCount;
+      statusEl.textContent = `Saved #${result.frame_id}  queue ${Math.max(0, uploadQueue.length - 1)}`;
+      if (!burstActive) setCaptureState('idle');
+    } catch (e) {
+      uploadFailedCount++;
+      statusEl.textContent = 'Upload failed: ' + e.message;
+      setCaptureState('error');
+    } finally {
+      uploadQueue.shift();
+      updateQueueDisplay();
+    }
+  }
+
+  uploadWorkerActive = false;
+  if (!burstActive && stateEl.textContent !== '⚠') {
+    setCaptureState('idle');
+  }
+}
+
 async function captureFrame(source = 'single') {
-  if (captureInFlight) return false;
+  if (captureSnapshotInFlight) return false;
   if (!(await ensureCaptureReady())) return false;
 
-  captureInFlight = true;
+  captureSnapshotInFlight = true;
   setCaptureState(source === 'burst' ? 'burst' : 'busy');
 
   try {
-    statusEl.textContent = source === 'burst' ? 'Burst capture…' : 'Resolving…';
-
-    const { buildingId, locationId } = await resolveIds();
-    if (!buildingId) {
-      statusEl.textContent = 'Could not resolve building';
-      return false;
-    }
+    statusEl.textContent = source === 'burst' ? 'Burst capture…' : 'Preparing…';
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0);
     const imageData = canvas.toDataURL('image/jpeg', 0.92);
+    const sharpnessScore = estimateSharpness();
+    updateSharpnessDisplay(sharpnessScore);
 
     const sensorSnapshot = JSON.parse(JSON.stringify(sensorState));
     sensorSnapshot.timestamp = Date.now();
+    sensorSnapshot.camera = currentCameraMetadata();
+    sensorSnapshot.capture_quality = {
+      sharpness_score: Number.isFinite(sharpnessScore) ? Math.round(sharpnessScore) : null,
+    };
+    const candidate = { imageData, sensorSnapshot, sharpnessScore };
 
-    statusEl.textContent = source === 'burst' ? 'Burst upload…' : 'Uploading…';
-
-    const resp = await fetch('/api/capture', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image: imageData,
-        building_id: buildingId,
-        location_id: locationId,
-        sensor: sensorSnapshot,
-      }),
-    });
-    const result = await resp.json();
-
-    if (result.ok) {
-      captureCount++;
-      document.getElementById('capture-count').textContent = captureCount;
-      statusEl.textContent = `Saved #${result.frame_id}${burstActive ? ' burst' : ''}`;
-      setCaptureState(burstActive ? 'burst' : 'idle');
-      soundShutter();
-      document.getElementById('last-capture').innerHTML =
-        `<img src="${imageData}" class="capture-thumb" alt="Last capture">`;
+    if (source === 'burst' || burstActive) {
+      burstSampleBuffer.push(candidate);
+      statusEl.textContent = `Burst sampled… ${burstSampleBuffer.length}/3  queued ${uploadQueue.length}`;
+      if (burstSampleBuffer.length >= 3) {
+        await flushBurstBuffer('Burst kept best');
+      }
       return true;
     }
 
-    statusEl.textContent = 'Error: ' + (result.error || 'unknown');
-    setCaptureState('error');
-    return false;
+    await queueCaptureUpload(candidate, 'single');
+    statusEl.textContent = `Queued… ${uploadQueue.length} pending`;
+    if (Number.isFinite(sharpnessScore) && sharpnessScore < 120) {
+      statusEl.textContent += '  soft frame';
+    }
+    soundShutter();
+    return true;
   } catch (e) {
     statusEl.textContent = 'Failed: ' + e.message;
     setCaptureState('error');
     return false;
   } finally {
-    captureInFlight = false;
+    captureSnapshotInFlight = false;
     if (!burstActive && stateEl.textContent !== '⚠') setCaptureState('idle');
   }
 }
@@ -1107,13 +1566,14 @@ async function startBurst(durationMs = null) {
   if (!(await ensureCaptureReady())) return;
 
   burstActive = true;
+  burstSampleBuffer = [];
   setBurstButtons();
-  statusEl.textContent = `Burst running @ ${(getBurstIntervalMs() / 1000).toFixed(1)}s`;
+  statusEl.textContent = `Burst running @ ${(getBurstSampleMs() / 1000).toFixed(2)}s sample / ${(getBurstIntervalMs() / 1000).toFixed(1)}s keep`;
   setCaptureState(durationMs !== null ? 'timed' : 'burst');
   soundBurstStart();
 
   const tick = async () => {
-    if (!burstActive || captureInFlight) return;
+    if (!burstActive || captureSnapshotInFlight) return;
     soundBurstWhoosh();
     await captureFrame('burst');
   };
@@ -1121,7 +1581,7 @@ async function startBurst(durationMs = null) {
   await tick();
   if (!burstActive) return;
 
-  burstTimerId = setInterval(tick, getBurstIntervalMs());
+  burstTimerId = setInterval(tick, getBurstSampleMs());
   if (durationMs !== null) {
     burstStopId = setTimeout(() => stopBurst('Timed burst complete'), durationMs);
   }
@@ -1251,6 +1711,12 @@ btnSideBurst10.addEventListener('click', () => { startBurst(10000); });
 btnSideBurstTimed.addEventListener('click', () => { startBurst(getBurstDurationMs()); });
 btnSideBurstStop.addEventListener('click', () => { stopBurst('Burst stopped'); });
 btnSideCamera.addEventListener('click', switchCamera);
+btnSideLens.addEventListener('click', async () => {
+  await refreshVideoDevices();
+  openConfigPicker('lens');
+});
+btnSideZoom.addEventListener('click', () => { openConfigPicker('zoom'); });
+btnSideView.addEventListener('click', toggleVideoDisplayMode);
 btnSideInterval.addEventListener('click', () => { openConfigPicker('interval'); });
 btnSideDuration.addEventListener('click', () => { openConfigPicker('duration'); });
 configPickerOptions.addEventListener('click', e => {
@@ -1262,7 +1728,14 @@ configPickerApply.addEventListener('click', () => { applyConfigValue(configPicke
 configPickerClose.addEventListener('click', closeConfigPicker);
 document.addEventListener('click', e => {
   if (configPicker.hidden) return;
-  if (configPicker.contains(e.target) || e.target.closest('#btn-side-interval') || e.target.closest('#btn-side-duration')) {
+  if (
+    configPicker.contains(e.target) ||
+    e.target.closest('#btn-side-interval') ||
+    e.target.closest('#btn-side-duration') ||
+    e.target.closest('#btn-side-lens') ||
+    e.target.closest('#btn-side-zoom') ||
+    e.target.closest('#btn-side-view')
+  ) {
     return;
   }
   closeConfigPicker();
@@ -1270,6 +1743,9 @@ document.addEventListener('click', e => {
 
 // --- Init ---
 checkPermissions();
+updateQueueDisplay();
+applyVideoDisplayMode();
+updateCameraDisplay();
 setBurstButtons();
 </script>
 {% endblock %}

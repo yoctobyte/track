@@ -196,7 +196,13 @@ def capture():
     location_id = data.get("location_id") or None
     sensor_data = data.get("sensor", {})
 
-    session = get_or_create_session(building_id, source_type="manual_capture")
+    session = get_or_create_session(
+        building_id,
+        source_type="manual_capture",
+        capture_run_key=(data.get("capture_run_key") or "").strip(),
+        capture_mode=(data.get("capture_mode") or "").strip(),
+        device_name=(data.get("device_name") or "").strip(),
+    )
     frame = ingest_image(
         image_bytes, "capture.jpg", session,
         location_id=location_id,
@@ -206,5 +212,6 @@ def capture():
     return jsonify({
         "ok": True,
         "frame_id": frame.id,
+        "session_id": session.id,
         "sensor_keys": list(sensor_data.keys()),
     }), 201

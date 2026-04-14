@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Viewer - map3d{% endblock %}
+{% block content %}
+<h1>Reconstructions</h1>
+
+{% if not workspaces %}
+  <div class="card">
+    <p class="muted">No reconstruction workspaces found yet.</p>
+  </div>
+{% endif %}
+
+{% for item in workspaces %}
+  <div class="card">
+    <h2 style="margin-bottom:0.3em;">{{ item.name }}</h2>
+    <p class="muted mb">
+      {% if item.selection.building_name %}{{ item.selection.building_name }}{% else %}Unknown building{% endif %}
+      {% if item.selection.count %} · {{ item.selection.count }} source images{% endif %}
+      {% if item.selection.first_session %} · sessions {{ item.selection.first_session }}..{{ item.selection.last_session }}{% endif %}
+      {% if item.dense_exists %} · dense ready{% endif %}
+    </p>
+
+    {% if item.best_model %}
+      <p class="mb">
+        Best model <code>{{ item.best_model.id }}</code>:
+        {{ item.best_model.registered_images }} images,
+        {{ item.best_model.points }} points,
+        {{ "%.3f"|format(item.best_model.mean_error_px) }} px error.
+      </p>
+      <p>
+        <a class="btn" href="{{ url_for('viewer.viewer_detail', name=item.name) }}">Open Viewer</a>
+      </p>
+    {% else %}
+      <p class="muted">No sparse model yet. This workspace only has logs/database at the moment.</p>
+    {% endif %}
+  </div>
+{% endfor %}
+{% endblock %}

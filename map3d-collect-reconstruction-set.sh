@@ -105,6 +105,7 @@ ROOT_DIR="$ROOT_DIR" DB_PATH="$DB_PATH" BUILDING_ID="$BUILDING_ID" FROM_SESSION=
 import json
 import os
 import sqlite3
+from collections import Counter
 from datetime import datetime
 
 root = os.environ["ROOT_DIR"]
@@ -121,6 +122,7 @@ conn.row_factory = sqlite3.Row
 rows = conn.execute(
     """
     select
+      a.id as asset_id,
       s.id as session_id,
       s.building_id,
       b.name as building_name,
@@ -152,33 +154,40 @@ if mode == "session-range":
             selected.append(row)
     selected.sort(key=lambda r: int(r["session_id"]))
 else:
-    anchor = None
+    eligible_rows = []
     for row in rows:
         if building_id and int(row["building_id"]) != int(building_id):
             continue
-        anchor = row
-        break
+        eligible_rows.append(row)
+    anchor = eligible_rows[0] if eligible_rows else None
     if anchor is None:
         print(json.dumps({"error": "No eligible sessions found"}))
         raise SystemExit
     anchor_building = int(anchor["building_id"])
-    selected.append(anchor)
-    prev_ts = parse_ts(anchor["start_time"])
-    prev_sid = int(anchor["session_id"])
-    for row in rows[rows.index(anchor) + 1:]:
-        sid = int(row["session_id"])
-        if int(row["building_id"]) != anchor_building:
-            break
-        ts = parse_ts(row["start_time"])
-        gap = abs((prev_ts - ts).total_seconds())
-        if gap > max_gap_sec:
-            break
-        if sid != prev_sid - 1:
-            break
-        selected.append(row)
-        prev_ts = ts
-        prev_sid = sid
-    selected.sort(key=lambda r: int(r["session_id"]))
+    anchor_sid = int(anchor["session_id"])
+    session_counts = Counter(int(r["session_id"]) for r in eligible_rows)
+
+    if session_counts[anchor_sid] > 1:
+        selected = [r for r in eligible_rows if int(r["session_id"]) == anchor_sid]
+        selected.sort(key=lambda r: int(r["asset_id"]))
+    else:
+        selected.append(anchor)
+        prev_ts = parse_ts(anchor["start_time"])
+        prev_sid = anchor_sid
+        for row in eligible_rows[1:]:
+            sid = int(row["session_id"])
+            if int(row["building_id"]) != anchor_building:
+                break
+            ts = parse_ts(row["start_time"])
+            gap = abs((prev_ts - ts).total_seconds())
+            if gap > max_gap_sec:
+                break
+            if sid != prev_sid - 1:
+                break
+            selected.append(row)
+            prev_ts = ts
+            prev_sid = sid
+        selected.sort(key=lambda r: int(r["session_id"]))
 
 if not selected:
     print(json.dumps({"error": "No sessions selected"}))

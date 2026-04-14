@@ -73,6 +73,8 @@ class Session(db.Model):
     start_time = db.Column(db.DateTime, default=utcnow)
     end_time = db.Column(db.DateTime)
     source_type = db.Column(db.String(50), default="file_upload")  # manual_capture, file_upload, video_import
+    capture_run_key = db.Column(db.String(64), default="")
+    capture_mode = db.Column(db.String(20), default="")  # single, burst, mixed
     device_name = db.Column(db.String(200), default="")
     notes = db.Column(db.Text, default="")
 

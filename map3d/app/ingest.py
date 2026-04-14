@@ -1,9 +1,13 @@
 import json
+from datetime import timedelta
 
 from . import db
 from .models import Asset, Frame, Observation, Session, utcnow
 from .storage import store_original, store_preview
 from .metadata import extract_metadata, generate_preview
+
+
+MANUAL_CAPTURE_SESSION_TIMEOUT = timedelta(minutes=30)
 
 
 def ingest_image(file_data: bytes, original_filename: str, session: Session,
@@ -67,17 +71,66 @@ def ingest_image(file_data: bytes, original_filename: str, session: Session,
         )
         db.session.add(obs)
 
+    session.end_time = utcnow()
     db.session.commit()
     return frame
 
 
 def get_or_create_session(building_id: int, label: str = "",
-                          source_type: str = "file_upload") -> Session:
+                          source_type: str = "file_upload",
+                          capture_run_key: str = "",
+                          capture_mode: str = "",
+                          device_name: str = "") -> Session:
     """Get an open session or create a new one."""
+    if source_type == "manual_capture":
+        now = utcnow()
+        session = None
+
+        if capture_run_key:
+            session = (Session.query
+                       .filter_by(
+                           building_id=building_id,
+                           source_type=source_type,
+                           capture_run_key=capture_run_key,
+                       )
+                       .order_by(Session.id.desc())
+                       .first())
+        else:
+            recent_cutoff = now - MANUAL_CAPTURE_SESSION_TIMEOUT
+            session = (Session.query
+                       .filter(
+                           Session.building_id == building_id,
+                           Session.source_type == source_type,
+                           Session.end_time.isnot(None),
+                           Session.end_time >= recent_cutoff,
+                       )
+                       .order_by(Session.end_time.desc(), Session.id.desc())
+                       .first())
+
+        if session is not None:
+            if capture_mode:
+                if not session.capture_mode:
+                    session.capture_mode = capture_mode
+                elif session.capture_mode != capture_mode:
+                    session.capture_mode = "mixed"
+            if device_name and not session.device_name:
+                session.device_name = device_name
+            session.end_time = now
+            db.session.flush()
+            return session
+
     session = Session(
         building_id=building_id,
-        label=label or f"Upload {utcnow().strftime('%Y-%m-%d %H:%M')}",
+        label=label or (
+            f"Capture run {utcnow().strftime('%Y-%m-%d %H:%M')}"
+            if source_type == "manual_capture"
+            else f"Upload {utcnow().strftime('%Y-%m-%d %H:%M')}"
+        ),
         source_type=source_type,
+        capture_run_key=capture_run_key,
+        capture_mode=capture_mode,
+        device_name=device_name,
+        end_time=utcnow() if source_type == "manual_capture" else None,
     )
     db.session.add(session)
     db.session.flush()

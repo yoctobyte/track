@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+{% block title %}Viewer {{ workspace_name }} - map3d{% endblock %}
+{% block content %}
+<style>
+  .viewer-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 1em;
+    align-items: start;
+  }
+  .viewer-panel {
+    background: rgba(239, 228, 188, 0.9);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1em;
+    box-shadow: var(--shadow);
+  }
+  .viewer-canvas-wrap {
+    min-height: 72vh;
+    background: linear-gradient(180deg, #17110b, #2a2118);
+    border: 1px solid #5f472f;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  #viewerCanvas {
+    width: 100%;
+    height: 72vh;
+    display: block;
+    cursor: grab;
+    background: transparent;
+  }
+  #viewerCanvas.dragging { cursor: grabbing; }
+  .viewer-legend {
+    position: absolute;
+    right: 0.8em;
+    bottom: 0.8em;
+    color: #f4eacb;
+    font-size: 0.85em;
+    background: rgba(20, 16, 12, 0.55);
+    padding: 0.5em 0.7em;
+    border-radius: 6px;
+  }
+  .viewer-status {
+    margin-top: 0.6em;
+    color: var(--text-dim);
+    font-size: 0.9em;
+    font-variant-numeric: tabular-nums;
+  }
+  .viewer-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45em;
+    margin-bottom: 0.75em;
+  }
+  .viewer-toolbar button {
+    padding: 0.35em 0.8em;
+    font-size: 0.9em;
+  }
+  .viewer-mode-active {
+    background: linear-gradient(135deg, var(--pink) 0%, #b72a68 100%);
+    box-shadow: 0 4px 16px rgba(223, 77, 145, 0.28);
+  }
+  .viewer-list {
+    list-style: none;
+    display: grid;
+    gap: 0.5em;
+  }
+  .viewer-list a {
+    display: block;
+    text-decoration: none;
+    padding: 0.55em 0.7em;
+    border-radius: 6px;
+    background: rgba(255, 248, 231, 0.56);
+    border: 1px solid rgba(95, 71, 47, 0.18);
+  }
+  .viewer-list a.active {
+    background: rgba(125, 75, 219, 0.14);
+    border-color: rgba(125, 75, 219, 0.45);
+  }
+  .viewer-kv {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.4em 0.8em;
+    font-variant-numeric: tabular-nums;
+  }
+  .viewer-kv .k {
+    color: var(--text-dim);
+  }
+  @media (max-width: 900px) {
+    .viewer-layout {
+      grid-template-columns: 1fr;
+    }
+    #viewerCanvas,
+    .viewer-canvas-wrap {
+      height: 62vh;
+      min-height: 62vh;
+    }
+  }
+</style>
+
+<h1>Viewer: {{ workspace_name }}</h1>
+
+<div class="viewer-layout">
+  <div class="viewer-panel">
+    {% if selection.building_name or selection.count %}
+      <div class="viewer-kv mb">
+        {% if selection.building_name %}<div class="k">Building</div><div>{{ selection.building_name }}</div>{% endif %}
+        {% if selection.count %}<div class="k">Source images</div><div>{{ selection.count }}</div>{% endif %}
+        {% if selection.first_session %}<div class="k">Sessions</div><div>{{ selection.first_session }}..{{ selection.last_session }}</div>{% endif %}
+      </div>
+    {% endif %}
+
+    <h3>Models</h3>
+    {% if not models %}
+      <p class="muted">No sparse models available in this workspace.</p>
+    {% else %}
+      <ul class="viewer-list mb">
+        {% for model in models %}
+          <li>
+            <a href="{{ url_for('viewer.viewer_detail', name=workspace_name, model=model.id) }}"
+               class="{% if active_model and active_model.id == model.id %}active{% endif %}">
+              <strong>Model {{ model.id }}</strong><br>
+              {{ model.registered_images }} images · {{ model.points }} points · {{ "%.3f"|format(model.mean_error_px) }} px
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if active_model %}
+      <h3>Active Model</h3>
+      <div class="viewer-kv">
+        <div class="k">Geometry</div><div>{{ active_geometry }}</div>
+        <div class="k">Registered</div><div>{{ active_model.registered_images }}</div>
+        <div class="k">Points</div><div>{{ active_model.points }}</div>
+        <div class="k">Error</div><div>{{ "%.3f"|format(active_model.mean_error_px) }} px</div>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="viewer-panel">
+    {% if viewer_error %}
+      <p class="flash error">{{ viewer_error }}</p>
+    {% endif %}
+    <div class="viewer-toolbar">
+      <button type="button" id="btnOrbit" class="viewer-mode-active">Orbit</button>
+      <button type="button" id="btnPan">Pan</button>
+      <button type="button" id="btnReset">Reset</button>
+      <button type="button" id="btnFront">Front</button>
+      <button type="button" id="btnSide">Side</button>
+      <button type="button" id="btnTop">Top</button>
+      <a class="btn {% if active_geometry == 'sparse' %}viewer-mode-active{% endif %}" href="{{ url_for('viewer.viewer_detail', name=workspace_name, model=active_model.id if active_model else None, geometry='sparse') }}">Sparse</a>
+      {% if dense_available %}
+        <a class="btn {% if active_geometry == 'dense' %}viewer-mode-active{% endif %}" href="{{ url_for('viewer.viewer_detail', name=workspace_name, model=active_model.id if active_model else None, geometry='dense') }}">Dense</a>
+      {% endif %}
+      <button type="button" id="btnModePoints" class="viewer-mode-active">Points</button>
+      <button type="button" id="btnModePhotos">Photos</button>
+      <button type="button" id="btnModeHybrid">Hybrid</button>
+    </div>
+    <div class="viewer-canvas-wrap">
+      <canvas id="viewerCanvas"></canvas>
+      <div class="viewer-legend">
+        drag orbit · shift/right-drag pan · wheel zoom · keys: arrows orbit, wasd pan, r reset · modes: points, photos, hybrid
+      </div>
+    </div>
+    <div class="viewer-status" id="viewerStatus">Preparing viewer…</div>
+  </div>
+</div>
+
+<script>
+const payload = {{ payload_json|safe }};
+
+const canvas = document.getElementById('viewerCanvas');
+const ctx = canvas.getContext('2d');
+const btnOrbit = document.getElementById('btnOrbit');
+const btnPan = document.getElementById('btnPan');
+const btnReset = document.getElementById('btnReset');
+const btnFront = document.getElementById('btnFront');
+const btnSide = document.getElementById('btnSide');
+const btnTop = document.getElementById('btnTop');
+const btnModePoints = document.getElementById('btnModePoints');
+const btnModePhotos = document.getElementById('btnModePhotos');
+const btnModeHybrid = document.getElementById('btnModeHybrid');
+const viewerStatus = document.getElementById('viewerStatus');
+
+let yaw = -0.45;
+let pitch = 0.3;
+let zoom = 1.0;
+let panX = 0;
+let panY = 0;
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+let dragMode = 'orbit';
+let currentPointerMode = 'orbit';
+let renderMode = 'points';
+const imageCache = new Map();
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.floor(rect.width * window.devicePixelRatio));
+  canvas.height = Math.max(1, Math.floor(rect.height * window.devicePixelRatio));
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  draw();
+}
+
+function centerFromBounds(bounds) {
+  return [
+    (bounds.min[0] + bounds.max[0]) / 2,
+    (bounds.min[1] + bounds.max[1]) / 2,
+    (bounds.min[2] + bounds.max[2]) / 2,
+  ];
+}
+
+function radiusFromBounds(bounds) {
+  const dx = bounds.max[0] - bounds.min[0];
+  const dy = bounds.max[1] - bounds.min[1];
+  const dz = bounds.max[2] - bounds.min[2];
+  return Math.max(1, Math.sqrt(dx * dx + dy * dy + dz * dz));
+}
+
+function rotatePoint(point, center) {
+  let x = point[0] - center[0];
+  let y = point[1] - center[1];
+  let z = point[2] - center[2];
+
+  const cy = Math.cos(yaw);
+  const sy = Math.sin(yaw);
+  const cp = Math.cos(pitch);
+  const sp = Math.sin(pitch);
+
+  const x1 = x * cy - z * sy;
+  const z1 = x * sy + z * cy;
+  const y2 = y * cp - z1 * sp;
+  const z2 = y * sp + z1 * cp;
+  return [x1, y2, z2];
+}
+
+function project(point, center, radius, width, height) {
+  const rotated = rotatePoint(point, center);
+  return {
+    x: rotated[0],
+    y: rotated[1],
+    depth: rotated[2],
+  };
+}
+
+function quantile(sortedValues, t) {
+  if (!sortedValues.length) return 0;
+  const idx = (sortedValues.length - 1) * t;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sortedValues[lo];
+  const frac = idx - lo;
+  return sortedValues[lo] * (1 - frac) + sortedValues[hi] * frac;
+}
+
+function setView(nextYaw, nextPitch) {
+  yaw = nextYaw;
+  pitch = nextPitch;
+  draw();
+}
+
+function resetView() {
+  yaw = -0.45;
+  pitch = 0.3;
+  zoom = 1.0;
+  panX = 0;
+  panY = 0;
+  draw();
+}
+
+function setDragMode(mode) {
+  dragMode = mode;
+  btnOrbit.classList.toggle('viewer-mode-active', mode === 'orbit');
+  btnPan.classList.toggle('viewer-mode-active', mode === 'pan');
+}
+
+function setRenderMode(mode) {
+  renderMode = mode;
+  btnModePoints.classList.toggle('viewer-mode-active', mode === 'points');
+  btnModePhotos.classList.toggle('viewer-mode-active', mode === 'photos');
+  btnModeHybrid.classList.toggle('viewer-mode-active', mode === 'hybrid');
+  draw();
+}
+
+function getCachedImage(url) {
+  if (!url) return null;
+  if (imageCache.has(url)) {
+    return imageCache.get(url);
+  }
+  const img = new Image();
+  img.loading = 'eager';
+  img.decoding = 'async';
+  img.src = url;
+  img.addEventListener('load', () => draw());
+  img.addEventListener('error', () => draw());
+  imageCache.set(url, img);
+  return img;
+}
+
+function draw() {
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  ctx.clearRect(0, 0, width, height);
+
+  if (!payload.bounds) {
+    ctx.fillStyle = '#f4eacb';
+    ctx.fillText('No viewer payload yet.', 20, 30);
+    return;
+  }
+
+  const center = centerFromBounds(payload.bounds);
+  const radius = radiusFromBounds(payload.bounds);
+
+  const points = (payload.points || []).map(point => {
+    const projected = project(point, center, radius, width, height);
+    return { point, projected };
+  });
+  const cameras = (payload.cameras || []).map(camera => ({
+    camera,
+    projected: project(camera.center, center, radius, width, height),
+  }));
+
+  const allProjected = [...points, ...cameras].map(item => item.projected);
+  const xs = allProjected.map(item => item.x).sort((a, b) => a - b);
+  const ys = allProjected.map(item => item.y).sort((a, b) => a - b);
+  const depths = allProjected.map(item => item.depth).sort((a, b) => a - b);
+
+  const minX = quantile(xs, 0.02);
+  const maxX = quantile(xs, 0.98);
+  const minY = quantile(ys, 0.02);
+  const maxY = quantile(ys, 0.98);
+  const minDepth = depths[0];
+  const maxDepth = depths[depths.length - 1];
+
+  const spanX = Math.max(1, maxX - minX);
+  const spanY = Math.max(1, maxY - minY);
+  const fitScale = Math.min(width / spanX, height / spanY) * 0.82 * zoom;
+  const offsetX = width / 2 - ((minX + maxX) / 2) * fitScale + panX;
+  const offsetY = height / 2 + ((minY + maxY) / 2) * fitScale + panY;
+
+  points.sort((a, b) => b.projected.depth - a.projected.depth);
+
+  function toScreen(projected) {
+    return {
+      x: projected.x * fitScale + offsetX,
+      y: -projected.y * fitScale + offsetY,
+      depth: projected.depth,
+    };
+  }
+
+  if (renderMode === 'points' || renderMode === 'hybrid') {
+    for (const item of points) {
+      const [ , , , r, g, b ] = item.point;
+      const screen = toScreen(item.projected);
+      const depthNorm = (item.projected.depth - minDepth) / Math.max(1e-6, (maxDepth - minDepth));
+      const alpha = renderMode === 'hybrid'
+        ? 0.12 + (1 - depthNorm) * 0.22
+        : 0.2 + (1 - depthNorm) * 0.45;
+      ctx.fillStyle = `rgba(${r || 255}, ${g || 164}, ${b || 88}, ${alpha})`;
+      ctx.fillRect(screen.x, screen.y, 1.8, 1.8);
+    }
+  }
+
+  const sortedCameras = [...cameras].sort((a, b) => a.projected.depth - b.projected.depth);
+  let loadedPhotos = 0;
+  let failedPhotos = 0;
+  let pendingPhotos = 0;
+  for (const item of sortedCameras) {
+    const projected = toScreen(item.projected);
+    const depthNorm = (item.projected.depth - minDepth) / Math.max(1e-6, (maxDepth - minDepth));
+    const spriteSize = 22 + (1 - depthNorm) * 34;
+    const img = (renderMode === 'photos' || renderMode === 'hybrid')
+      ? getCachedImage(item.camera.preview_url)
+      : null;
+
+    if (renderMode === 'photos' || renderMode === 'hybrid') {
+      if (img && img.complete && img.naturalWidth > 0) {
+        const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
+        const width = spriteSize * aspect;
+        const height = spriteSize;
+        ctx.save();
+        ctx.globalAlpha = renderMode === 'hybrid' ? 0.58 : 0.82;
+        ctx.drawImage(img, projected.x - width / 2, projected.y - height / 2, width, height);
+        ctx.strokeStyle = renderMode === 'hybrid' ? 'rgba(24, 211, 215, 0.35)' : 'rgba(24, 211, 215, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(projected.x - width / 2, projected.y - height / 2, width, height);
+        ctx.restore();
+        loadedPhotos += 1;
+      } else {
+        if (img && img.complete && img.naturalWidth === 0) {
+          failedPhotos += 1;
+        } else {
+          pendingPhotos += 1;
+        }
+        ctx.fillStyle = renderMode === 'hybrid' ? 'rgba(24, 211, 215, 0.12)' : 'rgba(24, 211, 215, 0.18)';
+        ctx.strokeStyle = renderMode === 'hybrid' ? 'rgba(24, 211, 215, 0.28)' : 'rgba(24, 211, 215, 0.46)';
+        ctx.lineWidth = 1;
+        ctx.fillRect(projected.x - spriteSize * 0.6, projected.y - spriteSize * 0.45, spriteSize * 1.2, spriteSize * 0.9);
+        ctx.strokeRect(projected.x - spriteSize * 0.6, projected.y - spriteSize * 0.45, spriteSize * 1.2, spriteSize * 0.9);
+      }
+    }
+
+    if (renderMode !== 'photos' || (renderMode === 'photos' && (!img || !img.complete || img.naturalWidth === 0))) {
+      ctx.strokeStyle = 'rgba(24, 211, 215, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(projected.x - 4, projected.y);
+      ctx.lineTo(projected.x + 4, projected.y);
+      ctx.moveTo(projected.x, projected.y - 4);
+      ctx.lineTo(projected.x, projected.y + 4);
+      ctx.stroke();
+    }
+  }
+
+  if (!payload.points?.length && !payload.cameras?.length) {
+    viewerStatus.textContent = 'No visible geometry in this model.';
+  } else if (renderMode === 'points') {
+    viewerStatus.textContent = `${payload.points.length} sampled points · ${payload.cameras.length} cameras`;
+  } else {
+    viewerStatus.textContent = `${payload.cameras.length} cameras · photos ${loadedPhotos} loaded, ${pendingPhotos} pending, ${failedPhotos} failed`;
+  }
+}
+
+canvas.addEventListener('pointerdown', (event) => {
+  dragging = true;
+  lastX = event.clientX;
+  lastY = event.clientY;
+  currentPointerMode = (event.button === 2 || event.shiftKey) ? 'pan' : dragMode;
+  canvas.classList.add('dragging');
+  canvas.setPointerCapture?.(event.pointerId);
+});
+
+window.addEventListener('pointermove', (event) => {
+  if (!dragging) return;
+  const dx = event.clientX - lastX;
+  const dy = event.clientY - lastY;
+  lastX = event.clientX;
+  lastY = event.clientY;
+  if (currentPointerMode === 'pan') {
+    panX += dx;
+    panY += dy;
+  } else {
+    yaw += dx * 0.01;
+    pitch += dy * 0.01;
+    pitch = Math.max(-1.4, Math.min(1.4, pitch));
+  }
+  draw();
+});
+
+window.addEventListener('pointerup', () => {
+  dragging = false;
+  canvas.classList.remove('dragging');
+});
+
+canvas.addEventListener('contextmenu', (event) => {
+  event.preventDefault();
+});
+
+canvas.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  zoom *= event.deltaY > 0 ? 0.92 : 1.08;
+  zoom = Math.max(0.05, zoom);
+  draw();
+}, { passive: false });
+
+window.addEventListener('keydown', (event) => {
+  const key = event.key.toLowerCase();
+  let handled = true;
+  if (key === 'arrowleft') yaw -= 0.08;
+  else if (key === 'arrowright') yaw += 0.08;
+  else if (key === 'arrowup') pitch = Math.max(-1.4, pitch - 0.08);
+  else if (key === 'arrowdown') pitch = Math.min(1.4, pitch + 0.08);
+  else if (key === 'a') panX -= 18;
+  else if (key === 'd') panX += 18;
+  else if (key === 'w') panY -= 18;
+  else if (key === 's') panY += 18;
+  else if (key === '+' || key === '=') zoom = zoom * 1.08;
+  else if (key === '-' || key === '_') zoom = Math.max(0.05, zoom * 0.92);
+  else if (key === 'r') resetView();
+  else if (key === '1') setView(0.0, 0.0);
+  else if (key === '2') setView(Math.PI / 2, 0.0);
+  else if (key === '3') setView(0.0, -Math.PI / 2);
+  else handled = false;
+
+  if (handled) {
+    event.preventDefault();
+    draw();
+  }
+});
+
+btnOrbit.addEventListener('click', () => setDragMode('orbit'));
+btnPan.addEventListener('click', () => setDragMode('pan'));
+btnReset.addEventListener('click', () => resetView());
+btnFront.addEventListener('click', () => setView(0.0, 0.0));
+btnSide.addEventListener('click', () => setView(Math.PI / 2, 0.0));
+btnTop.addEventListener('click', () => setView(0.0, -Math.PI / 2));
+btnModePoints.addEventListener('click', () => setRenderMode('points'));
+btnModePhotos.addEventListener('click', () => setRenderMode('photos'));
+btnModeHybrid.addEventListener('click', () => setRenderMode('hybrid'));
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+</script>
+{% endblock %}

@@ -43,3 +43,7 @@ tmp-colmap-build/
 
 # Claude Code session state
 .claude/
+
+# Local runtime scratch
+map3d/.map3d.pid
+tmp-capture-check.js

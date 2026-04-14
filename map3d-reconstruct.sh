@@ -69,6 +69,7 @@ MULTI_CAMERA=0
 FORCE=0
 CPU_ONLY=0
 MAX_GAP_SEC=""
+AUTO_MODE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -129,6 +130,7 @@ if [[ -n "$SESSION_ID" && -n "$IMAGES_DIR" ]]; then
 fi
 
 if [[ -z "$SESSION_ID" && -z "$IMAGES_DIR" ]]; then
+  AUTO_MODE=1
   [[ -x "$COLLECTOR_SCRIPT" ]] || die "Collector script not found or not executable: $COLLECTOR_SCRIPT"
   AUTO_SET_NAME="latest-auto"
   log "No session or image directory given. Collecting the latest contiguous capture run first."
@@ -139,6 +141,9 @@ if [[ -z "$SESSION_ID" && -z "$IMAGES_DIR" ]]; then
   "$COLLECTOR_SCRIPT" --name "$AUTO_SET_NAME" --force "${GAP_ARGS[@]}"
   IMAGES_DIR="$MAP3D_DIR/data/derived/reconstruction_sets/$AUTO_SET_NAME/images"
   [[ -n "$RUN_NAME" ]] || RUN_NAME="$AUTO_SET_NAME"
+  if [[ "$FORCE" -eq 0 ]]; then
+    FORCE=1
+  fi
 fi
 
 if [[ -n "$SESSION_ID" ]]; then
@@ -186,7 +191,11 @@ fi
 
 if [[ -e "$WORKSPACE_DIR" ]]; then
   if [[ "$FORCE" -eq 1 ]]; then
-    log "Removing existing workspace: $WORKSPACE_DIR"
+    if [[ "$AUTO_MODE" -eq 1 ]]; then
+      log "Refreshing default auto workspace: $WORKSPACE_DIR"
+    else
+      log "Removing existing workspace: $WORKSPACE_DIR"
+    fi
     rm -rf "$WORKSPACE_DIR"
   else
     die "Workspace already exists: $WORKSPACE_DIR (use --force to replace it)"

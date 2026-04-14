@@ -11,6 +11,13 @@ Primary philosophy documents now live in:
 This file remains useful as raw extracted conceptual notes and supporting
 material.
 
+## 2026-04-14 — Detailed Architectural Vision
+
+A detailed update on the modular "umbrella" vision, infrastructure strategy, 
+and federated security model was captured from user feedback.
+
+See: [ARCHITECTURAL_FEEDBACK.md](./ARCHITECTURAL_FEEDBACK.md)
+
 ## 2026-04-12 — Shared conversation: broader TRACK architecture
 
 Source:
