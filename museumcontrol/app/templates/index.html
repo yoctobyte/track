@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h2>{{ t.device_overview }}</h2>
+    <p>{{ app_subtitle }}</p>
+</div>
+
+<div class="device-grid">
+    {% for device in devices %}
+    <div class="device-card {% if device.status == 'Online' %}online{% else %}offline{% endif %}">
+        <div class="device-header">
+            <h3>{{ device.name }}</h3>
+            <span class="status-badge">{% if device.status == 'Online' %}{{ t.status_online }}{% else %}{{
+                t.status_offline }}{% endif %}</span>
+        </div>
+        <div class="device-body">
+            <p><strong>{{ t.hostname }}:</strong> {{ device.hostname }}</p>
+            <p><strong>{{ t.location }}:</strong> {{ device.room }} &mdash; {{ device.placement }}</p>
+
+            {% if device.type == 'kioskplayer' %}
+            <div class="playing-info">
+                <strong>{{ t.currently_playing }}:</strong>
+                <span class="video-name">{{ device.active_video }}</span>
+                <div style="margin-top: 0.5rem; font-size: 0.8rem;">
+                    <strong>{{ t.play_mode }}:</strong> {{ device.play_mode }}<br>
+                    <strong>{{ t.loop_mode }}:</strong> {{ device.loop_mode }}<br>
+                    <strong>{{ t.video_subtitle }}:</strong> {{ device.default_subtitle }}<br>
+                    <strong>{{ t.active_schedule }}:</strong> {{ device.end_time }} to {{ device.start_time }}
+                </div>
+            </div>
+            {% else %}
+            <div class="playing-info" style="color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem;">
+                <strong>Device Type:</strong> {{ device.type | capitalize }}
+            </div>
+            {% endif %}
+        </div>
+        <div class="device-footer">
+            <a href="/proxy/{{ device.id }}/" class="btn btn-secondary btn-sm" {% if device.status=='Offline'
+                %}disabled{% endif %}>{{ t.open_interface }}</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>{{ t.no_devices_found }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{
+    "port": 4575,
+    "bind": "127.0.0.1",
+    "title": "Fort bij Vechten Kiosk Control",
+    "subtitle": "Overzicht",
+    "language": "nl"
+}
