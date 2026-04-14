@@ -78,6 +78,20 @@ matter across the whole `track/` project.
   - procedures
   - ad hoc observations
 
+### Subproject character
+
+- `TRACK` should be expected to contain subprojects that solve adjacent
+  problems in different ways.
+- Some subprojects will be hybrid by nature rather than clean single-purpose
+  web apps.
+- `netinventory` is a good example:
+  - central collection and aggregation
+  - local inspection scripts
+  - probe paths that may require elevated privileges
+  - possible long-running monitoring on controlled devices
+- This is acceptable as long as the boundaries and operating assumptions remain
+  explicit.
+
 ### AI role
 
 - AI should be treated as assistive enrichment rather than the primary source of

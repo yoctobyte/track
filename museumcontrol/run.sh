@@ -7,9 +7,8 @@ cd "$(dirname "$0")"
 # Set the port dynamically from config.json (fallback to 4575)
 PORT=$(python3 -c "import json; print(json.load(open('config.json')).get('port', 4575))" 2>/dev/null || echo 4575)
 
-# Kill any existing instance running on this port or script
-echo "Killing any existing instances of the app..."
-pkill -f "python run.py" || true
+# Kill any existing instance on the configured port
+echo "Killing any existing instance on port $PORT..."
 fuser -k $PORT/tcp || true
 
 # Setup Python virtual environment if it doesn't exist

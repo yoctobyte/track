@@ -29,17 +29,13 @@
         <div class="muted" style="font-size:0.9rem;">Canonical public path</div>
         <code>{{ app.public_path }}</code>
       {% endif %}
-      {% if app.local_url %}
-        <div class="muted" style="font-size:0.9rem;">Current local target</div>
-        <code>{{ app.local_url }}</code>
-      {% endif %}
       {% if app.public_url %}
         <div class="muted" style="font-size:0.9rem;">Intended public URL</div>
         <code>{{ app.public_url }}</code>
       {% endif %}
       {% if app.open_url %}
-        <div>
-          <a class="btn" href="{{ app.open_url }}" target="_blank" rel="noreferrer">Open Current Target</a>
+        <div class="row">
+          <a class="btn" href="{{ app.open_url }}" target="_blank" rel="noreferrer">Open</a>
         </div>
       {% else %}
         <p class="muted" style="margin:0;">No endpoint configured yet for this environment.</p>

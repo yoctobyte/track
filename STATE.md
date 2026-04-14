@@ -90,8 +90,19 @@ It is clearly its own project with:
 - probe and observation logic
 - sync/export behavior
 
+It should currently be understood as a hybrid subsystem:
+
+- central data collection and aggregation
+- locally run inspection scripts
+- some probe paths that may require elevated privileges
+- potential permanent monitoring on controlled devices
+
 It should remain operationally separate while shared location/tag concepts are
 defined at the umbrella level.
+
+More broadly, `TRACK` should expect subprojects to solve different parts of the
+documentation / organization / administration problem in different and sometimes
+inventive ways. Uniformity is less important than keeping the seams clear.
 
 ## Main Near-Term Deliverables
 
@@ -105,6 +116,13 @@ Current intended routing support:
 
 - `reverse-proxy` for real deployment
 - `app-proxy` as a testing/development fallback
+
+Current intended launcher behavior:
+
+- the umbrella may start selected local subservices once
+- it should not auto-restart crashed subservices by default
+- temporary subservice downtime is acceptable during development
+- production should still aim for stable long-running subservices
 
 ## Explicit Non-Goals Right Now
 

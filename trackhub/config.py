@@ -12,7 +12,7 @@ DEFAULT_CONFIG: dict[str, object] = {
     "title": "TRACK",
     "subtitle": "Technical Resource And Control Knowledge Kit",
     "bind": "0.0.0.0",
-    "port": 4600,
+    "port": 5000,
     "public_base_url": "https://track.praktijkpioniers.com",
     "routing_mode": "reverse-proxy",
     "environments": [
@@ -26,8 +26,9 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "id": "map3d",
                     "name": "Map3D",
                     "summary": "Capture spatial evidence, reconstruct spaces, and browse 3D results.",
-                    "local_url": "http://127.0.0.1:5000/",
+                    "local_url": "http://127.0.0.1:5001/",
                     "public_path": "/map3d/",
+                    "start_script": "./map3d/run.sh",
                     "status": "active",
                 },
                 {
@@ -36,6 +37,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Operate kiosk devices, inspect status, and reach local web controls.",
                     "local_url": "http://127.0.0.1:4575/",
                     "public_path": "/museumcontrol/",
+                    "start_script": "./museumcontrol/run.sh",
                     "status": "imported",
                 },
                 {
@@ -44,6 +46,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Observe network environments, annotate findings, and build infrastructure memory.",
                     "local_url": "http://127.0.0.1:8888/",
                     "public_path": "/netinventory/",
+                    "start_script": "./netinventory/run-track.sh",
                     "status": "imported",
                 },
             ],
@@ -60,6 +63,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Museum-side capture and reconstruction entrypoint.",
                     "local_url": "",
                     "public_path": "/map3d/",
+                    "start_script": "",
                     "status": "planned",
                 },
                 {
@@ -68,6 +72,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Museum-side device operations and status dashboard.",
                     "local_url": "",
                     "public_path": "/museumcontrol/",
+                    "start_script": "",
                     "status": "planned",
                 },
                 {
@@ -76,6 +81,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Museum-side network observation and annotation surface.",
                     "local_url": "",
                     "public_path": "/netinventory/",
+                    "start_script": "",
                     "status": "planned",
                 },
             ],
@@ -92,6 +98,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Lab-side spatial capture and reconstruction.",
                     "local_url": "",
                     "public_path": "/map3d/",
+                    "start_script": "",
                     "status": "planned",
                 },
                 {
@@ -100,6 +107,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Lab-side device control and proxy entrypoint.",
                     "local_url": "",
                     "public_path": "/museumcontrol/",
+                    "start_script": "",
                     "status": "planned",
                 },
                 {
@@ -108,6 +116,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Lab-side network and infrastructure observation tools.",
                     "local_url": "",
                     "public_path": "/netinventory/",
+                    "start_script": "",
                     "status": "planned",
                 },
             ],

@@ -23,6 +23,10 @@ The umbrella should provide:
 - shared conceptual model
 - selective integration
 
+Subprojects are allowed to be technically unusual if their domain requires it.
+`TRACK` is expected to contain odd, inventive, and specialized subsystems
+rather than forcing everything into one uniform runtime pattern.
+
 ## Current Subproject Roles
 
 ### `map3d`
@@ -48,6 +52,11 @@ Role:
 - observe network environments
 - build technical inventory from field evidence
 - summarize repeated network encounters
+- support hybrid collection patterns:
+  - central aggregation
+  - local probes
+  - privileged inspection where needed
+  - persistent monitoring on controlled devices
 
 ## Recommended Integration Shape
 
@@ -118,6 +127,7 @@ Prefer this mental model:
 
 - one umbrella identity
 - multiple independently runnable services
+- no default umbrella supervision of crashed subservices
 
 That can later become:
 
@@ -137,6 +147,24 @@ Preferred external/public topology:
 - local ports remain implementation details
 
 This is preferable to exposing one public subdomain or public port per subproject.
+
+### Supervision Policy
+
+By default, the umbrella should start subservices once and not automatically
+restart them if they crash.
+
+Reason:
+
+- subprojects are under active development
+- a failed subservice should be visible as failed
+- the umbrella should tolerate temporary subservice outages
+- automatic relaunch can hide crashes and interfere with debugging
+
+Later, optional supervision may be added as an explicit per-service or
+per-environment deployment choice.
+
+In production, the desired end state is still that subservices are stable
+enough to remain up under normal operation.
 
 ## 5. Authentication Direction
 
