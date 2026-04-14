@@ -30,6 +30,19 @@ for env in config.get("environments", []):
 PY
 )
 
+PIDS=()
+MAIN_PID=""
+
+cleanup() {
+  for PID in "${PIDS[@]}"; do
+    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+      kill "$PID" 2>/dev/null || true
+    fi
+  done
+}
+
+trap cleanup INT TERM EXIT
+
 for script in "${START_SCRIPTS[@]}"; do
   if [ -z "$script" ]; then
     continue
@@ -40,8 +53,12 @@ for script in "${START_SCRIPTS[@]}"; do
   fi
   echo "Starting subservice: $script"
   "$ROOT_DIR/$script" >/dev/null 2>&1 &
+  PIDS+=("$!")
   sleep 1
 done
 
 cd "$ROOT_DIR/trackhub"
-exec ./run.sh
+./run.sh &
+MAIN_PID="$!"
+PIDS+=("$MAIN_PID")
+wait "$MAIN_PID"

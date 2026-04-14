@@ -49,4 +49,6 @@ map3d/.map3d.pid
 tmp-capture-check.js
 trackhub/.trackhub.pid
 trackhub/passwords.json
+museumcontrol/.museumcontrol.pid
+netinventory/.netinventory-ui.pid
 danceable/inventory.json

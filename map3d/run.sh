@@ -2,7 +2,7 @@
 # Launch map3d Flask app
 # Auto-creates venv if missing, kills any existing instance, starts fresh
 
-set -e
+set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
@@ -14,6 +14,19 @@ HTTP_PORT="${MAP3D_PORT_HTTP:-5001}"
 HTTPS_PORT="${MAP3D_PORT_HTTPS:-5444}"
 ENABLE_HTTP="${MAP3D_ENABLE_HTTP:-1}"
 ENABLE_HTTPS="${MAP3D_ENABLE_HTTPS:-1}"
+
+cleanup() {
+    if [ -f "$PID_FILE" ]; then
+        while IFS= read -r PID; do
+            if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+                kill "$PID" 2>/dev/null || true
+            fi
+        done < "$PID_FILE"
+        rm -f "$PID_FILE"
+    fi
+}
+
+trap cleanup INT TERM EXIT
 
 if [ "$ENABLE_HTTP" = "0" ] && [ "$ENABLE_HTTPS" = "0" ]; then
     echo "Nothing to start: both MAP3D_ENABLE_HTTP and MAP3D_ENABLE_HTTPS are 0."
@@ -97,4 +110,3 @@ fi
 
 # Wait for the server process so ctrl-c works
 wait
-rm -f "$PID_FILE"

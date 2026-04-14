@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
@@ -11,6 +11,19 @@ from config import load_config
 print(load_config().get("port", 4600))
 PY
 )"
+
+cleanup() {
+  if [ -f "$PID_FILE" ]; then
+    while IFS= read -r PID; do
+      if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+        kill "$PID" 2>/dev/null || true
+      fi
+    done < "$PID_FILE"
+    rm -f "$PID_FILE"
+  fi
+}
+
+trap cleanup INT TERM EXIT
 
 if [ -f "$PID_FILE" ]; then
   while IFS= read -r OLD_PID; do
@@ -34,7 +47,8 @@ echo "Checking dependencies..."
 
 echo "Starting TRACK hub on port $PORT..."
 "$VENV/bin/python" run.py &
-echo $! > "$PID_FILE"
+PID=$!
+echo "$PID" > "$PID_FILE"
 
 echo "TRACK hub running: http://127.0.0.1:$PORT/"
-wait
+wait "$PID"

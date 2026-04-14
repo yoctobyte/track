@@ -1,41 +1,58 @@
 #!/bin/bash
-# Museum Kiosk Control Application Runner
+set -euo pipefail
 
-# Change to the directory where the script is located
-cd "$(dirname "$0")"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$DIR"
 
-# Set the port dynamically from config.json (fallback to 4575)
-PORT=$(python3 -c "import json; print(json.load(open('config.json')).get('port', 4575))" 2>/dev/null || echo 4575)
+VENV="$DIR/venv"
+PID_FILE="$DIR/.museumcontrol.pid"
+PORT="$(python3 -c "import json; print(json.load(open('config.json')).get('port', 4575))" 2>/dev/null || echo 4575)"
 
-# Kill any existing instance on the configured port
-echo "Killing any existing instance on port $PORT..."
-fuser -k $PORT/tcp || true
+cleanup() {
+    if [ -f "$PID_FILE" ]; then
+        while IFS= read -r PID; do
+            if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+                kill "$PID" 2>/dev/null || true
+            fi
+        done < "$PID_FILE"
+        rm -f "$PID_FILE"
+    fi
+}
 
-# Setup Python virtual environment if it doesn't exist
-if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
+trap cleanup INT TERM EXIT
+
+if [ -f "$PID_FILE" ]; then
+    while IFS= read -r OLD_PID; do
+        if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+            echo "Stopping existing Museum Control app (PID $OLD_PID)..."
+            kill "$OLD_PID"
+        fi
+    done < "$PID_FILE"
+    rm -f "$PID_FILE"
 fi
 
-# Activate virtual environment
-source venv/bin/activate
+echo "Killing any existing instance on port $PORT..."
+fuser -k "$PORT/tcp" 2>/dev/null || true
 
-# Install or update requirements
+if [ ! -d "$VENV" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv "$VENV"
+fi
+
 echo "Checking requirements..."
-pip install -r requirements.txt
+"$VENV/bin/pip" install -q -r requirements.txt
 
-# Export necessary environment variables
 export FLASK_APP=run.py
 export FLASK_ENV=production
-# Setup stable secret key if it doesn't exist
 if [ ! -f ".secret_key" ]; then
     echo "museum-kiosk-secret-key-$(date +%s)-$(openssl rand -hex 12)" > .secret_key
 fi
-export SECRET_KEY=$(cat .secret_key)
+export SECRET_KEY="$(cat .secret_key)"
 
-# Start the application
 echo "Starting Museum Kiosk Control app on port $PORT..."
-nohup python run.py > app.log 2>&1 &
+"$VENV/bin/python" run.py > app.log 2>&1 &
 PID=$!
+echo "$PID" > "$PID_FILE"
 
 echo "Application started with PID $PID. Logs can be found in app.log."
+wait "$PID"
