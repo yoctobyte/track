@@ -97,8 +97,14 @@ defined at the umbrella level.
 
 1. root documentation
 2. root landing shell
-3. shared environment/location/tag design
-4. per-environment access model
+3. canonical path-based routing plan under one public hostname
+4. shared environment/location/tag design
+5. per-environment access model
+
+Current intended routing support:
+
+- `reverse-proxy` for real deployment
+- `app-proxy` as a testing/development fallback
 
 ## Explicit Non-Goals Right Now
 

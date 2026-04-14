@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card stack" style="margin-bottom: 1rem;">
+  <h2 style="margin:0;">Choose An Environment</h2>
+  <p class="muted" style="margin:0;">
+    `TRACK` is the umbrella. The environments below are the outer access and deployment contexts.
+    Each one will later carry its own credentials, visibility, and subproject wiring.
+  </p>
+  <p class="muted" style="margin:0;">
+    Preferred public shape: one outward hostname,
+    <code>{{ public_base_url or 'configured later' }}</code>,
+    with subprojects mounted under stable paths instead of separate public ports.
+  </p>
+  <p class="muted" style="margin:0;">
+    Current routing mode: <code>{{ routing_mode }}</code>.
+    Use <code>reverse-proxy</code> for proper deployment, or <code>app-proxy</code> when the shell itself must proxy subprojects during testing.
+  </p>
+</div>
+
+<div class="grid">
+  {% for env in environments %}
+    <div class="card stack">
+      <div class="row">
+        <h3 style="margin:0;">{{ env.name }}</h3>
+        <span class="badge {{ env.badge }}">{{ env.badge }}</span>
+      </div>
+      <p class="muted" style="margin:0;">{{ env.description }}</p>
+      <p class="muted" style="margin:0;">{{ env.apps|length }} subprojects listed</p>
+      <div>
+        <a class="btn" href="{{ url_for('environment_detail', env_id=env.id) }}">Open Environment</a>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

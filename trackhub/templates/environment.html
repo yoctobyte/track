@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card stack" style="margin-bottom: 1rem;">
+  <div class="row">
+    <div>
+      <h2 style="margin:0;">{{ current_environment.name }}</h2>
+      <p class="muted" style="margin:0.35rem 0 0;">{{ current_environment.description }}</p>
+    </div>
+    <span class="badge {{ current_environment.badge }}">{{ current_environment.badge }}</span>
+  </div>
+  <p class="muted" style="margin:0;">
+    This is the current umbrella shell only. Subprojects still run independently.
+    The long-term public model is one hostname plus stable subpaths.
+  </p>
+  <p class="muted" style="margin:0;">
+    Routing mode: <code>{{ routing_mode }}</code>.
+  </p>
+</div>
+
+<div class="grid">
+  {% for app in current_environment.apps %}
+    <div class="card stack">
+      <div class="row">
+        <h3 style="margin:0;">{{ app.name }}</h3>
+        <span class="badge {% if app.status != 'active' %}planned{% endif %}">{{ app.status }}</span>
+      </div>
+      <p class="muted" style="margin:0;">{{ app.summary }}</p>
+      {% if app.public_path %}
+        <div class="muted" style="font-size:0.9rem;">Canonical public path</div>
+        <code>{{ app.public_path }}</code>
+      {% endif %}
+      {% if app.local_url %}
+        <div class="muted" style="font-size:0.9rem;">Current local target</div>
+        <code>{{ app.local_url }}</code>
+      {% endif %}
+      {% if app.public_url %}
+        <div class="muted" style="font-size:0.9rem;">Intended public URL</div>
+        <code>{{ app.public_url }}</code>
+      {% endif %}
+      {% if app.open_url %}
+        <div>
+          <a class="btn" href="{{ app.open_url }}" target="_blank" rel="noreferrer">Open Current Target</a>
+        </div>
+      {% else %}
+        <p class="muted" style="margin:0;">No endpoint configured yet for this environment.</p>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -66,6 +66,25 @@ This root shell should initially be thin.
 
 It does not need to absorb subproject code.
 
+Preferred outward shape:
+
+- one public hostname
+- one Cloudflare tunnel
+- stable subpaths such as:
+  - `/map3d/`
+  - `/museumcontrol/`
+  - `/netinventory/`
+
+Two acceptable routing modes should be supported:
+
+1. `reverse-proxy`
+   - preferred for deployment
+   - Nginx/Caddy/other front-end proxy handles path routing
+2. `app-proxy`
+   - acceptable for development and testing
+   - the umbrella app proxies subprojects itself
+   - slower and less clean, but convenient when no front-end proxy exists
+
 ## 2. Shared Concepts
 
 The first shared layer should be conceptual, not operational.
@@ -110,6 +129,14 @@ Examples:
 
 - CPU head-end for root UI and control tasks
 - GPU node for heavy `map3d` processing
+
+Preferred external/public topology:
+
+- public user hits one hostname
+- reverse proxy or shell routes to subprojects internally
+- local ports remain implementation details
+
+This is preferable to exposing one public subdomain or public port per subproject.
 
 ## 5. Authentication Direction
 
