@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from netinventory.auth import load_or_create_shared_secret
-from netinventory.config import get_app_paths
+from netinventory.config import get_app_paths, get_hub_settings
 from netinventory.context import add_user_context
 from netinventory.export import import_export_bundle, write_export_bundle
+from netinventory.hub_web import run_hub_web
 from netinventory.service import run_service
 from netinventory.storage.db import Database
 from netinventory.tasks import list_task_definitions, run_task_once
@@ -85,6 +86,13 @@ def handle_serve(bind: str) -> int:
     db = Database(get_app_paths())
     db.upsert_task_definitions(list_task_definitions())
     return run_service(bind)
+
+
+def handle_hub_web(bind: str | None = None) -> int:
+    db = Database(get_app_paths())
+    db.upsert_task_definitions(list_task_definitions())
+    settings = get_hub_settings()
+    return run_hub_web(bind or settings.ui_bind)
 
 
 def handle_export(output_path: str | None) -> int:

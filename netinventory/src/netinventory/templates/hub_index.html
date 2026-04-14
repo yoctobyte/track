@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <style>
+    :root {
+      --bg: #eef1ea;
+      --panel: rgba(255, 255, 255, 0.9);
+      --ink: #1a1d16;
+      --muted: #5e6557;
+      --line: rgba(49, 61, 41, 0.14);
+      --accent: #2f6a62;
+      --accent-soft: rgba(47, 106, 98, 0.12);
+      --warn: #916022;
+      --shadow: 0 18px 36px rgba(21, 27, 18, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(47, 106, 98, 0.09), transparent 24%),
+        linear-gradient(180deg, #f6f8f2 0%, #e7ecdf 100%);
+    }
+    .shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 1.2rem;
+    }
+    .hero, .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      padding: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .hero h1 {
+      margin: 0;
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+    }
+    .hero p {
+      margin: 0.6rem 0 0;
+      color: var(--muted);
+      max-width: 62rem;
+      line-height: 1.55;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      padding: 1rem 1.05rem;
+    }
+    .stack > * + * { margin-top: 0.8rem; }
+    .muted { color: var(--muted); }
+    .pill, .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+    .pill {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.72);
+    }
+    .badge {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      min-height: 2.7rem;
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+    }
+    code, pre {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    code {
+      background: rgba(255,255,255,0.75);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 0.12rem 0.36rem;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 0.85rem;
+      font-size: 0.85rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    th, td {
+      padding: 0.55rem 0.4rem;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .list {
+      margin: 0;
+      padding-left: 1.2rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="stack">
+        <div class="badge">TRACK-integrated</div>
+        <h1>{{ title }}</h1>
+        <p>{{ subtitle }}. This hub is the central storage and web surface for network observations. Privileged capture belongs on the agent side. Aggregation, review, and export belong here.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:0.6rem;">
+          <span class="pill">Public: <code>{{ public_url }}</code></span>
+          <span class="pill">Bind: <code>{{ service_bind }}</code></span>
+          <span class="pill">GitHub: <code>{{ github_repo }}</code></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid" style="margin-bottom: 1rem;">
+      <section class="card stack">
+        <h2 style="margin:0;">Current status</h2>
+        <table>
+          <tr><th>Networks</th><td>{{ status.network_count }}</td></tr>
+          <tr><th>Observations</th><td>{{ status.observation_count }}</td></tr>
+          <tr><th>Active network</th><td><code>{{ status.active_network_id or 'none' }}</code></td></tr>
+          <tr><th>Device ID</th><td><code>{{ status.device_id }}</code></td></tr>
+          <tr><th>Database</th><td><code>{{ status.db_path }}</code></td></tr>
+        </table>
+      </section>
+
+      <section class="card stack">
+        <h2 style="margin:0;">Agent flow</h2>
+        <ul class="list">
+          <li>Run the agent on the laptop or controlled device.</li>
+          <li>Use privileged local capture there when raw inspection is needed.</li>
+          <li>Attach field context like rack, patch panel, or wall port.</li>
+          <li>Export or sync results back into this hub.</li>
+        </ul>
+        <div>
+          <a class="btn" href="agents/bootstrap.sh">Download bootstrap script</a>
+        </div>
+      </section>
+
+      <section class="card stack">
+        <h2 style="margin:0;">Local secret</h2>
+        <p class="muted" style="margin:0;">The rewrite service API already uses a shared secret. This remains local state, not public shell state.</p>
+        <pre>{{ shared_secret }}</pre>
+      </section>
+    </div>
+
+    <div class="grid" style="margin-bottom: 1rem;">
+      <section class="card stack">
+        <h2 style="margin:0;">Networks</h2>
+        {% if network_rows %}
+          <table>
+            <thead>
+              <tr>
+                <th>Network</th>
+                <th>Seen</th>
+                <th>Latest facts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in network_rows %}
+                <tr>
+                  <td>
+                    <div><code>{{ row.summary.network_id }}</code></div>
+                    <div class="muted">{{ row.summary.display_name or 'unnamed' }}</div>
+                  </td>
+                  <td>
+                    <div>{{ row.summary.seen_count }} times</div>
+                    <div class="muted">{{ row.summary.last_seen or '-' }}</div>
+                  </td>
+                  <td>
+                    <div>gateway: <code>{{ row.facts.get('default_gateway') or '-' }}</code></div>
+                    <div>ip: <code>{{ row.facts.get('primary_ip') or '-' }}</code></div>
+                    <div class="muted">{{ row.latest.summary if row.latest else 'no latest observation' }}</div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="muted" style="margin:0;">No stored networks yet.</p>
+        {% endif %}
+      </section>
+
+      <section class="card stack">
+        <h2 style="margin:0;">Recent task runs</h2>
+        {% if recent_runs %}
+          <table>
+            <thead>
+              <tr>
+                <th>Started</th>
+                <th>Task</th>
+                <th>State</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for run in recent_runs %}
+                <tr>
+                  <td>{{ run.started_at }}</td>
+                  <td><code>{{ run.task_id }}</code></td>
+                  <td>{{ run.state }}</td>
+                  <td class="muted">{{ run.detail or '-' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="muted" style="margin:0;">No task history yet.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="grid">
+      <section class="card stack">
+        <h2 style="margin:0;">Recent context</h2>
+        {% if context_rows %}
+          <table>
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Entity</th>
+                <th>Field</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in context_rows %}
+                <tr>
+                  <td>{{ row.created_at }}</td>
+                  <td><code>{{ row.entity_kind }}:{{ row.entity_id }}</code></td>
+                  <td>{{ row.field }}</td>
+                  <td class="muted">{{ row.value }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="muted" style="margin:0;">No user context recorded yet.</p>
+        {% endif %}
+      </section>
+
+      <section class="card stack">
+        <h2 style="margin:0;">Position in TRACK</h2>
+        <ul class="list">
+          <li><strong>Agent</strong>: laptop or controlled device, with local privileges where needed.</li>
+          <li><strong>Hub</strong>: central database and service surface.</li>
+          <li><strong>Web</strong>: operator-facing summary and download surface.</li>
+        </ul>
+        <p class="muted" style="margin:0;">
+          This keeps privileged inspection out of the public-facing web app while still letting TRACK integrate network evidence with rooms, racks, ports, and device documentation later.
+        </p>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

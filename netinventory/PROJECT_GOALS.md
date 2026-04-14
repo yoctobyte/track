@@ -42,6 +42,21 @@ The app should:
 - Summarize repeated observations instead of only storing unbounded raw records
 - Help build a practical map of museum infrastructure over time
 
+## Current Structural Direction
+
+`netinventory` should now be treated as three cooperating parts:
+
+- `Agent`
+  - runs on the laptop or controlled device
+  - performs privileged or local capture where needed
+- `Hub`
+  - stores observations, task runs, and user context centrally
+- `Web`
+  - presents a TRACK-facing operator interface on top of the hub
+
+This keeps privileged local collection separate from the central web/database
+surface.
+
 ## Current Pain Points
 
 - We appear to keep too many records

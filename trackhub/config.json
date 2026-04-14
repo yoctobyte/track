@@ -8,7 +8,9 @@
   "environments": [
     {
       "id": "testing",
-      "name": "Testing / Home",
+      "name": "Testing",
+      "description": "Primary development environment and experimental workspace.",
+      "badge": "private",
       "apps": [
         {
           "id": "map3d",
@@ -27,6 +29,52 @@
           "local_url": "http://127.0.0.1:8888/",
           "public_path": "/netinventory/",
           "start_script": "./netinventory/run-track.sh"
+        }
+      ]
+    },
+    {
+      "id": "museum",
+      "name": "Museum",
+      "description": "Operational museum environment.",
+      "badge": "planned",
+      "apps": [
+        {
+          "id": "map3d",
+          "local_url": "",
+          "public_path": "/map3d/"
+        },
+        {
+          "id": "museumcontrol",
+          "local_url": "",
+          "public_path": "/museumcontrol/"
+        },
+        {
+          "id": "netinventory",
+          "local_url": "",
+          "public_path": "/netinventory/"
+        }
+      ]
+    },
+    {
+      "id": "lab",
+      "name": "Lab",
+      "description": "Isolated deployment and testing environment.",
+      "badge": "planned",
+      "apps": [
+        {
+          "id": "map3d",
+          "local_url": "",
+          "public_path": "/map3d/"
+        },
+        {
+          "id": "museumcontrol",
+          "local_url": "",
+          "public_path": "/museumcontrol/"
+        },
+        {
+          "id": "netinventory",
+          "local_url": "",
+          "public_path": "/netinventory/"
         }
       ]
     }

@@ -1,17 +1,23 @@
 from __future__ import annotations
 
+import hmac
+import re
+from copy import deepcopy
 from urllib.parse import urljoin, urlsplit
 
 import requests
 from flask import Flask, Response, abort, redirect, render_template, request, session, url_for
 
-from config import load_config
+from config import load_config, load_passwords, save_config, save_passwords
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SECRET_KEY"] = "trackhub-dev-shell"
     app.config["TRACKHUB"] = load_config()
+
+    def refresh_config() -> None:
+        app.config["TRACKHUB"] = load_config()
 
     def hydrate_environment(env):
         hydrated = dict(env)
@@ -32,29 +38,73 @@ def create_app() -> Flask:
                 app_item["open_url"] = local_url or app_item["public_url"]
             apps.append(app_item)
         hydrated["apps"] = apps
+        hydrated["enabled"] = bool(hydrated.get("enabled", True))
+        hydrated["has_password"] = bool(str(hydrated.get("password", "")).strip())
         return hydrated
 
-    def environments():
-        return [hydrate_environment(env) for env in app.config["TRACKHUB"]["environments"]]
+    def environments(include_disabled: bool = False):
+        items = [hydrate_environment(env) for env in app.config["TRACKHUB"]["environments"]]
+        if include_disabled:
+            return items
+        return [env for env in items if env.get("enabled", True)]
 
-    def environment_by_id(env_id: str):
-        return next((env for env in environments() if env["id"] == env_id), None)
+    def environment_by_id(env_id: str, include_disabled: bool = False):
+        return next((env for env in environments(include_disabled=include_disabled) if env["id"] == env_id), None)
+
+    def current_environment():
+        env_id = session.get("trackhub_environment")
+        return environment_by_id(env_id, include_disabled=True) if env_id else None
+
+    def is_authenticated_for(env_id: str) -> bool:
+        authenticated = set(session.get("trackhub_authenticated", []))
+        return env_id in authenticated
+
+    def remember_authenticated_environment(env_id: str) -> None:
+        authenticated = set(session.get("trackhub_authenticated", []))
+        authenticated.add(env_id)
+        session["trackhub_authenticated"] = sorted(authenticated)
+        session["trackhub_environment"] = env_id
+
+    def is_admin_authenticated() -> bool:
+        return bool(session.get("trackhub_admin"))
+
+    def admin_password() -> str:
+        passwords = load_passwords()
+        return str(passwords.get("__admin__", "")).strip() or "LalaAdmin"
+
+    def ensure_admin_access():
+        if is_admin_authenticated():
+            return None
+        return redirect(url_for("admin", next=request.full_path.rstrip("?")))
+
+    def ensure_environment_access(env_id: str, next_url: str):
+        env = environment_by_id(env_id, include_disabled=True)
+        if env is None or not env.get("enabled", True):
+            abort(404)
+        if is_authenticated_for(env_id):
+            session["trackhub_environment"] = env_id
+            return env
+        return redirect(url_for("choose_location", env_id=env_id, next=next_url))
+
+    def select_location_redirect(next_url: str):
+        return redirect(url_for("choose_location", next=next_url))
 
     def proxy_app_for_request_path(path: str):
-        selected_env_id = session.get("trackhub_environment")
-        env = environment_by_id(selected_env_id) if selected_env_id else None
-        candidate_envs = [env] if env else []
-        candidate_envs.extend(item for item in environments() if not env or item["id"] != env["id"])
-
+        selected_env = current_environment()
         normalized = "/" + path.lstrip("/")
-        for candidate_env in candidate_envs:
-            for item in candidate_env["apps"]:
+
+        if selected_env is not None and selected_env.get("enabled", True):
+            for item in selected_env["apps"]:
                 public_path = str(item.get("public_path", "")).rstrip("/")
-                if not public_path:
-                    continue
-                if normalized == public_path or normalized.startswith(public_path + "/"):
-                    return item
-        return None
+                if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
+                    return selected_env, item
+
+        for env in environments():
+            for item in env["apps"]:
+                public_path = str(item.get("public_path", "")).rstrip("/")
+                if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
+                    return env, item
+        return None, None
 
     def proxied_target_url(app_item, proxied_path: str):
         base_url = str(app_item.get("local_url", "")).rstrip("/") + "/"
@@ -80,11 +130,71 @@ def create_app() -> Flask:
             return public_path + value
         return f"{public_path}/{value.lstrip('/')}"
 
+    def sanitize_env_id(raw: str) -> str:
+        return re.sub(r"[^a-z0-9-]+", "-", raw.strip().lower()).strip("-")
+
+    def default_apps_for_new_environment() -> list[dict[str, object]]:
+        app_templates: list[dict[str, object]] = []
+        seen_ids: set[str] = set()
+        for env in app.config["TRACKHUB"].get("environments", []):
+            for app_item in env.get("apps", []):
+                app_id = str(app_item.get("id", "")).strip()
+                if not app_id or app_id in seen_ids:
+                    continue
+                seen_ids.add(app_id)
+                app_templates.append(
+                    {
+                        "id": app_id,
+                        "name": str(app_item.get("name", app_id.title())),
+                        "summary": str(app_item.get("summary", "")),
+                        "local_url": "",
+                        "public_path": str(app_item.get("public_path", "")),
+                        "start_script": "",
+                        "status": "planned",
+                    }
+                )
+        return app_templates
+
+    def serialize_config_for_save() -> dict[str, object]:
+        config = deepcopy(app.config["TRACKHUB"])
+        clean_envs = []
+        for env in config.get("environments", []):
+            item = dict(env)
+            item.pop("password", None)
+            item.pop("has_password", None)
+            clean_apps = []
+            for app_item in item.get("apps", []):
+                app_clean = dict(app_item)
+                app_clean.pop("public_url", None)
+                app_clean.pop("open_url", None)
+                clean_apps.append(app_clean)
+            item["apps"] = clean_apps
+            clean_envs.append(item)
+        config["environments"] = clean_envs
+        return config
+
+    def save_runtime_state(config_data: dict[str, object], passwords: dict[str, str]) -> None:
+        save_config(config_data)
+        save_passwords(passwords)
+        refresh_config()
+
+    @app.context_processor
+    def inject_shell_state():
+        return {
+            "shell_environment": current_environment(),
+            "shell_authenticated": sorted(session.get("trackhub_authenticated", [])),
+            "shell_admin_authenticated": is_admin_authenticated(),
+        }
+
+    @app.after_request
+    def add_no_cache_headers(response: Response):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
     @app.get("/")
     def index():
-        selected = session.get("trackhub_environment")
-        if selected and environment_by_id(selected):
-            return redirect(url_for("environment_detail", env_id=selected))
         return render_template(
             "index.html",
             title=app.config["TRACKHUB"]["title"],
@@ -95,12 +205,150 @@ def create_app() -> Flask:
             current_environment=None,
         )
 
+    @app.route("/admin", methods=["GET", "POST"])
+    def admin():
+        next_url = request.values.get("next", "").strip() or url_for("admin")
+        error = ""
+        message = request.args.get("message", "").strip()
+
+        if request.method == "POST" and request.form.get("action") == "login":
+            password = request.form.get("password", "")
+            if not hmac.compare_digest(password, admin_password()):
+                error = "Incorrect admin password."
+            else:
+                session["trackhub_admin"] = True
+                if next_url.startswith("/") and not next_url.startswith("//"):
+                    return redirect(next_url)
+                return redirect(url_for("admin"))
+
+        return render_template(
+            "admin.html",
+            title=app.config["TRACKHUB"]["title"],
+            subtitle=app.config["TRACKHUB"]["subtitle"],
+            public_base_url=app.config["TRACKHUB"].get("public_base_url", ""),
+            routing_mode=app.config["TRACKHUB"].get("routing_mode", "reverse-proxy"),
+            environments=environments(include_disabled=True),
+            current_environment=None,
+            admin_authenticated=is_admin_authenticated(),
+            next_url=next_url,
+            error=error,
+            message=message,
+        )
+
+    @app.post("/admin/save")
+    def admin_save():
+        gate = ensure_admin_access()
+        if gate is not None:
+            return gate
+
+        config_data = serialize_config_for_save()
+        envs = config_data.get("environments", [])
+        passwords = load_passwords()
+        action = request.form.get("action", "").strip()
+
+        if action == "update-environment":
+            env_id = request.form.get("env_id", "").strip()
+            target = next((env for env in envs if str(env.get("id", "")).strip() == env_id), None)
+            if target is None:
+                return redirect(url_for("admin", message="Unknown location."))
+
+            enabled = request.form.get("enabled") == "on"
+            target["enabled"] = enabled
+            target["badge"] = "private" if enabled else "planned"
+            password = request.form.get("password", "").strip()
+            if password:
+                passwords[env_id] = password
+            save_runtime_state(config_data, passwords)
+            return redirect(url_for("admin", message=f"Saved location {env_id}."))
+
+        if action == "add-environment":
+            env_id = sanitize_env_id(request.form.get("id", ""))
+            name = request.form.get("name", "").strip()
+            description = request.form.get("description", "").strip()
+            password = request.form.get("password", "").strip()
+            enabled = request.form.get("enabled") == "on"
+
+            if not env_id or not name:
+                return redirect(url_for("admin", message="New locations need both an id and a name."))
+            if any(str(env.get("id", "")).strip() == env_id for env in envs):
+                return redirect(url_for("admin", message=f"Location {env_id} already exists."))
+
+            envs.append(
+                {
+                    "id": env_id,
+                    "name": name,
+                    "description": description or f"{name} environment.",
+                    "badge": "private" if enabled else "planned",
+                    "enabled": enabled,
+                    "apps": default_apps_for_new_environment(),
+                }
+            )
+            if password:
+                passwords[env_id] = password
+            save_runtime_state(config_data, passwords)
+            return redirect(url_for("admin", message=f"Added location {env_id}."))
+
+        if action == "set-admin-password":
+            password = request.form.get("password", "").strip()
+            if not password:
+                return redirect(url_for("admin", message="Admin password cannot be empty."))
+            passwords["__admin__"] = password
+            save_runtime_state(config_data, passwords)
+            return redirect(url_for("admin", message="Admin password updated."))
+
+        return redirect(url_for("admin", message="No admin action applied."))
+
+    @app.get("/admin/logout")
+    def admin_logout():
+        session.pop("trackhub_admin", None)
+        return redirect(url_for("admin"))
+
+    @app.route("/choose-location", methods=["GET", "POST"])
+    def choose_location():
+        env_id = request.values.get("env_id", "").strip()
+        next_url = request.values.get("next", "").strip() or "/"
+        error = ""
+        selected_env = environment_by_id(env_id) if env_id else None
+
+        if request.method == "POST":
+            password = request.form.get("password", "")
+            if selected_env is None:
+                error = "Select a valid location."
+            elif not selected_env.get("password"):
+                error = "This location is not configured yet."
+            elif not hmac.compare_digest(password, str(selected_env.get("password", ""))):
+                error = "Incorrect password."
+            else:
+                remember_authenticated_environment(selected_env["id"])
+                if next_url.startswith("/") and not next_url.startswith("//"):
+                    return redirect(next_url)
+                return redirect(url_for("environment_detail", env_id=selected_env["id"]))
+
+        return render_template(
+            "choose_location.html",
+            title=app.config["TRACKHUB"]["title"],
+            subtitle=app.config["TRACKHUB"]["subtitle"],
+            public_base_url=app.config["TRACKHUB"].get("public_base_url", ""),
+            routing_mode=app.config["TRACKHUB"].get("routing_mode", "reverse-proxy"),
+            environments=environments(),
+            current_environment=None,
+            selected_env=selected_env,
+            env_id=env_id,
+            next_url=next_url,
+            error=error,
+        )
+
+    @app.get("/logout")
+    def logout():
+        session.clear()
+        return redirect(url_for("index"))
+
     @app.get("/env/<env_id>")
     def environment_detail(env_id: str):
-        env = environment_by_id(env_id)
-        if env is None:
-            abort(404)
-        session["trackhub_environment"] = env_id
+        gate = ensure_environment_access(env_id, request.full_path.rstrip("?"))
+        if not isinstance(gate, dict):
+            return gate
+        env = gate
         return render_template(
             "environment.html",
             title=app.config["TRACKHUB"]["title"],
@@ -116,13 +364,17 @@ def create_app() -> Flask:
         if app.config["TRACKHUB"].get("routing_mode") != "app-proxy":
             abort(404)
 
-        app_item = proxy_app_for_request_path(proxied_path)
-        if app_item is None:
+        env, app_item = proxy_app_for_request_path(proxied_path)
+        if app_item is None or env is None:
             abort(404)
+        if not is_authenticated_for(env["id"]):
+            return select_location_redirect("/" + proxied_path.lstrip("/"))
+
         local_url = str(app_item.get("local_url", "")).strip()
         if not local_url:
             abort(404)
 
+        session["trackhub_environment"] = env["id"]
         target_url = proxied_target_url(app_item, proxied_path)
         upstream_headers = {
             key: value

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 
@@ -18,7 +19,7 @@ DEFAULT_CONFIG: dict[str, object] = {
     "environments": [
         {
             "id": "testing",
-            "name": "Testing / Home",
+            "name": "Testing",
             "description": "Primary development environment and experimental workspace.",
             "badge": "private",
             "apps": [
@@ -142,4 +143,44 @@ def load_config() -> dict[str, object]:
         with config_path.open() as handle:
             loaded = json.load(handle)
         config = deep_merge(config, loaded)
+    apply_environment_passwords(config)
     return config
+
+
+def load_passwords() -> dict[str, str]:
+    passwords: dict[str, str] = {}
+    passwords_path = BASE_DIR / "passwords.json"
+    if passwords_path.exists():
+        with passwords_path.open() as handle:
+            loaded = json.load(handle)
+        if isinstance(loaded, dict):
+            passwords.update({str(key): str(value) for key, value in loaded.items()})
+    return passwords
+
+
+def save_passwords(passwords: dict[str, str]) -> None:
+    passwords_path = BASE_DIR / "passwords.json"
+    with passwords_path.open("w") as handle:
+        json.dump(passwords, handle, indent=2)
+        handle.write("\n")
+
+
+def save_config(config: dict[str, object]) -> None:
+    config_path = BASE_DIR / "config.json"
+    with config_path.open("w") as handle:
+        json.dump(config, handle, indent=2)
+        handle.write("\n")
+
+
+def apply_environment_passwords(config: dict[str, object]) -> None:
+    passwords = load_passwords()
+
+    for env in config.get("environments", []):
+        env_id = str(env.get("id", "")).strip()
+        env_var = f"TRACKHUB_PASSWORD_{env_id.upper()}"
+        if env_id in passwords:
+            env["password"] = passwords[env_id]
+        elif os.environ.get(env_var):
+            env["password"] = os.environ[env_var]
+        else:
+            env["password"] = ""

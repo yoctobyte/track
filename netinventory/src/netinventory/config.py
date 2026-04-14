@@ -14,6 +14,14 @@ class AppPaths:
     secret_path: Path
 
 
+@dataclass(frozen=True)
+class HubSettings:
+    track_base_url: str
+    public_path: str
+    github_repo: str
+    ui_bind: str
+
+
 def get_app_paths() -> AppPaths:
     env_root = os.environ.get("NETINV_HOME")
     if env_root:
@@ -31,4 +39,21 @@ def get_app_paths() -> AppPaths:
         evidence_dir=evidence_dir,
         state_dir=state_dir,
         secret_path=secret_path,
+    )
+
+
+def get_hub_settings() -> HubSettings:
+    track_base_url = os.environ.get("TRACK_BASE_URL", "https://track.praktijkpioniers.com").rstrip("/")
+    public_path = os.environ.get("NETINV_PUBLIC_PATH", "/netinventory/").strip() or "/netinventory/"
+    if not public_path.startswith("/"):
+        public_path = "/" + public_path
+    if not public_path.endswith("/"):
+        public_path = public_path + "/"
+    github_repo = os.environ.get("TRACK_GITHUB_REPO", "https://github.com/praktijkpioniers/track.git").strip()
+    ui_bind = os.environ.get("NETINV_UI_BIND", "127.0.0.1:8888").strip() or "127.0.0.1:8888"
+    return HubSettings(
+        track_base_url=track_base_url,
+        public_path=public_path,
+        github_repo=github_repo,
+        ui_bind=ui_bind,
     )

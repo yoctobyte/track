@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid">
+  <section class="card stack" style="grid-column: span 2;">
+    <h2 style="margin:0; font-family:'IBM Plex Serif', Georgia, serif;">Choose a location</h2>
+    <p class="muted lede" style="margin:0;">
+      Select the environment you want to enter and provide its password. After that, the shell will route
+      you into the correct subproject paths for that location.
+    </p>
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="post" class="stack">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <div class="stack">
+        <label for="env_id"><strong>Location</strong></label>
+        <select id="env_id" name="env_id" required>
+          <option value="">Choose a location</option>
+          {% for env in environments %}
+            <option value="{{ env.id }}" {% if env_id == env.id %}selected{% endif %}>{{ env.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="stack">
+        <label for="password"><strong>Password</strong></label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="row">
+        <button class="btn" type="submit">Enter Location</button>
+        <span class="muted">If you tried to open a subproject directly, you will be sent there after authentication.</span>
+      </div>
+    </form>
+  </section>
+
+  <aside class="card stack">
+    <h3 style="margin:0;">Locations</h3>
+    <div class="stack">
+      {% for env in environments %}
+        <div class="row">
+          <span>{{ env.name }}</span>
+          <span class="badge {{ env.badge }}">{{ env.badge }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </aside>
+</div>
+{% endblock %}

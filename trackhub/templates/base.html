@@ -6,140 +6,272 @@
   <title>{% block title %}{{ title }}{% endblock %}</title>
   <style>
     :root {
-      --bg: #f2eee6;
-      --panel: #fffaf2;
-      --ink: #1c1a17;
-      --muted: #655f56;
-      --line: #d8cdbc;
-      --accent: #3d6fb4;
-      --accent-soft: #dde8f7;
-      --olive: #5a6a38;
-      --warn: #a65f28;
-      --shadow: 0 18px 40px rgba(30, 27, 23, 0.08);
+      --paper: #efe7da;
+      --panel: rgba(255, 250, 242, 0.94);
+      --panel-strong: #fff8ee;
+      --ink: #171512;
+      --muted: #625b51;
+      --line: rgba(87, 72, 48, 0.16);
+      --accent: #285a85;
+      --accent-soft: rgba(40, 90, 133, 0.12);
+      --accent-strong: #123551;
+      --olive: #556334;
+      --warn: #a2551d;
+      --danger: #8e2d2d;
+      --shadow: 0 18px 42px rgba(28, 20, 10, 0.08);
+      --radius: 20px;
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      background:
-        radial-gradient(circle at top left, rgba(61, 111, 180, 0.08), transparent 28%),
-        linear-gradient(180deg, #f6f2eb 0%, #ece3d4 100%);
       color: var(--ink);
+      font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(40, 90, 133, 0.10), transparent 26%),
+        radial-gradient(circle at top right, rgba(85, 99, 52, 0.08), transparent 22%),
+        linear-gradient(180deg, #f6f0e6 0%, #e8ddcc 100%);
+      min-height: 100vh;
     }
+
+    a {
+      color: inherit;
+    }
+
     .shell {
-      max-width: 1180px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 1.25rem;
     }
-    .topbar {
+
+    .masthead {
+      background: linear-gradient(135deg, rgba(255,248,238,0.96), rgba(246,238,227,0.92));
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      padding: 1.1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.2rem;
+    }
+
+    .masthead-top,
+    .row {
       display: flex;
-      justify-content: space-between;
       gap: 1rem;
-      align-items: end;
-      margin-bottom: 1.5rem;
+      justify-content: space-between;
+      align-items: center;
     }
-    .brand h1 {
+
+    .brand-kicker {
       margin: 0;
-      font-size: 2rem;
-      letter-spacing: 0.04em;
-    }
-    .brand p {
-      margin: 0.3rem 0 0;
       color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
     }
+
+    .brand h1 {
+      margin: 0.2rem 0 0;
+      font-size: clamp(2rem, 5vw, 3.35rem);
+      line-height: 0.98;
+      letter-spacing: 0.03em;
+      font-family: "IBM Plex Serif", Georgia, serif;
+    }
+
+    .brand p {
+      margin: 0.5rem 0 0;
+      color: var(--muted);
+      max-width: 58rem;
+    }
+
     .topnav {
       display: flex;
+      gap: 0.6rem;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      justify-content: flex-end;
     }
-    .topnav a {
+
+    .topnav a,
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.65rem;
       text-decoration: none;
-      color: var(--ink);
-      padding: 0.55rem 0.8rem;
-      border: 1px solid var(--line);
+      padding: 0.7rem 1rem;
       border-radius: 999px;
-      background: rgba(255,255,255,0.62);
+      border: 1px solid transparent;
+      font-weight: 700;
+      transition: 120ms ease;
     }
+
+    .topnav a {
+      background: rgba(255,255,255,0.62);
+      border-color: var(--line);
+    }
+
     .topnav a.active {
       background: var(--accent-soft);
-      border-color: rgba(61,111,180,0.35);
-      color: #18416f;
+      border-color: rgba(40, 90, 133, 0.32);
+      color: var(--accent-strong);
     }
-    .card {
-      background: rgba(255, 250, 242, 0.92);
+
+    .btn {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn.secondary {
+      background: transparent;
+      border-color: rgba(40, 90, 133, 0.26);
+      color: var(--accent);
+    }
+
+    .btn.warn {
+      background: var(--warn);
+    }
+
+    .contextbar {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 0.85rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--line);
+    }
+
+    .pill,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      font-size: 0.77rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.65rem;
+    }
+
+    .pill {
+      background: rgba(255,255,255,0.7);
       border: 1px solid var(--line);
-      border-radius: 18px;
-      box-shadow: var(--shadow);
-      padding: 1rem 1.1rem;
     }
+
+    .badge {
+      background: #e6efe9;
+      color: #35503b;
+    }
+
+    .badge.planned {
+      background: #f3ead6;
+      color: #8a6123;
+    }
+
+    .badge.private {
+      background: #e2ebf8;
+      color: #295389;
+    }
+
+    .badge.error {
+      background: #f6dfdf;
+      color: var(--danger);
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.1rem 1.15rem;
+    }
+
+    .card strong {
+      color: var(--accent-strong);
+    }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 1rem;
     }
-    .badge {
-      display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      border-radius: 999px;
-      padding: 0.28rem 0.55rem;
-      background: #e6efe9;
-      color: #35503b;
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.9rem;
     }
-    .badge.planned {
-      background: #f3ead6;
-      color: #8a6123;
-    }
-    .badge.private {
-      background: #e2ebf8;
-      color: #295389;
-    }
+
+    .stack > * + * { margin-top: 0.85rem; }
     .muted { color: var(--muted); }
-    .btn {
-      display: inline-block;
-      text-decoration: none;
-      padding: 0.6rem 0.9rem;
+    .lede { font-size: 1.06rem; line-height: 1.55; }
+    code {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--line);
       border-radius: 10px;
-      background: var(--accent);
-      color: white;
-      font-weight: 600;
+      padding: 0.14rem 0.38rem;
     }
-    .btn.secondary {
-      background: transparent;
-      color: var(--accent);
-      border: 1px solid rgba(61,111,180,0.28);
+
+    form.stack input,
+    form.stack select {
+      width: 100%;
+      min-height: 2.8rem;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      padding: 0.75rem 0.9rem;
+      font: inherit;
+      background: rgba(255,255,255,0.86);
     }
-    .stack > * + * { margin-top: 0.8rem; }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.8rem;
+
+    .error {
+      color: var(--danger);
+      font-weight: 700;
     }
-    @media (max-width: 800px) {
-      .topbar, .row {
+
+    @media (max-width: 900px) {
+      .masthead-top,
+      .row {
         flex-direction: column;
         align-items: stretch;
+      }
+      .topnav {
+        justify-content: flex-start;
       }
     }
   </style>
 </head>
 <body>
   <div class="shell">
-    <div class="topbar">
-      <div class="brand">
-        <h1>{{ title }}</h1>
-        <p>{{ subtitle }}</p>
+    <div class="masthead">
+      <div class="masthead-top">
+        <div class="brand">
+          <p class="brand-kicker">Technical Resource And Control Knowledge Kit</p>
+          <h1>{{ title }}</h1>
+          <p>{{ subtitle }}</p>
+        </div>
+        <nav class="topnav">
+          <a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a>
+          <a href="{{ url_for('choose_location') }}" class="{% if request.path.startswith('/choose-location') %}active{% endif %}">Choose Location</a>
+          <a href="{{ url_for('admin') }}" class="{% if request.path.startswith('/admin') %}active{% endif %}">Admin</a>
+          {% if shell_environment %}
+            <a href="{{ url_for('environment_detail', env_id=shell_environment.id) }}" class="{% if current_environment and current_environment.id == shell_environment.id %}active{% endif %}">
+              {{ shell_environment.name }}
+            </a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+          {% endif %}
+        </nav>
       </div>
-      <div class="topnav">
-        <a href="/" class="{% if not current_environment %}active{% endif %}">Environments</a>
-        {% for env in environments %}
-          <a href="{{ url_for('environment_detail', env_id=env.id) }}" class="{% if current_environment and current_environment.id == env.id %}active{% endif %}">
-            {{ env.name }}
-          </a>
-        {% endfor %}
+      <div class="contextbar">
+        <span class="pill">Public base: <code>{{ public_base_url or 'configured later' }}</code></span>
+        <span class="pill">Routing: <code>{{ routing_mode }}</code></span>
+        {% if shell_environment %}
+          <span class="pill">Selected location: <strong style="margin-left:0.35rem;">{{ shell_environment.name }}</strong></span>
+        {% endif %}
+        {% if shell_admin_authenticated %}
+          <span class="pill">Admin session active</span>
+        {% endif %}
       </div>
     </div>
     {% block content %}{% endblock %}

@@ -3,17 +3,13 @@
 <div class="card stack" style="margin-bottom: 1rem;">
   <div class="row">
     <div>
-      <h2 style="margin:0;">{{ current_environment.name }}</h2>
+      <h2 style="margin:0; font-family:'IBM Plex Serif', Georgia, serif;">{{ current_environment.name }}</h2>
       <p class="muted" style="margin:0.35rem 0 0;">{{ current_environment.description }}</p>
     </div>
     <span class="badge {{ current_environment.badge }}">{{ current_environment.badge }}</span>
   </div>
   <p class="muted" style="margin:0;">
-    This is the current umbrella shell only. Subprojects still run independently.
-    The long-term public model is one hostname plus stable subpaths.
-  </p>
-  <p class="muted" style="margin:0;">
-    Routing mode: <code>{{ routing_mode }}</code>.
+    This location is authenticated for the current session. Subprojects still run independently beneath the umbrella shell.
   </p>
 </div>
 
@@ -35,10 +31,10 @@
       {% endif %}
       {% if app.open_url %}
         <div class="row">
-          <a class="btn" href="{{ app.open_url }}" target="_blank" rel="noreferrer">Open</a>
+          <a class="btn" href="{{ app.open_url }}">Open</a>
         </div>
       {% else %}
-        <p class="muted" style="margin:0;">No endpoint configured yet for this environment.</p>
+        <p class="muted" style="margin:0;">No endpoint configured yet for this location.</p>
       {% endif %}
     </div>
   {% endfor %}

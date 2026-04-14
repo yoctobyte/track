@@ -1,35 +1,78 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card stack" style="margin-bottom: 1rem;">
-  <h2 style="margin:0;">Choose An Environment</h2>
-  <p class="muted" style="margin:0;">
-    `TRACK` is the umbrella. The environments below are the outer access and deployment contexts.
-    Each one will later carry its own credentials, visibility, and subproject wiring.
-  </p>
-  <p class="muted" style="margin:0;">
-    Preferred public shape: one outward hostname,
-    <code>{{ public_base_url or 'configured later' }}</code>,
-    with subprojects mounted under stable paths instead of separate public ports.
-  </p>
-  <p class="muted" style="margin:0;">
-    Current routing mode: <code>{{ routing_mode }}</code>.
-    Use <code>reverse-proxy</code> for proper deployment, or <code>app-proxy</code> when the shell itself must proxy subprojects during testing.
-  </p>
+<div class="grid" style="margin-bottom: 1rem;">
+  <section class="card stack" style="grid-column: span 2;">
+    <h2 style="margin:0; font-family:'IBM Plex Serif', Georgia, serif;">One front door for documentation, control, and technical memory</h2>
+    <p class="lede muted" style="margin:0;">
+      <strong>TRACK</strong> is the umbrella shell above several odd but deliberate subprojects.
+      It is meant to organize places, tools, devices, images, observations, and control surfaces
+      without forcing them into one monolith.
+    </p>
+    <div class="feature-grid">
+      <div class="card stack" style="box-shadow:none; background:var(--panel-strong);">
+        <span class="badge private">Map3D</span>
+        <div>Spatial capture, reconstruction, and visual archival context.</div>
+      </div>
+      <div class="card stack" style="box-shadow:none; background:var(--panel-strong);">
+        <span class="badge private">Museum Control</span>
+        <div>Operational control surfaces for managed devices and installations.</div>
+      </div>
+      <div class="card stack" style="box-shadow:none; background:var(--panel-strong);">
+        <span class="badge private">NetInventory</span>
+        <div>Network and field-observation tooling with room for privileged probes and long-running monitoring.</div>
+      </div>
+    </div>
+    <div class="row">
+      <a class="btn" href="{{ url_for('choose_location') }}">Choose A Location</a>
+      <div class="muted">Public access stops here. Environment access starts after location selection and password entry.</div>
+    </div>
+  </section>
+
+  <aside class="card stack">
+    <h3 style="margin:0;">Locations</h3>
+    <p class="muted" style="margin:0;">Current first locations:</p>
+    <div class="stack">
+      {% for env in environments %}
+        <div class="row">
+          <span>{{ env.name }}</span>
+          <span class="badge {{ env.badge }}">{{ env.badge }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </aside>
 </div>
 
 <div class="grid">
-  {% for env in environments %}
-    <div class="card stack">
+  <section class="card stack">
+    <h3 style="margin:0;">Access Model</h3>
+    <p class="muted" style="margin:0;">
+      The public home page stays informative. Every location page and subproject path goes through
+      location selection first unless that location has already been authenticated in the current session.
+    </p>
+    <ul class="muted" style="margin:0; padding-left:1.2rem; line-height:1.7;">
+      <li>Home page stays public and descriptive.</li>
+      <li>Choose a location before entering any subproject.</li>
+      <li>Each location requires its own password.</li>
+      <li>The shell then routes into stable paths like <code>/map3d/</code>.</li>
+    </ul>
+  </section>
+
+  <section class="card stack">
+    <h3 style="margin:0;">Routing</h3>
+    <p class="muted" style="margin:0;">
+      The preferred production shape is one hostname and stable subpaths. The shell currently supports
+      <code>app-proxy</code> for convenience and can later sit in front of a real reverse proxy.
+    </p>
+    <div class="stack">
       <div class="row">
-        <h3 style="margin:0;">{{ env.name }}</h3>
-        <span class="badge {{ env.badge }}">{{ env.badge }}</span>
+        <span>Public base</span>
+        <code>{{ public_base_url or 'configured later' }}</code>
       </div>
-      <p class="muted" style="margin:0;">{{ env.description }}</p>
-      <p class="muted" style="margin:0;">{{ env.apps|length }} subprojects listed</p>
-      <div>
-        <a class="btn" href="{{ url_for('environment_detail', env_id=env.id) }}">Open Environment</a>
+      <div class="row">
+        <span>Routing mode</span>
+        <code>{{ routing_mode }}</code>
       </div>
     </div>
-  {% endfor %}
+  </section>
 </div>
 {% endblock %}

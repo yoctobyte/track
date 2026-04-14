@@ -8,6 +8,7 @@ from netinventory.commands import (
     handle_context,
     handle_current,
     handle_export,
+    handle_hub_web,
     handle_import,
     handle_networks,
     handle_recent,
@@ -36,6 +37,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--bind",
         default="127.0.0.1:8080",
         help="Bind address for the local service",
+    )
+
+    hub_parser = subparsers.add_parser("hub-web", help="Run the TRACK-facing hub web UI")
+    hub_parser.add_argument(
+        "--bind",
+        help="Bind address for the hub web UI",
     )
 
     subparsers.add_parser("status", help="Show collector/service status")
@@ -77,6 +84,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "serve":
         return handle_serve(args.bind)
+
+    if args.command == "hub-web":
+        return handle_hub_web(args.bind)
 
     if args.command == "status":
         return handle_status()

@@ -251,6 +251,10 @@
         let networks = {};
         let currentGraph = { nodes: [], links: [] };
         let simulation = null;
+        const appPath = window.location.pathname.endsWith('/')
+            ? window.location.pathname
+            : `${window.location.pathname}/`;
+        const API_BASE = `${window.location.origin}${appPath}api`;
 
         // Elements
         const canvas = document.getElementById('graphCanvas');
@@ -315,7 +319,7 @@
         // API Access
         async function fetchNetworks() {
             try {
-                const res = await fetch('/api/networks');
+                const res = await fetch(`${API_BASE}/networks`);
                 const data = await res.json();
                 networks = data;
                 renderSidebar();
@@ -327,7 +331,7 @@
 
         async function fetchGraph(netId) {
             try {
-                const res = await fetch(`/api/networks/${netId}`);
+                const res = await fetch(`${API_BASE}/networks/${encodeURIComponent(netId)}`);
                 const data = await res.json();
                 initSimulation(data);
             } catch (e) {
@@ -336,7 +340,7 @@
         }
 
         async function saveAnnotation(netId, text, useGps) {
-            await fetch(`/api/networks/${netId}/annotate`, {
+            await fetch(`${API_BASE}/networks/${encodeURIComponent(netId)}/annotate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ annotation: text, use_gps: useGps })
@@ -643,7 +647,7 @@
             const autoSwitchEnabled = document.getElementById('autoSwitchToggle').checked;
             // Check for new active network
             try {
-                const activeRes = await fetch('/api/active_network');
+                const activeRes = await fetch(`${API_BASE}/active_network`);
                 const activeData = await activeRes.json();
                 const activeId = activeData.active_net_id;
 
@@ -668,7 +672,7 @@
             }
 
             if (detailsPanel.classList.contains('open') && document.getElementById('consoleLog')) {
-                const res = await fetch('/api/logs');
+                const res = await fetch(`${API_BASE}/logs`);
                 const data = await res.json();
                 document.getElementById('consoleLog').innerText = data.logs;
             }
