@@ -14,12 +14,24 @@
       <input type="hidden" name="next" value="{{ next_url }}">
       <div class="stack">
         <label for="env_id"><strong>Location</strong></label>
-        <select id="env_id" name="env_id" required>
+        <select id="env_id" name="env_id">
           <option value="">Choose a location</option>
           {% for env in environments %}
             <option value="{{ env.id }}" {% if env_id == env.id %}selected{% endif %}>{{ env.name }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="stack">
+        <label for="username"><strong>Password manager username</strong></label>
+        <input
+          id="username"
+          name="username"
+          type="text"
+          autocomplete="username"
+          value="{{ env_id }}"
+          required
+        >
+        <span class="muted">This mirrors the location id so browsers can save separate passwords for museum, lab, and testing.</span>
       </div>
       <div class="stack">
         <label for="password"><strong>Password</strong></label>
@@ -44,4 +56,29 @@
     </div>
   </aside>
 </div>
+<script>
+  const locationSelect = document.getElementById("env_id");
+  const usernameInput = document.getElementById("username");
+
+  function syncUsername() {
+    usernameInput.value = locationSelect.value;
+  }
+
+  function syncLocation() {
+    const matchingOption = Array.from(locationSelect.options).find((option) => option.value === usernameInput.value);
+    if (matchingOption) {
+      locationSelect.value = usernameInput.value;
+    }
+  }
+
+  locationSelect.addEventListener("change", syncUsername);
+  usernameInput.addEventListener("input", syncLocation);
+  usernameInput.addEventListener("change", syncLocation);
+  window.addEventListener("pageshow", syncLocation);
+  if (usernameInput.value) {
+    syncLocation();
+  } else {
+    syncUsername();
+  }
+</script>
 {% endblock %}

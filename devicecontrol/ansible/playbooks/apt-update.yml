@@ -1,0 +1,10 @@
+---
+- name: Update apt package metadata
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Refresh apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 0

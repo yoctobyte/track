@@ -11,6 +11,7 @@ from config import Config
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config["SESSION_COOKIE_NAME"] = "museumcontrol_session"
 csrf = CSRFProtect(app)
 
 # Ensure data directory exists

@@ -58,6 +58,18 @@ Role:
   - privileged inspection where needed
   - persistent monitoring on controlled devices
 
+### `devicecontrol`
+
+Role:
+
+- run approved Ansible maintenance actions
+- keep per-environment inventories separate
+- provide manual bootstrap helpers for enrolling hosts
+- store action logs and fetched operational artifacts such as screenshots
+
+It should not become a general arbitrary-command web shell. Bootstrap and trust
+setup remain console-side until the security model is more mature.
+
 ## Recommended Integration Shape
 
 ## 1. Root Shell
@@ -83,6 +95,7 @@ Preferred outward shape:
   - `/map3d/`
   - `/museumcontrol/`
   - `/netinventory/`
+  - `/devicecontrol/`
 
 Two acceptable routing modes should be supported:
 
@@ -205,5 +218,5 @@ That would reduce flexibility and make the umbrella brittle.
 
 `TRACK` is the umbrella.
 
-`map3d`, `museumcontrol`, and `netinventory` are not “features” of a single
-app. They are subprojects under a common direction.
+`map3d`, `museumcontrol`, `netinventory`, and `devicecontrol` are not
+“features” of a single app. They are subprojects under a common direction.

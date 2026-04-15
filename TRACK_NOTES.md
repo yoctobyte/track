@@ -104,6 +104,10 @@ Examples discussed there:
   - reboot / volume / launch / config operations
   - Ansible fits here naturally
 
+`devicecontrol/` is the first concrete implementation of this kit direction:
+an Ansible-backed, environment-aware control surface with manual bootstrap tools
+and a limited web UI for approved actions.
+
 - `TRACK-Kit: Mapping`
   - rooms
   - cabinets

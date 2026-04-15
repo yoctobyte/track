@@ -1,14 +1,15 @@
 # TRACK State
 
-Last refreshed: 2026-04-14
+Last refreshed: 2026-04-15
 
 ## Current Reality
 
-The repository now contains three real subprojects:
+The repository now contains four real subprojects:
 
 - `map3d`
 - `museumcontrol`
 - `netinventory`
+- `devicecontrol`
 
 They are not yet unified under a root web shell.
 
@@ -37,6 +38,7 @@ Each subproject should continue to make sense by itself:
 - `map3d` should keep working as a standalone mapping/capture app
 - `museumcontrol` should keep working as a standalone control dashboard
 - `netinventory` should keep working as a standalone inventory/observation tool
+- `devicecontrol` should keep working as a standalone Ansible control surface
 
 ### 3. Define shared concepts before shared code
 
@@ -66,6 +68,17 @@ Current known architectural issue:
 
 - `map3d` still occupies the web role as if it were the main app
 - this must be reduced over time so it becomes one sub-application under `TRACK`
+
+Current environment/data isolation rule:
+
+- `map3d` data must not be shared across TRACK environments.
+- `testing`, `museum`, and `lab` should run as separate `map3d` instances with
+  separate SQLite databases and file roots.
+- `testing` currently keeps the legacy `map3d/data` root so existing capture
+  work remains available.
+- `museum` and `lab` use isolated roots under `map3d/data/environments/`.
+- Do not solve this by exposing one global `map3d` database and filtering only
+  in the UI; that risks accidental cross-environment leakage.
 
 ## museumcontrol Current State
 
@@ -103,6 +116,27 @@ defined at the umbrella level.
 More broadly, `TRACK` should expect subprojects to solve different parts of the
 documentation / organization / administration problem in different and sometimes
 inventive ways. Uniformity is less important than keeping the seams clear.
+
+## devicecontrol Current State
+
+`devicecontrol` is the Ansible-backed TRACK control kit.
+
+Its first version should be understood as:
+
+- a standalone Flask web interface around approved Ansible playbooks
+- a per-environment inventory runner
+- a manual bootstrap helper for creating the `ansible` management user
+- a place for operational logs and fetched screenshots
+
+Bootstrap remains intentionally console-side for now because it may require SSH
+passwords, sudo prompts, and trust decisions. The web interface should only act
+on already enrolled hosts.
+
+Current environment/data isolation rule:
+
+- each TRACK environment uses its own `devicecontrol` inventory
+- run logs and screenshots are written under that environment
+- do not expose one shared inventory through UI filtering only
 
 ## Main Near-Term Deliverables
 

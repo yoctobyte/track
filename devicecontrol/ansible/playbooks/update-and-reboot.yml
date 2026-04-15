@@ -1,0 +1,14 @@
+---
+- name: Update packages and reboot
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Upgrade installed packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: safe
+
+    - name: Reboot host after upgrade
+      ansible.builtin.reboot:
+        reboot_timeout: 600

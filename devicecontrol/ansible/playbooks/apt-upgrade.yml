@@ -1,0 +1,10 @@
+---
+- name: Upgrade apt packages
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Upgrade installed packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: safe

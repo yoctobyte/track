@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import hmac
+import os
 import re
+import secrets
 from copy import deepcopy
+from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import requests
@@ -11,9 +14,28 @@ from flask import Flask, Response, abort, redirect, render_template, request, se
 from config import load_config, load_passwords, save_config, save_passwords
 
 
+BASE_DIR = Path(__file__).resolve().parent
+
+
+def load_secret_key() -> str:
+    configured = os.environ.get("TRACKHUB_SECRET_KEY", "").strip()
+    if configured:
+        return configured
+    secret_path = BASE_DIR / ".trackhub-secret-key"
+    if secret_path.exists():
+        return secret_path.read_text(encoding="utf-8").strip()
+    secret = secrets.token_urlsafe(48)
+    secret_path.write_text(secret + "\n", encoding="utf-8")
+    secret_path.chmod(0o600)
+    return secret
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = "trackhub-dev-shell"
+    app.config["SECRET_KEY"] = load_secret_key()
+    app.config["SESSION_COOKIE_NAME"] = "trackhub_session"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["TRACKHUB"] = load_config()
 
     def refresh_config() -> None:
@@ -126,9 +148,45 @@ def create_app() -> Flask:
             return public_path + value[len(local_url):]
         if parts.scheme or value.startswith("//"):
             return value
+        if public_path and (value == public_path or value.startswith(public_path + "/")):
+            return value
         if value.startswith("/"):
             return public_path + value
         return f"{public_path}/{value.lstrip('/')}"
+
+    def rewrite_html_body(content: bytes, app_item) -> bytes:
+        public_path = str(app_item.get("public_path", "")).rstrip("/")
+        if not public_path:
+            return content
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            return content
+
+        mount = public_path.lstrip("/")
+
+        def prefix_after_marker(source: str, marker: str) -> str:
+            result = []
+            pos = 0
+            while True:
+                idx = source.find(marker, pos)
+                if idx < 0:
+                    result.append(source[pos:])
+                    break
+                start = idx + len(marker)
+                result.append(source[pos:start])
+                if source.startswith(mount, start):
+                    next_index = start + len(mount)
+                    if next_index >= len(source) or source[next_index] in {"/", "\"", "'"}:
+                        pos = start
+                        continue
+                result.append(f"{mount}/")
+                pos = start
+            return "".join(result)
+
+        for marker in ('href="/', "href='/", 'src="/', "src='/", 'action="/', "action='/", 'fetch("/', "fetch('/"):
+            text = prefix_after_marker(text, marker)
+        return text.encode("utf-8")
 
     def sanitize_env_id(raw: str) -> str:
         return re.sub(r"[^a-z0-9-]+", "-", raw.strip().lower()).strip("-")
@@ -306,6 +364,9 @@ def create_app() -> Flask:
     @app.route("/choose-location", methods=["GET", "POST"])
     def choose_location():
         env_id = request.values.get("env_id", "").strip()
+        username = request.values.get("username", "").strip()
+        if not env_id and username:
+            env_id = username
         next_url = request.values.get("next", "").strip() or "/"
         error = ""
         selected_env = environment_by_id(env_id) if env_id else None
@@ -381,6 +442,11 @@ def create_app() -> Flask:
             for key, value in request.headers
             if key.lower() not in {"host", "content-length", "connection", "accept-encoding"}
         }
+        upstream_headers["X-Forwarded-Prefix"] = str(app_item.get("public_path", "")).rstrip("/")
+        upstream_headers["X-Forwarded-Proto"] = request.scheme
+        upstream_headers["X-Forwarded-Host"] = request.host
+        upstream_headers["X-Trackhub-Environment"] = str(env["id"])
+        upstream_headers["X-Trackhub-Authenticated"] = "true"
         upstream = requests.request(
             method=request.method,
             url=target_url,
@@ -400,7 +466,11 @@ def create_app() -> Flask:
             if key.lower() == "location":
                 value = rewrite_location_header(value, app_item)
             downstream_headers.append((key, value))
-        return Response(upstream.content, upstream.status_code, downstream_headers)
+        content = upstream.content
+        content_type = upstream.headers.get("Content-Type", "")
+        if "text/html" in content_type.lower():
+            content = rewrite_html_body(content, app_item)
+        return Response(content, upstream.status_code, downstream_headers)
 
     return app
 

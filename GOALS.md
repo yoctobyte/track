@@ -22,10 +22,10 @@ spatial mapping and change-over-time comparison.
 and only later material for inference, mapping, and change detection. The
 system must be useful from day one with just manual location labels.
 
-### Future subprojects (planned)
+### Current and planned subprojects
 
 - **Network inventory** — making sense of seemingly randomly wired switches
-- **Device management** — Ansible-controlled devices, some with web interfaces
+- **Device control** — Ansible-controlled maintenance actions for enrolled devices
 - **Notes/documentation** — technical documentation tied to locations and devices
 
 ## Integration Strategy

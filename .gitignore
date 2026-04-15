@@ -17,6 +17,7 @@ env/
 */data/extracted_frames/
 */data/derived/
 */data/*.sqlite
+map3d/data/environments/
 
 # IDE
 .idea/
@@ -46,8 +47,14 @@ tmp-colmap-build/
 
 # Local runtime scratch
 map3d/.map3d.pid
+map3d/.map3d-*.pid
+devicecontrol/.devicecontrol-*.pid
+devicecontrol/data/.devicecontrol-secret-key
+devicecontrol/data/environments/*/run_logs/
+devicecontrol/data/environments/*/screenshots/
 tmp-capture-check.js
 trackhub/.trackhub.pid
+trackhub/.trackhub-secret-key
 trackhub/passwords.json
 museumcontrol/.museumcontrol.pid
 netinventory/.netinventory-ui.pid

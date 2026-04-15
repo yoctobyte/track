@@ -62,6 +62,8 @@ matter across the whole `track/` project.
 - A good device model separates:
   - a management user for automation
   - a runtime user for the application/session
+- The first concrete Ansible subproject is `devicecontrol/`: bootstrap is kept
+  manual, while the web UI only runs approved playbooks against enrolled hosts.
 
 ### Knowledge scope
 

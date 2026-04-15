@@ -8,7 +8,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
 VENV="$DIR/venv"
-PID_FILE="$DIR/.map3d.pid"
+INSTANCE="${MAP3D_INSTANCE:-default}"
+PID_FILE="$DIR/.map3d-${INSTANCE}.pid"
+DATA_DIR="${MAP3D_DATA_DIR:-$DIR/data}"
 HOST="${MAP3D_HOST:-0.0.0.0}"
 HTTP_PORT="${MAP3D_PORT_HTTP:-5001}"
 HTTPS_PORT="${MAP3D_PORT_HTTPS:-5444}"
@@ -64,12 +66,17 @@ echo "Checking dependencies..."
 "$VENV/bin/pip" install -q -r "$DIR/requirements.txt"
 
 # Ensure data directories exist
-mkdir -p "$DIR/data/originals" "$DIR/data/previews" "$DIR/data/extracted_frames"
-mkdir -p "$DIR/data/derived/features" "$DIR/data/derived/matches" "$DIR/data/derived/reconstructions"
+mkdir -p "$DATA_DIR/originals" "$DATA_DIR/previews" "$DATA_DIR/extracted_frames"
+mkdir -p "$DATA_DIR/derived/features" "$DATA_DIR/derived/matches" "$DATA_DIR/derived/reconstructions"
 
 if [ -z "${MAP3D_PASSWORD:-}" ]; then
     echo "MAP3D_PASSWORD not set; using default dev password: map3d__ok!aY3"
 fi
+
+export MAP3D_DATA_DIR="$DATA_DIR"
+
+echo "map3d instance: $INSTANCE"
+echo "map3d data dir: $DATA_DIR"
 
 start_server() {
     local port="$1"

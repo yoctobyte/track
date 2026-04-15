@@ -64,6 +64,17 @@ Current focus:
 - user context
 - sync/export workflows
 
+### `devicecontrol/`
+
+Ansible-backed operational control kit.
+
+Current focus:
+
+- environment-separated Ansible inventories
+- manual host bootstrap helpers
+- approved maintenance playbooks
+- web-triggered runs with logs and fetched screenshots
+
 ## Project Structure
 
 This repository is now the canonical `track` repo.

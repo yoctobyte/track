@@ -3,6 +3,28 @@
 This file captures relevant conclusions from external design conversations so
 they remain visible inside the repo for future work.
 
+## 2026-04-15 — TRACK environment isolation
+
+`map3d` is now expected to run with strict data separation per TRACK
+environment.
+
+Current intended instance layout:
+
+- `testing`: `http://127.0.0.1:5001/`, data root `map3d/data`
+- `museum`: `http://127.0.0.1:5011/`, data root `map3d/data/environments/museum`
+- `lab`: `http://127.0.0.1:5012/`, data root `map3d/data/environments/lab`
+
+The reason is operational security: home/testing captures, museum captures,
+previews, reconstructions, and SQLite state must not leak across environments.
+
+Implementation note:
+
+- Prefer separate `map3d` processes with separate `MAP3D_DATA_DIR` values.
+- Avoid a single shared database with only UI-level filters unless there is a
+  strong reason and full query-level enforcement.
+- Public routing can still use the same `/map3d/` path because TRACK Hub chooses
+  the backend based on the authenticated environment.
+
 ## 2026-04-12 — Shared conversation: "Photo Stitching Tools"
 
 Source:

@@ -14,7 +14,7 @@
           "id": "map3d",
           "local_url": "http://127.0.0.1:5001/",
           "public_path": "/map3d/",
-          "start_script": "./map3d/run.sh"
+          "start_script": "./map3d/run-testing.sh"
         },
         {
           "id": "museumcontrol",
@@ -27,6 +27,15 @@
           "local_url": "http://127.0.0.1:8888/",
           "public_path": "/netinventory/",
           "start_script": "./netinventory/run-track.sh"
+        },
+        {
+          "id": "devicecontrol",
+          "name": "DeviceControl",
+          "summary": "Run approved Ansible maintenance actions against enrolled devices.",
+          "local_url": "http://127.0.0.1:5021/",
+          "public_path": "/devicecontrol/",
+          "start_script": "./devicecontrol/run-testing.sh",
+          "status": "active"
         }
       ]
     }

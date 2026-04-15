@@ -1,0 +1,9 @@
+---
+- name: Reboot managed hosts
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Reboot host
+      ansible.builtin.reboot:
+        reboot_timeout: 600

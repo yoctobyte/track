@@ -5,10 +5,25 @@ from flask import Flask, jsonify, redirect, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from pathlib import Path
 from sqlalchemy import text
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 db = SQLAlchemy()
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+DEFAULT_DATA_DIR = Path(__file__).parent.parent / "data"
+DATA_DIR = Path(os.environ.get("MAP3D_DATA_DIR", DEFAULT_DATA_DIR)).expanduser().resolve()
+
+
+def ensure_data_dirs(data_dir: Path) -> None:
+    for path in (
+        data_dir,
+        data_dir / "originals",
+        data_dir / "previews",
+        data_dir / "extracted_frames",
+        data_dir / "derived" / "features",
+        data_dir / "derived" / "matches",
+        data_dir / "derived" / "reconstructions",
+    ):
+        path.mkdir(parents=True, exist_ok=True)
 
 
 def ensure_schema(app):
@@ -28,12 +43,16 @@ def ensure_schema(app):
 
 
 def create_app():
+    ensure_data_dirs(DATA_DIR)
+
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=1, x_host=1, x_prefix=1)
     app.config["SECRET_KEY"] = os.environ.get("MAP3D_SECRET_KEY", "dev-key-change-in-production")
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DATA_DIR / 'database.sqlite'}"
     app.config["DATA_DIR"] = DATA_DIR
     app.config["MAP3D_PASSWORD"] = os.environ.get("MAP3D_PASSWORD", "map3d__ok!aY3")
     app.config["SESSION_PERMANENT"] = True
+    app.config["SESSION_COOKIE_NAME"] = "map3d_session"
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=365)
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -53,6 +72,22 @@ def create_app():
     @app.before_request
     def require_password():
         allowed_endpoints = {"auth.login", "auth.logout", "static"}
+        trusted_proxy = request.remote_addr in {"127.0.0.1", "::1"}
+        trusted_trackhub = False
+        if (
+            trusted_proxy
+            and request.headers.get("X-Trackhub-Authenticated") == "true"
+            and request.headers.get("X-Trackhub-Environment")
+        ):
+            trusted_trackhub = True
+            session["authenticated"] = True
+            session["trackhub_environment"] = request.headers.get("X-Trackhub-Environment")
+            session.permanent = True
+        if trusted_trackhub and request.endpoint == "auth.login":
+            next_url = request.args.get("next") or "/"
+            if not next_url.startswith("/") or next_url.startswith("//"):
+                next_url = "/"
+            return redirect(next_url)
         if request.endpoint in allowed_endpoints:
             return None
         if session.get("authenticated"):
