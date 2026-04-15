@@ -9,6 +9,12 @@
         update_cache: true
         upgrade: safe
 
-    - name: Reboot host after upgrade
-      ansible.builtin.reboot:
-        reboot_timeout: 600
+    - name: Schedule reboot after upgrade and return immediately
+      ansible.builtin.shell: |
+        set -eu
+        nohup sh -c 'sleep 2; if command -v shutdown >/dev/null 2>&1; then shutdown -r now "TRACK DeviceControl update and reboot"; else /sbin/shutdown -r now "TRACK DeviceControl update and reboot"; fi' >/dev/null 2>&1 &
+      args:
+        executable: /bin/bash
+      async: 1
+      poll: 0
+      changed_when: true

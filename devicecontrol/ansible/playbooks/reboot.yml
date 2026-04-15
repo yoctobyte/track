@@ -4,6 +4,12 @@
   become: true
   gather_facts: false
   tasks:
-    - name: Reboot host
-      ansible.builtin.reboot:
-        reboot_timeout: 600
+    - name: Schedule reboot and return immediately
+      ansible.builtin.shell: |
+        set -eu
+        nohup sh -c 'sleep 2; if command -v shutdown >/dev/null 2>&1; then shutdown -r now "TRACK DeviceControl reboot"; else /sbin/shutdown -r now "TRACK DeviceControl reboot"; fi' >/dev/null 2>&1 &
+      args:
+        executable: /bin/bash
+      async: 1
+      poll: 0
+      changed_when: true

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DeviceControl · TRACK</title>
+  {% block head %}{% endblock %}
   <style>
     :root {
       --bg: #f4f1e9;
@@ -61,6 +62,10 @@
       padding: 1rem;
       box-shadow: 0 18px 60px rgba(32, 32, 24, 0.08);
     }
+    .card.subtle {
+      background: rgba(244, 241, 233, 0.72);
+      box-shadow: none;
+    }
     .badge {
       display: inline-flex;
       padding: 0.25rem 0.55rem;
@@ -70,6 +75,8 @@
       font-size: 0.82rem;
       font-weight: 700;
     }
+    .badge.careful { background: #f0d6a7; color: #653d00; }
+    .badge.danger { background: #f1c0bc; color: #7a1717; }
     .btn {
       border: 0;
       border-radius: 12px;

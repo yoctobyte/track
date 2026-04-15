@@ -6,6 +6,7 @@ import secrets
 import shlex
 import shutil
 import subprocess
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -190,15 +191,57 @@ def create_app() -> Flask:
         target_part = re.sub(r"[^A-Za-z0-9_.-]+", "-", target or "all").strip("-")
         return env_dir(env) / "run_logs" / f"{stamp}-{action_id}-{target_part}.log"
 
+    def status_path(log_path: Path) -> Path:
+        return log_path.with_suffix(".status")
+
+    def write_status(log_path: Path, status: str, detail: str = "") -> None:
+        text = status
+        if detail:
+            text = f"{text}\n{detail}"
+        status_path(log_path).write_text(text + "\n", encoding="utf-8")
+
+    def read_status(log_path: Path) -> dict[str, str]:
+        path = status_path(log_path)
+        if not path.exists():
+            return {"state": "unknown", "detail": ""}
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        return {"state": lines[0] if lines else "unknown", "detail": "\n".join(lines[1:])}
+
+    def parse_ansible_progress(content: str) -> dict[str, object]:
+        current_task = ""
+        hosts: dict[str, dict[str, str]] = {}
+        host_line = re.compile(r"^(ok|changed|fatal|unreachable|skipping): \[([^\]]+)\]")
+
+        for line in content.splitlines():
+            if line.startswith("TASK [") and "]" in line:
+                current_task = line.removeprefix("TASK [").split("]", 1)[0]
+                continue
+            match = host_line.match(line)
+            if match:
+                state, host = match.groups()
+                hosts[host] = {
+                    "name": host,
+                    "state": state,
+                    "task": current_task,
+                    "line": line,
+                }
+
+        return {
+            "current_task": current_task,
+            "hosts": sorted(hosts.values(), key=lambda item: item["name"]),
+        }
+
     def list_logs(env: str) -> list[dict[str, object]]:
         log_dir = env_dir(env) / "run_logs"
         logs = []
         for path in sorted(log_dir.glob("*.log"), reverse=True)[:50]:
+            status = read_status(path)
             logs.append(
                 {
                     "name": path.name,
                     "size": path.stat().st_size,
                     "modified": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                    "status": status["state"],
                 }
             )
         return logs
@@ -218,6 +261,33 @@ def create_app() -> Flask:
 
     def ansible_available() -> bool:
         return shutil.which("ansible-playbook") is not None
+
+    def run_playbook_job(command: list[str], log_path: Path, timeout_seconds: int) -> None:
+        with log_path.open("a", encoding="utf-8") as handle:
+            if not ansible_available():
+                handle.write("ERROR: ansible-playbook was not found in PATH.\n")
+                write_status(log_path, "failed", "ansible-playbook was not found in PATH.")
+                return
+            try:
+                run_env = os.environ.copy()
+                run_env["ANSIBLE_HOST_KEY_CHECKING"] = "True"
+                run_env["ANSIBLE_NOCOLOR"] = "1"
+                result = subprocess.run(
+                    command,
+                    cwd=BASE_DIR,
+                    env=run_env,
+                    stdin=subprocess.DEVNULL,
+                    stdout=handle,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    timeout=timeout_seconds,
+                    check=False,
+                )
+                handle.write(f"\nExit code: {result.returncode}\n")
+                write_status(log_path, "finished" if result.returncode == 0 else "failed", f"exit_code={result.returncode}")
+            except subprocess.TimeoutExpired:
+                handle.write(f"\nERROR: action timed out after {timeout_seconds} seconds.\n")
+                write_status(log_path, "failed", f"timeout={timeout_seconds}")
 
     @app.context_processor
     def inject_state():
@@ -276,29 +346,10 @@ def create_app() -> Flask:
             handle.write(f"Action: {action_id}\n")
             handle.write(f"Target: {target or 'all'}\n")
             handle.write(f"Command: {' '.join(shlex.quote(part) for part in command)}\n\n")
-            if not ansible_available():
-                handle.write("ERROR: ansible-playbook was not found in PATH.\n")
-                return redirect(url_for("view_log", name=log_path.name))
-            try:
-                run_env = os.environ.copy()
-                run_env["ANSIBLE_HOST_KEY_CHECKING"] = "True"
-                run_env["ANSIBLE_NOCOLOR"] = "1"
-                result = subprocess.run(
-                    command,
-                    cwd=BASE_DIR,
-                    env=run_env,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    timeout=timeout,
-                    check=False,
-                )
-                handle.write(result.stdout)
-                handle.write(f"\nExit code: {result.returncode}\n")
-            except subprocess.TimeoutExpired as exc:
-                handle.write(exc.stdout or "")
-                handle.write(f"\nERROR: action timed out after {timeout} seconds.\n")
+            handle.write("Status: running\n\n")
+        write_status(log_path, "running")
+        thread = threading.Thread(target=run_playbook_job, args=(command, log_path, timeout), daemon=True)
+        thread.start()
         return redirect(url_for("view_log", name=log_path.name))
 
     @app.get("/logs/<name>")
@@ -309,11 +360,14 @@ def create_app() -> Flask:
         path = env_dir(env) / "run_logs" / name
         if not path.exists():
             abort(404)
+        content = path.read_text(encoding="utf-8", errors="replace")
         return render_template(
             "log.html",
             environment=env,
             name=name,
-            content=path.read_text(encoding="utf-8", errors="replace"),
+            content=content,
+            status=read_status(path),
+            progress=parse_ansible_progress(content),
         )
 
     @app.get("/screenshots/<path:name>")

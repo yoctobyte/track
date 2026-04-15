@@ -82,12 +82,13 @@
       {% if logs %}
         <table>
           <thead>
-            <tr><th>Log</th><th>Modified</th></tr>
+            <tr><th>Log</th><th>Status</th><th>Modified</th></tr>
           </thead>
           <tbody>
             {% for log in logs %}
               <tr>
                 <td><a href="{{ url_for('view_log', name=log.name) }}">{{ log.name }}</a></td>
+                <td><span class="badge {% if log.status == 'failed' %}danger{% elif log.status == 'running' %}careful{% endif %}">{{ log.status }}</span></td>
                 <td class="muted">{{ log.modified }}</td>
               </tr>
             {% endfor %}

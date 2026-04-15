@@ -1,4 +1,9 @@
 {% extends "base.html" %}
+{% block head %}
+  {% if status.state == "running" %}
+    <meta http-equiv="refresh" content="2">
+  {% endif %}
+{% endblock %}
 {% block content %}
 <div class="card stack">
   <div class="row">
@@ -6,8 +11,51 @@
       <h2>{{ name }}</h2>
       <p class="muted" style="margin:0.35rem 0 0;">Environment: {{ environment }}</p>
     </div>
-    <a class="btn" href="{{ url_for('index') }}">Back</a>
+    <div class="row">
+      <span class="badge {% if status.state == 'failed' %}danger{% elif status.state == 'running' %}careful{% endif %}">
+        {{ status.state }}
+      </span>
+      <a class="btn" href="{{ url_for('index') }}">Back</a>
+    </div>
   </div>
+  {% if status.detail %}
+    <p class="muted" style="margin:0;">{{ status.detail }}</p>
+  {% endif %}
+  {% if status.state == "running" %}
+    <p class="muted" style="margin:0;">Command is still running. This page refreshes every 2 seconds.</p>
+  {% endif %}
+  {% if progress.current_task or progress.hosts %}
+    <div class="card subtle stack">
+      <div class="row">
+        <h3>Live Progress</h3>
+        {% if progress.current_task %}
+          <span class="muted">Current task: {{ progress.current_task }}</span>
+        {% endif %}
+      </div>
+      {% if progress.hosts %}
+        <table>
+          <thead>
+            <tr><th>Host</th><th>Latest state</th><th>Task</th></tr>
+          </thead>
+          <tbody>
+            {% for host in progress.hosts %}
+              <tr>
+                <td><code>{{ host.name }}</code></td>
+                <td>
+                  <span class="badge {% if host.state in ['fatal', 'unreachable'] %}danger{% elif host.state == 'changed' %}careful{% endif %}">
+                    {{ host.state }}
+                  </span>
+                </td>
+                <td class="muted">{{ host.task }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted" style="margin:0;">Waiting for the first host result.</p>
+      {% endif %}
+    </div>
+  {% endif %}
   <pre>{{ content }}</pre>
 </div>
 {% endblock %}

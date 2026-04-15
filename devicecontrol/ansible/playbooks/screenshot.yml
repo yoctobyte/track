@@ -6,7 +6,7 @@
   vars:
     screenshot_remote_path: /tmp/track-devicecontrol-screenshot.png
     screenshot_display: ":0"
-    screenshot_runtime_user: "{{ ansible_user | default('ansible') }}"
+    screenshot_runtime_user: "{{ bootstrap_user | default(ansible_user | default('ansible')) }}"
     screenshot_xauthority: "/home/{{ screenshot_runtime_user }}/.Xauthority"
   tasks:
     - name: Install screenshot helper on Debian-like systems
@@ -22,26 +22,38 @@
         export DISPLAY="{{ screenshot_display }}"
         export XAUTHORITY="{{ screenshot_xauthority }}"
         if command -v scrot >/dev/null 2>&1; then
-          runuser -u "{{ screenshot_runtime_user }}" -- scrot "{{ screenshot_remote_path }}"
+          runuser -u "{{ screenshot_runtime_user }}" -- env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" scrot "{{ screenshot_remote_path }}"
         elif command -v gnome-screenshot >/dev/null 2>&1; then
-          runuser -u "{{ screenshot_runtime_user }}" -- gnome-screenshot -f "{{ screenshot_remote_path }}"
+          runuser -u "{{ screenshot_runtime_user }}" -- env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" gnome-screenshot -f "{{ screenshot_remote_path }}"
         elif command -v import >/dev/null 2>&1; then
-          runuser -u "{{ screenshot_runtime_user }}" -- import -window root "{{ screenshot_remote_path }}"
+          runuser -u "{{ screenshot_runtime_user }}" -- env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" import -window root "{{ screenshot_remote_path }}"
         else
           echo "No supported screenshot tool found." >&2
           exit 127
         fi
       args:
         executable: /bin/bash
-      changed_when: true
+      register: screenshot_capture
+      changed_when: screenshot_capture.rc == 0
+      failed_when: false
+
+    - name: Report screenshot capture failure
+      ansible.builtin.debug:
+        msg: >-
+          Screenshot failed for {{ inventory_hostname }} as {{ screenshot_runtime_user }}
+          on {{ screenshot_display }} with XAUTHORITY={{ screenshot_xauthority }}:
+          {{ screenshot_capture.stderr | default(screenshot_capture.stdout, true) | default('no error output', true) }}
+      when: screenshot_capture.rc != 0
 
     - name: Fetch screenshot
       ansible.builtin.fetch:
         src: "{{ screenshot_remote_path }}"
         dest: "{{ screenshot_output_dir }}/"
         flat: false
+      when: screenshot_capture.rc == 0
 
     - name: Remove temporary screenshot
       ansible.builtin.file:
         path: "{{ screenshot_remote_path }}"
         state: absent
+      when: screenshot_capture.rc == 0
