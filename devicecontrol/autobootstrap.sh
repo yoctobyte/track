@@ -208,9 +208,9 @@ fi
 check_ansible() {
     local target="$1"
     if [ "$SUDO_MODE" = "nopasswd" ]; then
-        ssh -o BatchMode=yes -o ConnectTimeout=6 "$ANSIBLE_USER@$target" "whoami >/dev/null && sudo -n true" >/dev/null 2>&1
+        ssh -n -o BatchMode=yes -o ConnectTimeout=6 "$ANSIBLE_USER@$target" "whoami >/dev/null && sudo -n true" >/dev/null 2>&1
     else
-        ssh -o BatchMode=yes -o ConnectTimeout=6 "$ANSIBLE_USER@$target" "whoami >/dev/null" >/dev/null 2>&1
+        ssh -n -o BatchMode=yes -o ConnectTimeout=6 "$ANSIBLE_USER@$target" "whoami >/dev/null" >/dev/null 2>&1
     fi
 }
 
