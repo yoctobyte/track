@@ -184,7 +184,7 @@ bootstrap_one() {
     local remote_cmd
     remote_cmd="ANSIBLE_USER=$(shell_quote "$ANSIBLE_USER") PASSWORD_MODE=$(shell_quote "$PASSWORD_MODE") SUDO_MODE=$(shell_quote "$SUDO_MODE") PUBLIC_KEY_B64=$(shell_quote "$PUBLIC_KEY_B64") ACCOUNT_PASSWORD_B64=$(shell_quote "$ACCOUNT_PASSWORD_B64") bash -s"
 
-    ssh "$login_user@$target_host" "$remote_cmd" <<'EOF' || return 1
+    ssh -o StrictHostKeyChecking=accept-new -- "$login_user@$target_host" "$remote_cmd" <<'EOF' || return 1
 set -euo pipefail
 
 PUBLIC_KEY="$(printf '%s' "$PUBLIC_KEY_B64" | base64 -d)"
@@ -232,9 +232,9 @@ esac
 EOF
 
     echo "    Verifying $ANSIBLE_USER@$target_host..."
-    ssh -o BatchMode=yes "$ANSIBLE_USER@$target_host" "whoami && hostname" || return 1
+    ssh -o BatchMode=yes -- "$ANSIBLE_USER@$target_host" "whoami && hostname" || return 1
     if [ "$SUDO_MODE" = "nopasswd" ]; then
-        ssh -o BatchMode=yes "$ANSIBLE_USER@$target_host" "sudo -n true && echo sudo-nopasswd-ok" || return 1
+        ssh -o BatchMode=yes -- "$ANSIBLE_USER@$target_host" "sudo -n true && echo sudo-nopasswd-ok" || return 1
     fi
 }
 
@@ -342,15 +342,15 @@ for line in lines:
     if parts[0] != host_name:
         out.append(line)
         continue
-    if re.search(rf"(^|\\s){re.escape(login_var)}=", line):
-        line = re.sub(rf"(^|\\s){re.escape(login_var)}=\\S+", rf"\\1{login_var}={new_user}", line)
+    if re.search(rf"(^|\s){re.escape(login_var)}=", line):
+        line = re.sub(rf"(^|\s){re.escape(login_var)}=\S+", rf"\g<1>{login_var}={new_user}", line)
     else:
         line = f"{line} {login_var}={new_user}"
     changed = True
     out.append(line)
 
 if changed:
-    path.write_text("\\n".join(out) + "\\n", encoding="utf-8")
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
 else:
     raise SystemExit(f"Host not found for inventory rewrite: {host_name}")
 PY
