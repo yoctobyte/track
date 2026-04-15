@@ -1,0 +1,131 @@
+---
+- name: Collect DeviceControl host stats
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    devicecontrol_stats_remote_path: /tmp/track-devicecontrol-stats.json
+    devicecontrol_runtime_user: "{{ bootstrap_user | default(ansible_user | default('ansible')) }}"
+  tasks:
+    - name: Collect host runtime stats
+      ansible.builtin.shell: |
+        set -eu
+        python3 - "{{ devicecontrol_runtime_user }}" > "{{ devicecontrol_stats_remote_path }}" <<'PY'
+        import json
+        import os
+        import platform
+        import socket
+        import subprocess
+        import sys
+
+        runtime_user = sys.argv[1]
+
+        def run(command):
+            try:
+                return subprocess.check_output(command, text=True, stderr=subprocess.DEVNULL).strip()
+            except Exception:
+                return ""
+
+        def memory():
+            values = {}
+            try:
+                with open("/proc/meminfo", encoding="utf-8") as handle:
+                    for line in handle:
+                        key, value = line.split(":", 1)
+                        values[key] = int(value.strip().split()[0])
+            except Exception:
+                return None
+            total = values.get("MemTotal")
+            available = values.get("MemAvailable", values.get("MemFree"))
+            if not total or available is None:
+                return None
+            used = total - available
+            return {
+                "total_mb": round(total / 1024),
+                "used_mb": round(used / 1024),
+                "available_mb": round(available / 1024),
+            }
+
+        def network():
+            items = []
+            output = run(["ip", "-o", "addr", "show"])
+            for line in output.splitlines():
+                parts = line.split()
+                if len(parts) < 4:
+                    continue
+                name = parts[1]
+                family = parts[2]
+                address = parts[3]
+                if family not in {"inet", "inet6"} or name == "lo":
+                    continue
+                for item in items:
+                    if item["name"] == name:
+                        item["addresses"].append(address)
+                        break
+                else:
+                    items.append({"name": name, "addresses": [address]})
+            return items
+
+        def desktop_hint():
+            probes = {
+                "openbox": run(["pgrep", "-u", runtime_user, "-a", "openbox"]),
+                "gnome": run(["pgrep", "-u", runtime_user, "-a", "gnome-shell"]),
+                "xorg": run(["pgrep", "-a", "Xorg"]),
+                "xwayland": run(["pgrep", "-a", "Xwayland"]),
+                "wayland": run(["pgrep", "-u", runtime_user, "-a", "wayland"]),
+            }
+            if probes["gnome"]:
+                hint = "gnome"
+            elif probes["openbox"]:
+                hint = "openbox"
+            elif probes["xwayland"] or probes["wayland"]:
+                hint = "wayland/xwayland"
+            elif probes["xorg"]:
+                hint = "xorg"
+            else:
+                hint = "unknown"
+            return {"hint": hint, "probes": probes}
+
+        def processes():
+            output = run(["ps", "-u", runtime_user, "-o", "pid=,comm=,%cpu=,%mem=", "--sort=-%cpu"])
+            result = []
+            for line in output.splitlines()[:20]:
+                parts = line.split(None, 3)
+                if len(parts) < 4:
+                    continue
+                result.append({
+                    "pid": parts[0],
+                    "command": parts[1],
+                    "cpu": parts[2],
+                    "memory": parts[3],
+                })
+            return result
+
+        data = {
+            "hostname": socket.gethostname(),
+            "runtime_user": runtime_user,
+            "system": f"{platform.system()} {platform.release()} {platform.machine()}",
+            "uptime": run(["uptime", "-p"]) or run(["uptime"]),
+            "load_average": list(os.getloadavg()) if hasattr(os, "getloadavg") else [],
+            "memory": memory(),
+            "network": network(),
+            "desktop": desktop_hint(),
+            "processes": processes(),
+        }
+        json.dump(data, sys.stdout, indent=2, sort_keys=True)
+        print()
+        PY
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Fetch host stats
+      ansible.builtin.fetch:
+        src: "{{ devicecontrol_stats_remote_path }}"
+        dest: "{{ devicecontrol_stats_output_dir }}/"
+        flat: false
+
+    - name: Remove temporary host stats
+      ansible.builtin.file:
+        path: "{{ devicecontrol_stats_remote_path }}"
+        state: absent

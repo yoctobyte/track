@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import os
+import json
 import re
 import secrets
 import shlex
 import shutil
 import subprocess
 import threading
+import struct
+import zlib
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -49,6 +52,12 @@ ACTIONS: dict[str, Action] = {
         "screenshot.yml",
         "Attempt to capture desktop screenshots and fetch them into this environment.",
         "careful",
+    ),
+    "collect-stats": Action(
+        "collect-stats",
+        "Collect Stats",
+        "collect-stats.yml",
+        "Collect host IPs, load, memory, desktop hints, and runtime-user processes.",
     ),
 }
 
@@ -126,6 +135,8 @@ def create_app() -> Flask:
         root = data_dir / "environments" / sanitize_environment(env)
         (root / "run_logs").mkdir(parents=True, exist_ok=True)
         (root / "screenshots").mkdir(parents=True, exist_ok=True)
+        (root / "stats").mkdir(parents=True, exist_ok=True)
+        (root / "display_events").mkdir(parents=True, exist_ok=True)
         inventory = root / "inventory.ini"
         if not inventory.exists():
             inventory.write_text("[ungrouped]\n", encoding="utf-8")
@@ -259,10 +270,276 @@ def create_app() -> Flask:
             )
         return items
 
+    def latest_screenshot(env: str, host: str) -> dict[str, object] | None:
+        root = env_dir(env) / "screenshots" / host
+        if not root.exists():
+            return None
+        screenshots = sorted(root.rglob("*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not screenshots:
+            return None
+        path = screenshots[0]
+        return {
+            "path": path.relative_to(env_dir(env) / "screenshots").as_posix(),
+            "name": path.name,
+            "modified": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+    def display_event_path(env: str, host: str) -> Path:
+        return env_dir(env) / "display_events" / f"{host}.jsonl"
+
+    def append_display_event(env: str, host: str, event: dict[str, object]) -> None:
+        path = display_event_path(env, host)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+
+    def list_display_events(env: str, host: str, limit: int = 20) -> list[dict[str, object]]:
+        path = display_event_path(env, host)
+        if not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        events = []
+        for line in lines[-limit:]:
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        return list(reversed(events))
+
+    def latest_display_event(env: str, host: str) -> dict[str, object] | None:
+        events = list_display_events(env, host, limit=1)
+        return events[0] if events else None
+
+    def analyze_png_luma(path: Path) -> dict[str, object] | None:
+        data = path.read_bytes()
+        if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            return None
+
+        offset = 8
+        width = height = bit_depth = color_type = interlace = None
+        palette: list[tuple[int, int, int]] = []
+        idat = bytearray()
+
+        while offset + 8 <= len(data):
+            length = struct.unpack(">I", data[offset : offset + 4])[0]
+            chunk_type = data[offset + 4 : offset + 8]
+            chunk_data = data[offset + 8 : offset + 8 + length]
+            offset += 12 + length
+            if chunk_type == b"IHDR":
+                width, height, bit_depth, color_type, _compression, _filter, interlace = struct.unpack(">IIBBBBB", chunk_data)
+            elif chunk_type == b"PLTE":
+                palette = [tuple(chunk_data[i : i + 3]) for i in range(0, len(chunk_data), 3)]
+            elif chunk_type == b"IDAT":
+                idat.extend(chunk_data)
+            elif chunk_type == b"IEND":
+                break
+
+        if not all(value is not None for value in [width, height, bit_depth, color_type, interlace]):
+            return None
+        if bit_depth != 8 or interlace != 0:
+            return None
+
+        channels_by_type = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+        channels = channels_by_type.get(int(color_type))
+        if channels is None:
+            return None
+
+        raw = zlib.decompress(bytes(idat))
+        row_len = int(width) * channels
+        previous = bytearray(row_len)
+        cursor = 0
+        total_luma = 0.0
+        bright = 0
+        samples = 0
+        row_step = max(1, int(height) // 80)
+        col_step = max(1, int(width) // 80)
+
+        def paeth(left: int, up: int, up_left: int) -> int:
+            estimate = left + up - up_left
+            distances = (abs(estimate - left), abs(estimate - up), abs(estimate - up_left))
+            if distances[0] <= distances[1] and distances[0] <= distances[2]:
+                return left
+            if distances[1] <= distances[2]:
+                return up
+            return up_left
+
+        for y in range(int(height)):
+            filter_type = raw[cursor]
+            cursor += 1
+            row = bytearray(raw[cursor : cursor + row_len])
+            cursor += row_len
+            for i in range(row_len):
+                left = row[i - channels] if i >= channels else 0
+                up = previous[i]
+                up_left = previous[i - channels] if i >= channels else 0
+                if filter_type == 1:
+                    row[i] = (row[i] + left) & 0xFF
+                elif filter_type == 2:
+                    row[i] = (row[i] + up) & 0xFF
+                elif filter_type == 3:
+                    row[i] = (row[i] + ((left + up) // 2)) & 0xFF
+                elif filter_type == 4:
+                    row[i] = (row[i] + paeth(left, up, up_left)) & 0xFF
+            previous = row
+
+            if y % row_step != 0:
+                continue
+            for x in range(0, int(width), col_step):
+                i = x * channels
+                if color_type == 0:
+                    luma = row[i]
+                elif color_type == 3:
+                    rgb = palette[row[i]] if row[i] < len(palette) else (0, 0, 0)
+                    luma = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+                elif color_type == 4:
+                    luma = row[i]
+                else:
+                    luma = 0.2126 * row[i] + 0.7152 * row[i + 1] + 0.0722 * row[i + 2]
+                total_luma += luma
+                bright += int(luma > 12)
+                samples += 1
+
+        if samples == 0:
+            return None
+        mean_luma = total_luma / samples
+        bright_ratio = bright / samples
+        return {
+            "width": width,
+            "height": height,
+            "mean_luma": round(mean_luma, 2),
+            "bright_ratio": round(bright_ratio, 4),
+            "sample_count": samples,
+        }
+
+    def classify_screenshot(path: Path) -> dict[str, object]:
+        size = path.stat().st_size
+        analysis: dict[str, object] = {"size_bytes": size}
+        try:
+            png = analyze_png_luma(path)
+        except Exception as exc:
+            png = None
+            analysis["analysis_error"] = str(exc)
+        if png:
+            analysis.update(png)
+            is_black = float(png["mean_luma"]) < 5.0 and float(png["bright_ratio"]) < 0.005
+        else:
+            is_black = size < 20000
+            analysis["fallback"] = "size-threshold"
+        analysis["event_type"] = "screenshot_black" if is_black else "screenshot_active"
+        return analysis
+
+    def record_screenshot_events(env: str, log_path: Path, started_at: datetime) -> None:
+        screenshot_root = env_dir(env) / "screenshots"
+        cutoff = started_at.timestamp() - 5
+        for path in screenshot_root.rglob("*.png"):
+            if path.stat().st_mtime < cutoff:
+                continue
+            try:
+                host = path.relative_to(screenshot_root).parts[0]
+            except IndexError:
+                continue
+            analysis = classify_screenshot(path)
+            append_display_event(
+                env,
+                host,
+                {
+                    "timestamp": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"),
+                    "event_type": analysis.pop("event_type"),
+                    "source": "screenshot",
+                    "source_log": log_path.name,
+                    "screenshot_path": path.relative_to(screenshot_root).as_posix(),
+                    "metadata": analysis,
+                },
+            )
+
+        content = log_path.read_text(encoding="utf-8", errors="replace")
+        for host in sorted(set(re.findall(r"Screenshot failed for ([A-Za-z0-9_.:-]+)", content))):
+            append_display_event(
+                env,
+                host,
+                {
+                    "timestamp": datetime.now().isoformat(timespec="seconds"),
+                    "event_type": "screenshot_failed",
+                    "source": "screenshot",
+                    "source_log": log_path.name,
+                    "metadata": {"reason": "capture_failed"},
+                },
+            )
+
+    def host_stats_path(env: str, host: str) -> Path:
+        return env_dir(env) / "stats" / host / "tmp" / "track-devicecontrol-stats.json"
+
+    def load_host_stats(env: str, host: str) -> dict[str, object] | None:
+        path = host_stats_path(env, host)
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return None
+        modified = datetime.fromtimestamp(path.stat().st_mtime)
+        data["_modified"] = modified.strftime("%Y-%m-%d %H:%M:%S")
+        data["_age_seconds"] = int((datetime.now() - modified).total_seconds())
+        return data
+
+    def device_last_seen(stats: dict[str, object] | None) -> dict[str, str]:
+        if not stats:
+            return {
+                "label": "never",
+                "state": "unknown",
+                "hint": "No successful stats collection yet.",
+            }
+        age_seconds = int(stats.get("_age_seconds", 0))
+        if age_seconds < 300:
+            state = "fresh"
+        elif age_seconds < 3600:
+            state = "stale"
+        else:
+            state = "offline"
+
+        if age_seconds < 60:
+            label = "just now"
+        elif age_seconds < 3600:
+            label = f"{age_seconds // 60} min ago"
+        elif age_seconds < 86400:
+            label = f"{age_seconds // 3600} h ago"
+        else:
+            label = f"{age_seconds // 86400} d ago"
+
+        return {
+            "label": label,
+            "state": state,
+            "hint": "Last successful stats collection.",
+        }
+
+    def build_devices(env: str) -> tuple[list[str], list[dict[str, object]]]:
+        groups, hosts = parse_inventory(inventory_path(env))
+        devices = []
+        for host in hosts:
+            name = str(host["name"])
+            devices.append(
+                {
+                    **host,
+                    "screenshot": latest_screenshot(env, name),
+                    "stats": load_host_stats(env, name),
+                    "display_event": latest_display_event(env, name),
+                    "display_events": list_display_events(env, name),
+                }
+            )
+            devices[-1]["last_seen"] = device_last_seen(devices[-1]["stats"])
+        return groups, devices
+
+    def find_device(env: str, host_name: str) -> tuple[list[str], dict[str, object] | None]:
+        groups, devices = build_devices(env)
+        for device in devices:
+            if device["name"] == host_name:
+                return groups, device
+        return groups, None
+
     def ansible_available() -> bool:
         return shutil.which("ansible-playbook") is not None
 
-    def run_playbook_job(command: list[str], log_path: Path, timeout_seconds: int) -> None:
+    def run_playbook_job(command: list[str], log_path: Path, timeout_seconds: int, env: str, action_id: str, started_at: datetime) -> None:
         with log_path.open("a", encoding="utf-8") as handle:
             if not ansible_available():
                 handle.write("ERROR: ansible-playbook was not found in PATH.\n")
@@ -284,6 +561,9 @@ def create_app() -> Flask:
                     check=False,
                 )
                 handle.write(f"\nExit code: {result.returncode}\n")
+                handle.flush()
+                if action_id == "screenshot":
+                    record_screenshot_events(env, log_path, started_at)
                 write_status(log_path, "finished" if result.returncode == 0 else "failed", f"exit_code={result.returncode}")
             except subprocess.TimeoutExpired:
                 handle.write(f"\nERROR: action timed out after {timeout_seconds} seconds.\n")
@@ -301,9 +581,20 @@ def create_app() -> Flask:
     @app.get("/")
     def index():
         env = current_environment()
-        groups, hosts = parse_inventory(inventory_path(env))
+        groups, devices = build_devices(env)
         return render_template(
             "index.html",
+            environment=env,
+            groups=groups,
+            devices=devices,
+        )
+
+    @app.get("/mass-actions")
+    def mass_actions():
+        env = current_environment()
+        groups, hosts = parse_inventory(inventory_path(env))
+        return render_template(
+            "mass_actions.html",
             environment=env,
             inventory_path=inventory_path(env),
             groups=groups,
@@ -311,6 +602,19 @@ def create_app() -> Flask:
             logs=list_logs(env),
             screenshots=list_screenshots(env),
             data_dir=data_dir,
+        )
+
+    @app.get("/hosts/<host_name>")
+    def host_detail(host_name: str):
+        env = current_environment()
+        _, device = find_device(env, host_name)
+        if device is None:
+            abort(404)
+        return render_template(
+            "host.html",
+            environment=env,
+            device=device,
+            logs=list_logs(env),
         )
 
     @app.post("/run/<action_id>")
@@ -338,8 +642,11 @@ def create_app() -> Flask:
             command.extend(["--limit", target])
         if action_id == "screenshot":
             command.extend(["--extra-vars", f"screenshot_output_dir={screenshot_dir}"])
+        if action_id == "collect-stats":
+            command.extend(["--extra-vars", f"devicecontrol_stats_output_dir={env_dir(env) / 'stats'}"])
 
-        started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        started_at = datetime.now()
+        started = started_at.strftime("%Y-%m-%d %H:%M:%S")
         with log_path.open("w", encoding="utf-8") as handle:
             handle.write(f"Started: {started}\n")
             handle.write(f"Environment: {env}\n")
@@ -348,7 +655,7 @@ def create_app() -> Flask:
             handle.write(f"Command: {' '.join(shlex.quote(part) for part in command)}\n\n")
             handle.write("Status: running\n\n")
         write_status(log_path, "running")
-        thread = threading.Thread(target=run_playbook_job, args=(command, log_path, timeout), daemon=True)
+        thread = threading.Thread(target=run_playbook_job, args=(command, log_path, timeout, env, action_id, started_at), daemon=True)
         thread.start()
         return redirect(url_for("view_log", name=log_path.name))
 

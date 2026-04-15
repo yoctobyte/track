@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stack">
+  <section class="card stack">
+    <div class="row">
+      <div>
+        <h2>{{ device.name }}</h2>
+        <p class="muted" style="margin:0.35rem 0 0;">
+          Single-host operations and cached runtime detail for this environment.
+        </p>
+      </div>
+      <div class="row">
+        <span class="badge {{ device.last_seen.state }}">last seen {{ device.last_seen.label }}</span>
+        <a class="btn" href="{{ url_for('index') }}">Back to Overview</a>
+      </div>
+    </div>
+    <div class="muted">Groups: {{ device.groups|join(', ') if device.groups else 'none' }} · {{ device.last_seen.hint }}</div>
+    {% if device.display_event %}
+      <div>
+        {% if device.display_event.event_type == 'screenshot_active' %}
+          <span class="badge screen-on">latest display event: screen active</span>
+        {% elif device.display_event.event_type == 'screenshot_black' %}
+          <span class="badge screen-black">latest display event: screen black / likely disabled</span>
+        {% elif device.display_event.event_type == 'screenshot_failed' %}
+          <span class="badge screen-failed">latest display event: screen capture failed</span>
+        {% else %}
+          <span class="badge">latest display event: {{ device.display_event.event_type }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="grid">
+    <div class="card stack">
+      <h2>Latest Screenshot</h2>
+      <div class="screenshot-frame">
+        {% if device.screenshot %}
+          <img src="{{ url_for('screenshot_file', name=device.screenshot.path) }}" alt="Latest screenshot for {{ device.name }}">
+        {% else %}
+          <div class="placeholder">No screenshot yet</div>
+        {% endif %}
+      </div>
+      {% if device.screenshot %}
+        <div class="muted">{{ device.screenshot.path }} · {{ device.screenshot.modified }}</div>
+      {% endif %}
+    </div>
+
+    <div class="card stack">
+      <h2>Host Actions</h2>
+      {% for action in actions.values() %}
+        <form class="row" method="post" action="{{ url_for('run_action', action_id=action.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="target" value="{{ device.name }}">
+          <div>
+            <strong>{{ action.name }}</strong>
+            <div class="muted">{{ action.summary }}</div>
+          </div>
+          <button class="btn {{ action.danger }}" type="submit">Run</button>
+        </form>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card stack">
+      <div class="row">
+        <h2>Runtime Stats</h2>
+        {% if device.stats %}
+          <span class="badge">{{ device.stats["_modified"] }}</span>
+        {% else %}
+          <span class="badge careful">not collected</span>
+        {% endif %}
+      </div>
+      {% if device.stats %}
+        <table>
+          <tbody>
+            <tr><th>Hostname</th><td><code>{{ device.stats.hostname }}</code></td></tr>
+            <tr><th>Configured user</th><td><code>{{ device.stats.runtime_user }}</code></td></tr>
+            <tr><th>System</th><td>{{ device.stats.system }}</td></tr>
+            <tr><th>Uptime</th><td>{{ device.stats.uptime }}</td></tr>
+            <tr><th>Load average</th><td>{{ device.stats.load_average|map('round', 2)|join(', ') if device.stats.load_average else 'unknown' }}</td></tr>
+            <tr>
+              <th>Memory</th>
+              <td>
+                {% if device.stats.memory %}
+                  {{ device.stats.memory.used_mb }} / {{ device.stats.memory.total_mb }} MB used
+                {% else %}
+                  unknown
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <th>Desktop hint</th>
+              <td>{{ device.stats.desktop.hint if device.stats.desktop else 'unknown' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted" style="margin:0;">Run Collect Stats to populate this section.</p>
+      {% endif %}
+    </div>
+
+    <div class="card stack">
+      <h2>Network IPs</h2>
+      {% if device.stats and device.stats.network %}
+        <table>
+          <thead><tr><th>Interface</th><th>Addresses</th></tr></thead>
+          <tbody>
+            {% for iface in device.stats.network %}
+              <tr>
+                <td><code>{{ iface.name }}</code></td>
+                <td>
+                  {% for address in iface.addresses %}
+                    <code>{{ address }}</code>{% if not loop.last %}<br>{% endif %}
+                  {% endfor %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted" style="margin:0;">No network stats collected yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card stack">
+      <h2>Tasks For Configured User</h2>
+      {% if device.stats and device.stats.processes %}
+        <table>
+          <thead><tr><th>PID</th><th>Command</th><th>CPU</th><th>Memory</th></tr></thead>
+          <tbody>
+            {% for proc in device.stats.processes %}
+              <tr>
+                <td><code>{{ proc.pid }}</code></td>
+                <td>{{ proc.command }}</td>
+                <td>{{ proc.cpu }}</td>
+                <td>{{ proc.memory }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted" style="margin:0;">No process stats collected yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="card stack">
+      <h2>Display Timeline</h2>
+      {% if device.display_events %}
+        <table>
+          <thead><tr><th>Time</th><th>Event</th><th>Evidence</th></tr></thead>
+          <tbody>
+            {% for event in device.display_events %}
+              <tr>
+                <td class="muted">{{ event.timestamp }}</td>
+                <td>
+                  {% if event.event_type == 'screenshot_active' %}
+                    <span class="badge screen-on">screen active</span>
+                  {% elif event.event_type == 'screenshot_black' %}
+                    <span class="badge screen-black">black / likely disabled</span>
+                  {% elif event.event_type == 'screenshot_failed' %}
+                    <span class="badge screen-failed">capture failed</span>
+                  {% else %}
+                    <span class="badge">{{ event.event_type }}</span>
+                  {% endif %}
+                </td>
+                <td class="muted">
+                  {% if event.metadata %}
+                    {% if event.metadata.mean_luma is defined %}
+                      luma {{ event.metadata.mean_luma }},
+                    {% endif %}
+                    {% if event.metadata.size_bytes is defined %}
+                      {{ event.metadata.size_bytes }} bytes
+                    {% endif %}
+                  {% endif %}
+                  {% if event.screenshot_path is defined %}
+                    · <a href="{{ url_for('screenshot_file', name=event.screenshot_path) }}">image</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted" style="margin:0;">No display events recorded yet. Run Screenshot to create timeline data.</p>
+      {% endif %}
+    </div>
+
+    <div class="card stack">
+      <h2>Ansible Vars</h2>
+      {% if device.vars %}
+        <table>
+          <tbody>
+            {% for key, value in device.vars.items() %}
+              <tr><th>{{ key }}</th><td><code>{{ value }}</code></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted" style="margin:0;">No host variables.</p>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

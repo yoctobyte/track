@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DeviceControl · TRACK</title>
+  <title>Device Control · TRACK</title>
   {% block head %}{% endblock %}
   <style>
     :root {
@@ -55,6 +55,7 @@
     .stack { display: grid; gap: 1rem; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+    .device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
     .card {
       background: rgba(255, 250, 240, 0.9);
       border: 1px solid var(--line);
@@ -77,6 +78,24 @@
     }
     .badge.careful { background: #f0d6a7; color: #653d00; }
     .badge.danger { background: #f1c0bc; color: #7a1717; }
+    .badge.fresh { background: #cfe8d8; color: #17442b; }
+    .badge.stale { background: #f0d6a7; color: #653d00; }
+    .badge.offline, .badge.unknown { background: #f1c0bc; color: #7a1717; }
+    .badge.screen-on { background: #cfe8d8; color: #17442b; }
+    .badge.screen-black { background: #2a2924; color: #f4f1e9; }
+    .badge.screen-failed { background: #f1c0bc; color: #7a1717; }
+    .tabs { display: flex; gap: 0.55rem; flex-wrap: wrap; align-items: center; }
+    .tab {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.45rem 0.75rem;
+      background: rgba(255, 250, 240, 0.72);
+      color: var(--accent-dark);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
     .btn {
       border: 0;
       border-radius: 12px;
@@ -89,6 +108,7 @@
     }
     .btn.careful { background: var(--warn); }
     .btn.danger { background: var(--danger); }
+    .btn.secondary { background: #695f4e; }
     input, select {
       width: 100%;
       border: 1px solid var(--line);
@@ -101,15 +121,35 @@
     th, td { text-align: left; padding: 0.55rem; border-bottom: 1px solid var(--line); vertical-align: top; }
     th { color: var(--muted); font-size: 0.85rem; }
     img.thumb { max-width: 100%; border-radius: 12px; border: 1px solid var(--line); }
+    .device-link { color: inherit; text-decoration: none; }
+    .screenshot-frame {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 16 / 10;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #181711;
+      overflow: hidden;
+    }
+    .screenshot-frame img { width: 100%; height: 100%; object-fit: contain; }
+    .placeholder {
+      color: #cfc7b6;
+      font-weight: 700;
+      text-align: center;
+      padding: 1rem;
+    }
   </style>
 </head>
 <body>
   <header class="row">
     <div>
-      <h1>DeviceControl</h1>
+      <h1>Device Control</h1>
       <div class="muted">TRACK Ansible control kit · environment <strong>{{ current_environment }}</strong></div>
     </div>
-    <a href="{{ url_for('index') }}">Dashboard</a>
+    <nav class="tabs">
+      <a class="tab {% if request.endpoint == 'index' or request.endpoint == 'host_detail' %}active{% endif %}" href="{{ url_for('index') }}">Overview</a>
+      <a class="tab {% if request.endpoint == 'mass_actions' %}active{% endif %}" href="{{ url_for('mass_actions') }}">Mass Actions</a>
+    </nav>
   </header>
   <main>
     {% block content %}{% endblock %}

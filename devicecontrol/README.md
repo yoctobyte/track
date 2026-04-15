@@ -135,9 +135,89 @@ Current approved actions:
 - `reboot`
 - `update-and-reboot`
 - `screenshot`
+- `collect-stats`
 
 The screenshot playbook is best-effort. Linux desktop screenshot behavior varies
 by display server, desktop user, Xauthority, Wayland/X11, and installed tools.
+
+`collect-stats` is the lightweight status probe used by the web UI. It stores
+cached per-host runtime information under:
+
+```text
+devicecontrol/data/environments/<environment>/stats/
+```
+
+The overview treats the latest successful stats collection as `last seen`.
+That is not yet a permanent monitoring heartbeat; it is cached operational
+state produced by an approved Ansible action.
+
+## Scheduled Jobs And Retention
+
+Some actions should eventually run on an interval instead of only by button:
+
+- `collect-stats` every few minutes for last-seen, load, memory, IPs, desktop
+  hints, and configured-user processes
+- `screenshot` less often, or only for selected display devices
+- `ping` or a cheaper reachability check if stats collection is too heavy
+
+Keep two kinds of data separate:
+
+- Current state: one latest JSON/screenshot per host for the UI.
+- History: timestamped samples for trends, diagnostics, and audit trails.
+
+History needs thinning. A practical retention policy is:
+
+- keep all samples for the recent short window
+- keep periodic samples for older windows
+- keep a few oldest/landmark samples for long-term context
+- keep the latest sample always
+
+In other words: do not store thousands of near-identical screenshots forever,
+but do preserve enough old evidence to understand what changed over time.
+
+## Display State Timeline
+
+Some hosts intentionally show black screenshots. That does not always mean the
+screenshot failed. On kiosk/media devices it may mean the system actively put
+the monitor into a low-power state, disabled HDMI output, blanked X, or dropped
+the framebuffer as part of a screen-off hack.
+
+Treat this as operational data, not merely as a bad preview.
+
+Future display monitoring should store small timestamped events separately from
+full screenshots:
+
+- screen/display enabled
+- screen/display disabled
+- HDMI output disabled/enabled
+- framebuffer unavailable
+- wake button or software wake triggered
+- screenshot black but capture succeeded
+- screenshot failed because no display/session was reachable
+
+These events should be cheap to keep for a long time: timestamp, host, event
+type, source action, and a few bytes of metadata. Full screenshots can use the
+retention policy above, while display-state events form the durable timeline.
+
+This matters especially for Raspberry Pi style players where “black” may be
+the expected power-saving state rather than an error.
+
+Initial implementation:
+
+```text
+devicecontrol/data/environments/<environment>/display_events/<host>.jsonl
+```
+
+After a `screenshot` action, DeviceControl inspects newly fetched PNG files and
+appends compact events:
+
+- `screenshot_active`
+- `screenshot_black`
+- `screenshot_failed`
+
+The black/active classifier samples PNG luminance when possible and falls back
+to a conservative file-size signal. The event is evidence from the screenshot,
+not a final authority on the electrical monitor state.
 
 ## Boundary
 

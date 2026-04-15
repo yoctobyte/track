@@ -4,116 +4,80 @@
   <section class="card stack">
     <div class="row">
       <div>
-        <h2>Approved Ansible Actions</h2>
+        <h2>Device Overview</h2>
         <p class="muted" style="margin:0.35rem 0 0;">
-          This interface runs fixed playbooks against the current environment inventory.
+          Managed hosts for this location. IP addresses stay off this overview; open a host for operational details.
         </p>
       </div>
-      {% if ansible_available %}
-        <span class="badge">ansible available</span>
-      {% else %}
-        <span class="badge">ansible missing</span>
-      {% endif %}
-    </div>
-    <div class="muted">
-      Inventory: <code>{{ inventory_path }}</code>
-    </div>
-  </section>
-
-  <section class="grid">
-    {% for action in actions.values() %}
-      <form class="card stack" method="post" action="{{ url_for('run_action', action_id=action.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="row">
-          <h3>{{ action.name }}</h3>
-          <span class="badge">{{ action.danger }}</span>
-        </div>
-        <p class="muted" style="margin:0;">{{ action.summary }}</p>
-        <label>
-          <span class="muted">Target host or group, empty means all</span>
-          <input name="target" placeholder="all">
-        </label>
-        <button class="btn {{ action.danger }}" type="submit">Run {{ action.name }}</button>
-      </form>
-    {% endfor %}
-  </section>
-
-  <section class="card stack">
-    <div class="row">
-      <h2>Inventory</h2>
-      <span class="badge">{{ hosts|length }} hosts</span>
+      <span class="badge">{{ devices|length }} devices</span>
     </div>
     {% if groups %}
       <div class="muted">Groups: {{ groups|join(', ') }}</div>
     {% endif %}
-    {% if hosts %}
-      <table>
-        <thead>
-          <tr>
-            <th>Host</th>
-            <th>Groups</th>
-            <th>Ansible vars</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for host in hosts %}
-            <tr>
-              <td><code>{{ host.name }}</code></td>
-              <td>{{ host.groups|join(', ') }}</td>
-              <td>
-                {% for key, value in host.vars.items() %}
-                  <code>{{ key }}={{ value }}</code>{% if not loop.last %}<br>{% endif %}
-                {% endfor %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
+  </section>
+
+  {% if devices %}
+    <section class="device-grid">
+      {% for device in devices %}
+        <a class="device-link" href="{{ url_for('host_detail', host_name=device.name) }}">
+          <article class="card stack">
+            <div class="row">
+              <h3>{{ device.name }}</h3>
+              <span class="badge {{ device.last_seen.state }}">last seen {{ device.last_seen.label }}</span>
+            </div>
+            {% if device.display_event %}
+              <div>
+                {% if device.display_event.event_type == 'screenshot_active' %}
+                  <span class="badge screen-on">screen active</span>
+                {% elif device.display_event.event_type == 'screenshot_black' %}
+                  <span class="badge screen-black">screen black / likely disabled</span>
+                {% elif device.display_event.event_type == 'screenshot_failed' %}
+                  <span class="badge screen-failed">screen capture failed</span>
+                {% else %}
+                  <span class="badge">{{ device.display_event.event_type }}</span>
+                {% endif %}
+              </div>
+            {% endif %}
+            <div class="screenshot-frame">
+              {% if device.screenshot %}
+                <img src="{{ url_for('screenshot_file', name=device.screenshot.path) }}" alt="Latest screenshot for {{ device.name }}">
+              {% else %}
+                <div class="placeholder">No screenshot yet</div>
+              {% endif %}
+            </div>
+            <div class="stack">
+              <div class="muted">Groups: {{ device.groups|join(', ') if device.groups else 'none' }}</div>
+              {% if device.stats %}
+                <div>
+                  <strong>Load:</strong> {{ device.stats.load_average|map('round', 2)|join(', ') if device.stats.load_average else 'unknown' }}
+                </div>
+                <div>
+                  <strong>Memory:</strong>
+                  {% if device.stats.memory %}
+                    {{ device.stats.memory.used_mb }} / {{ device.stats.memory.total_mb }} MB
+                  {% else %}
+                    unknown
+                  {% endif %}
+                </div>
+                <div class="muted">Desktop: {{ device.stats.desktop.hint if device.stats.desktop else 'unknown' }}</div>
+              {% else %}
+                <div class="muted">Details available after the first stats run.</div>
+              {% endif %}
+              {% if device.screenshot %}
+                <div class="muted">Screenshot: {{ device.screenshot.modified }}</div>
+              {% endif %}
+              <div><span class="btn secondary">Open Details</span></div>
+            </div>
+          </article>
+        </a>
+      {% endfor %}
+    </section>
+  {% else %}
+    <section class="card">
       <p class="muted" style="margin:0;">
         No hosts enrolled yet. Use <code>./bootstrap-host.sh</code> and add hosts to this environment inventory.
       </p>
-    {% endif %}
-  </section>
-
-  <section class="grid">
-    <div class="card stack">
-      <h2>Recent Runs</h2>
-      {% if logs %}
-        <table>
-          <thead>
-            <tr><th>Log</th><th>Status</th><th>Modified</th></tr>
-          </thead>
-          <tbody>
-            {% for log in logs %}
-              <tr>
-                <td><a href="{{ url_for('view_log', name=log.name) }}">{{ log.name }}</a></td>
-                <td><span class="badge {% if log.status == 'failed' %}danger{% elif log.status == 'running' %}careful{% endif %}">{{ log.status }}</span></td>
-                <td class="muted">{{ log.modified }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p class="muted" style="margin:0;">No runs yet.</p>
-      {% endif %}
-    </div>
-
-    <div class="card stack">
-      <h2>Screenshots</h2>
-      {% if screenshots %}
-        {% for shot in screenshots %}
-          <div>
-            <a href="{{ url_for('screenshot_file', name=shot.path) }}">
-              <img class="thumb" src="{{ url_for('screenshot_file', name=shot.path) }}" alt="{{ shot.name }}">
-            </a>
-            <div class="muted">{{ shot.path }} · {{ shot.modified }}</div>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p class="muted" style="margin:0;">No screenshots fetched yet.</p>
-      {% endif %}
-    </div>
-  </section>
+    </section>
+  {% endif %}
 </div>
 {% endblock %}
