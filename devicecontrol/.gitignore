@@ -1,15 +1,21 @@
-# Secrets — must never enter public git.
-data/bootstrap-passwords.json
-data/.devicecontrol-secret-key
-
-# Operational output. Per-host logs, screenshots, polled stats, and derived
-# timelines. These describe the real runtime state of managed devices and
-# belong on the operator's machine only.
-data/environments/*/run_logs/
-data/environments/*/screenshots/
-data/environments/*/stats/
-data/environments/*/device_events/
-data/environments/*/display_events/
+# Everything under data/ is operator-local and must never enter git.
+#
+# That includes:
+#   - secrets (bootstrap-passwords.json, .devicecontrol-secret-key)
+#   - inventories (real host names, IPs, bootstrap_user values — site config)
+#   - operational output (run_logs/, screenshots/, stats/, device_events/,
+#     display_events/)
+#   - any future subdirectory under data/
+#
+# Blanket-ignore rather than allowlist: a tracked inventory file leaks the
+# tailnet topology, a tracked run log leaks host output, and a tracked
+# password file leaks actual credentials. We want zero chance of any of
+# those ending up in `git add`.
+#
+# The Flask app self-seeds an empty `[ungrouped]` inventory on first
+# request (see app/__init__.py env_dir), so a fresh clone works without
+# any tracked seed file.
+/data/
 
 # Flask / process bookkeeping
 .devicecontrol-*.pid

@@ -47,9 +47,10 @@ echo "Checking dependencies..."
 "$VENV/bin/pip" install -q -r "$DIR/requirements.txt"
 
 mkdir -p "$DATA_DIR/environments/$ENVIRONMENT/run_logs" "$DATA_DIR/environments/$ENVIRONMENT/screenshots"
-if [ ! -f "$DATA_DIR/environments/$ENVIRONMENT/inventory.ini" ]; then
-    cp "$DIR/data/environments/testing/inventory.ini" "$DATA_DIR/environments/$ENVIRONMENT/inventory.ini"
-fi
+# The Flask app self-seeds an empty inventory.ini on first request
+# (app/__init__.py env_dir), so we deliberately do not copy a tracked
+# template here — data/ is fully gitignored and any tracked seed would
+# defeat that.
 
 export DEVICECONTROL_ENVIRONMENT="$ENVIRONMENT"
 export DEVICECONTROL_DATA_DIR="$DATA_DIR"
