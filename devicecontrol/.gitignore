@@ -1,0 +1,15 @@
+# Secrets — must never enter public git.
+data/bootstrap-passwords.json
+data/.devicecontrol-secret-key
+
+# Operational output. Per-host logs, screenshots, polled stats, and derived
+# timelines. These describe the real runtime state of managed devices and
+# belong on the operator's machine only.
+data/environments/*/run_logs/
+data/environments/*/screenshots/
+data/environments/*/stats/
+data/environments/*/device_events/
+data/environments/*/display_events/
+
+# Flask / process bookkeeping
+.devicecontrol-*.pid
