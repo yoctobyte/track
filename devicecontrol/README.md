@@ -151,6 +151,30 @@ The overview treats the latest successful stats collection as `last seen`.
 That is not yet a permanent monitoring heartbeat; it is cached operational
 state produced by an approved Ansible action.
 
+After each `collect-stats` run, DeviceControl also appends central behavior
+events under:
+
+```text
+devicecontrol/data/environments/<environment>/device_events/<host>.jsonl
+```
+
+Current event types:
+
+- `host_seen`
+- `host_recovered`
+- `poll_failed`
+- `boot_id_changed`
+
+These are generated centrally by comparing the newly fetched stats snapshot
+with the previous cached snapshot and the Ansible run log. No permanent agent
+or service is installed on the managed device.
+
+This is intentionally polling-based. It can detect reboots/power losses after
+the host comes back by noticing a changed Linux boot ID. It can detect outages
+when a `collect-stats` run targets a host and Ansible reports it failed or
+unreachable. It cannot observe an outage in real time unless polling is running
+on an interval.
+
 ## Scheduled Jobs And Retention
 
 Some actions should eventually run on an interval instead of only by button:

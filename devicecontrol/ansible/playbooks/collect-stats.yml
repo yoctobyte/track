@@ -66,6 +66,30 @@
                     items.append({"name": name, "addresses": [address]})
             return items
 
+        def boot_id():
+            try:
+                with open("/proc/sys/kernel/random/boot_id", encoding="utf-8") as handle:
+                    return handle.read().strip()
+            except Exception:
+                return ""
+
+        def boot_time():
+            try:
+                with open("/proc/stat", encoding="utf-8") as handle:
+                    for line in handle:
+                        if line.startswith("btime "):
+                            return int(line.split()[1])
+            except Exception:
+                return None
+            return None
+
+        def network_health():
+            return {
+                "default_route": run(["ip", "route", "show", "default"]),
+                "dns_lookup": run(["getent", "hosts", "example.org"]),
+                "tailscale": run(["tailscale", "status", "--self"]),
+            }
+
         def desktop_hint():
             probes = {
                 "openbox": run(["pgrep", "-u", runtime_user, "-a", "openbox"]),
@@ -103,12 +127,15 @@
 
         data = {
             "hostname": socket.gethostname(),
+            "boot_id": boot_id(),
+            "boot_time": boot_time(),
             "runtime_user": runtime_user,
             "system": f"{platform.system()} {platform.release()} {platform.machine()}",
             "uptime": run(["uptime", "-p"]) or run(["uptime"]),
             "load_average": list(os.getloadavg()) if hasattr(os, "getloadavg") else [],
             "memory": memory(),
             "network": network(),
+            "network_health": network_health(),
             "desktop": desktop_hint(),
             "processes": processes(),
         }

@@ -147,6 +147,53 @@
     </div>
 
     <div class="card stack">
+      <h2>Device Timeline</h2>
+      {% if device.device_events %}
+        <table>
+          <thead><tr><th>Time</th><th>Event</th><th>Evidence</th></tr></thead>
+          <tbody>
+            {% for event in device.device_events %}
+              <tr>
+                <td class="muted">{{ event.timestamp }}</td>
+                <td>
+                  {% if event.event_type == 'host_seen' %}
+                    <span class="badge fresh">host seen</span>
+                  {% elif event.event_type == 'host_recovered' %}
+                    <span class="badge fresh">recovered</span>
+                  {% elif event.event_type == 'poll_failed' %}
+                    <span class="badge danger">poll failed</span>
+                  {% elif event.event_type == 'boot_id_changed' %}
+                    <span class="badge careful">boot changed</span>
+                  {% else %}
+                    <span class="badge">{{ event.event_type }}</span>
+                  {% endif %}
+                </td>
+                <td class="muted">
+                  {% if event.metadata %}
+                    {% if event.metadata.uptime is defined and event.metadata.uptime %}
+                      {{ event.metadata.uptime }}
+                    {% endif %}
+                    {% if event.metadata.boot_id is defined and event.metadata.boot_id %}
+                      · boot {{ event.metadata.boot_id[:8] }}
+                    {% endif %}
+                    {% if event.metadata.current_boot_id is defined and event.metadata.current_boot_id %}
+                      · boot {{ event.metadata.current_boot_id[:8] }}
+                    {% endif %}
+                    {% if event.metadata.reason is defined %}
+                      {{ event.metadata.reason }}
+                    {% endif %}
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted" style="margin:0;">No device events recorded yet. Run Collect Stats to create host-seen and reboot evidence.</p>
+      {% endif %}
+    </div>
+
+    <div class="card stack">
       <h2>Display Timeline</h2>
       {% if device.display_events %}
         <table>

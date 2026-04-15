@@ -38,6 +38,11 @@
                 {% endif %}
               </div>
             {% endif %}
+            {% if device.device_event %}
+              <div class="muted">
+                Latest device event: {{ device.device_event.event_type }} · {{ device.device_event.timestamp }}
+              </div>
+            {% endif %}
             <div class="screenshot-frame">
               {% if device.screenshot %}
                 <img src="{{ url_for('screenshot_file', name=device.screenshot.path) }}" alt="Latest screenshot for {{ device.name }}">

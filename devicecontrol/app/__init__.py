@@ -137,6 +137,7 @@ def create_app() -> Flask:
         (root / "screenshots").mkdir(parents=True, exist_ok=True)
         (root / "stats").mkdir(parents=True, exist_ok=True)
         (root / "display_events").mkdir(parents=True, exist_ok=True)
+        (root / "device_events").mkdir(parents=True, exist_ok=True)
         inventory = root / "inventory.ini"
         if not inventory.exists():
             inventory.write_text("[ungrouped]\n", encoding="utf-8")
@@ -308,6 +309,32 @@ def create_app() -> Flask:
 
     def latest_display_event(env: str, host: str) -> dict[str, object] | None:
         events = list_display_events(env, host, limit=1)
+        return events[0] if events else None
+
+    def device_event_path(env: str, host: str) -> Path:
+        return env_dir(env) / "device_events" / f"{host}.jsonl"
+
+    def append_device_event(env: str, host: str, event: dict[str, object]) -> None:
+        path = device_event_path(env, host)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+
+    def list_device_events(env: str, host: str, limit: int = 30) -> list[dict[str, object]]:
+        path = device_event_path(env, host)
+        if not path.exists():
+            return []
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        events = []
+        for line in lines[-limit:]:
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        return list(reversed(events))
+
+    def latest_device_event(env: str, host: str) -> dict[str, object] | None:
+        events = list_device_events(env, host, limit=1)
         return events[0] if events else None
 
     def analyze_png_luma(path: Path) -> dict[str, object] | None:
@@ -482,6 +509,108 @@ def create_app() -> Flask:
         data["_age_seconds"] = int((datetime.now() - modified).total_seconds())
         return data
 
+    def load_raw_host_stats(env: str, host: str) -> dict[str, object] | None:
+        path = host_stats_path(env, host)
+        if not path.exists():
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return None
+
+    def snapshot_host_stats(env: str) -> dict[str, dict[str, object]]:
+        _groups, hosts = parse_inventory(inventory_path(env))
+        snapshot = {}
+        for host in hosts:
+            name = str(host["name"])
+            stats = load_raw_host_stats(env, name)
+            if stats is not None:
+                snapshot[name] = stats
+        return snapshot
+
+    def parse_failed_hosts(content: str) -> set[str]:
+        failed = set()
+        for match in re.finditer(r"^(?:fatal|unreachable): \[([^\]]+)\]", content, flags=re.MULTILINE):
+            failed.add(match.group(1))
+        return failed
+
+    def record_collect_stats_events(env: str, log_path: Path, started_at: datetime, previous_stats: dict[str, dict[str, object]]) -> None:
+        now = datetime.now().isoformat(timespec="seconds")
+        content = log_path.read_text(encoding="utf-8", errors="replace")
+        for host in sorted(parse_failed_hosts(content)):
+            append_device_event(
+                env,
+                host,
+                {
+                    "timestamp": now,
+                    "event_type": "poll_failed",
+                    "source": "collect-stats",
+                    "source_log": log_path.name,
+                    "metadata": {"reason": "ansible_failed_or_unreachable"},
+                },
+            )
+
+        _groups, hosts = parse_inventory(inventory_path(env))
+        for host_entry in hosts:
+            host = str(host_entry["name"])
+            path = host_stats_path(env, host)
+            if not path.exists() or path.stat().st_mtime < started_at.timestamp() - 5:
+                continue
+            current = load_raw_host_stats(env, host)
+            if current is None:
+                continue
+            previous = previous_stats.get(host)
+            previous_event = latest_device_event(env, host)
+            metadata = {
+                "hostname": current.get("hostname"),
+                "boot_id": current.get("boot_id"),
+                "boot_time": current.get("boot_time"),
+                "uptime": current.get("uptime"),
+            }
+            append_device_event(
+                env,
+                host,
+                {
+                    "timestamp": now,
+                    "event_type": "host_seen",
+                    "source": "collect-stats",
+                    "source_log": log_path.name,
+                    "metadata": metadata,
+                },
+            )
+            if previous_event and previous_event.get("event_type") == "poll_failed":
+                append_device_event(
+                    env,
+                    host,
+                    {
+                        "timestamp": now,
+                        "event_type": "host_recovered",
+                        "source": "collect-stats",
+                        "source_log": log_path.name,
+                        "metadata": metadata,
+                    },
+                )
+            if previous:
+                previous_boot_id = previous.get("boot_id")
+                current_boot_id = current.get("boot_id")
+                if previous_boot_id and current_boot_id and previous_boot_id != current_boot_id:
+                    append_device_event(
+                        env,
+                        host,
+                        {
+                            "timestamp": now,
+                            "event_type": "boot_id_changed",
+                            "source": "collect-stats",
+                            "source_log": log_path.name,
+                            "metadata": {
+                                "previous_boot_id": previous_boot_id,
+                                "current_boot_id": current_boot_id,
+                                "current_boot_time": current.get("boot_time"),
+                                "uptime": current.get("uptime"),
+                            },
+                        },
+                    )
+
     def device_last_seen(stats: dict[str, object] | None) -> dict[str, str]:
         if not stats:
             return {
@@ -524,6 +653,8 @@ def create_app() -> Flask:
                     "stats": load_host_stats(env, name),
                     "display_event": latest_display_event(env, name),
                     "display_events": list_display_events(env, name),
+                    "device_event": latest_device_event(env, name),
+                    "device_events": list_device_events(env, name),
                 }
             )
             devices[-1]["last_seen"] = device_last_seen(devices[-1]["stats"])
@@ -539,7 +670,15 @@ def create_app() -> Flask:
     def ansible_available() -> bool:
         return shutil.which("ansible-playbook") is not None
 
-    def run_playbook_job(command: list[str], log_path: Path, timeout_seconds: int, env: str, action_id: str, started_at: datetime) -> None:
+    def run_playbook_job(
+        command: list[str],
+        log_path: Path,
+        timeout_seconds: int,
+        env: str,
+        action_id: str,
+        started_at: datetime,
+        previous_stats: dict[str, dict[str, object]] | None = None,
+    ) -> None:
         with log_path.open("a", encoding="utf-8") as handle:
             if not ansible_available():
                 handle.write("ERROR: ansible-playbook was not found in PATH.\n")
@@ -564,6 +703,8 @@ def create_app() -> Flask:
                 handle.flush()
                 if action_id == "screenshot":
                     record_screenshot_events(env, log_path, started_at)
+                if action_id == "collect-stats":
+                    record_collect_stats_events(env, log_path, started_at, previous_stats or {})
                 write_status(log_path, "finished" if result.returncode == 0 else "failed", f"exit_code={result.returncode}")
             except subprocess.TimeoutExpired:
                 handle.write(f"\nERROR: action timed out after {timeout_seconds} seconds.\n")
@@ -644,6 +785,7 @@ def create_app() -> Flask:
             command.extend(["--extra-vars", f"screenshot_output_dir={screenshot_dir}"])
         if action_id == "collect-stats":
             command.extend(["--extra-vars", f"devicecontrol_stats_output_dir={env_dir(env) / 'stats'}"])
+        previous_stats = snapshot_host_stats(env) if action_id == "collect-stats" else None
 
         started_at = datetime.now()
         started = started_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -655,7 +797,11 @@ def create_app() -> Flask:
             handle.write(f"Command: {' '.join(shlex.quote(part) for part in command)}\n\n")
             handle.write("Status: running\n\n")
         write_status(log_path, "running")
-        thread = threading.Thread(target=run_playbook_job, args=(command, log_path, timeout, env, action_id, started_at), daemon=True)
+        thread = threading.Thread(
+            target=run_playbook_job,
+            args=(command, log_path, timeout, env, action_id, started_at, previous_stats),
+            daemon=True,
+        )
         thread.start()
         return redirect(url_for("view_log", name=log_path.name))
 
