@@ -109,66 +109,13 @@ If you want key-only SSH with no usable account password:
   --password-mode locked
 ```
 
-## Bootstrap Hosts From An Inventory
-
-For first import, put the currently known login user in `ansible_user`.
-
-Example before bootstrap:
-
-```ini
-[video_players]
-redacted-host ansible_host=100.x.x.x ansible_user=fons
-```
-
-Then dry-run the import:
-
-```bash
-./devicecontrol/tools/bootstrap-host.sh \
-  --from-inventory devicecontrol/data/environments/museum/inventory.ini \
-  --dry-run
-```
-
-Bootstrap all hosts in that inventory:
-
-```bash
-./devicecontrol/tools/bootstrap-host.sh \
-  --from-inventory devicecontrol/data/environments/museum/inventory.ini
-```
-
-Bootstrap only one group:
-
-```bash
-./devicecontrol/tools/bootstrap-host.sh \
-  --from-inventory devicecontrol/data/environments/museum/inventory.ini \
-  --limit video_players
-```
-
-Bootstrap and rewrite successful hosts to the new management user:
-
-```bash
-./devicecontrol/tools/bootstrap-host.sh \
-  --from-inventory devicecontrol/data/environments/museum/inventory.ini \
-  --activate-ansible-user
-```
-
-After successful activation, the line becomes:
-
-```ini
-redacted-host ansible_host=100.x.x.x ansible_user=ansible
-```
-
-That rewritten form is what the web UI expects for normal ongoing actions.
-
 ## Auto-Bootstrap An Inventory
 
-For bulk imports, prefer `autobootstrap.sh`.
+For anything beyond a single new host, use `autobootstrap.sh`. It takes the
+environment name as its only required argument and resolves to the matching
+inventory under `devicecontrol/data/environments/<env>/inventory.ini`.
 
-It checks every selected inventory host first:
-
-- if `ansible@host` is already reachable by SSH key, it skips bootstrap
-- if not reachable, it bootstraps through the known current login user
-- after success, it rewrites the inventory to `ansible_user=ansible`
-- it preserves the old login as `bootstrap_user=...`
+For first import, put the currently known login user in `ansible_user`.
 
 Example before:
 
@@ -180,25 +127,27 @@ redacted-host ansible_host=100.x.x.x ansible_user=fons
 Run a dry-run first:
 
 ```bash
-./devicecontrol/tools/autobootstrap.sh \
-  --inventory devicecontrol/data/environments/museum/inventory.ini \
-  --dry-run
+./devicecontrol/tools/autobootstrap.sh museum --dry-run
 ```
 
 Then run the real import:
 
 ```bash
-./devicecontrol/tools/autobootstrap.sh \
-  --inventory devicecontrol/data/environments/museum/inventory.ini
+./devicecontrol/tools/autobootstrap.sh museum
 ```
 
 Limit to a group:
 
 ```bash
-./devicecontrol/tools/autobootstrap.sh \
-  --inventory devicecontrol/data/environments/museum/inventory.ini \
-  --limit video_players
+./devicecontrol/tools/autobootstrap.sh museum --limit video_players
 ```
+
+Autobootstrap checks every selected inventory host first:
+
+- if `ansible@host` is already reachable by SSH key, it skips bootstrap
+- if not reachable, it bootstraps through the known current login user
+- after success, it unconditionally rewrites the inventory to
+  `ansible_user=ansible` and preserves the old login as `bootstrap_user=...`
 
 Expected result after a successful run:
 
@@ -206,10 +155,33 @@ Expected result after a successful run:
 redacted-host ansible_host=100.x.x.x ansible_user=ansible bootstrap_user=fons
 ```
 
-On later runs, `autobootstrap.sh` will first try `ansible@100.x.x.x`. If
-that works, it does nothing. If the server key changes or the `ansible` account
-needs repair, it can still use `bootstrap_user=fons` as the fallback enrollment
-login.
+On later runs, `autobootstrap.sh museum` will first try
+`ansible@100.x.x.x`. If that works, it does nothing. If the server key
+changes or the `ansible` account needs repair, it can still use
+`bootstrap_user=fons` as the fallback enrollment login. The human account
+is never touched again by devicecontrol in normal operation.
+
+## Single-Host Bootstrap
+
+For a one-off device that is not yet in any inventory, use
+`bootstrap-host.sh` with an explicit host and login:
+
+```bash
+./devicecontrol/tools/bootstrap-host.sh \
+  --host 100.x.y.z \
+  --login-user pi \
+  --inventory devicecontrol/data/environments/testing/inventory.ini \
+  --group media_players
+```
+
+This appends a new line already pinned to `ansible_user=ansible`, so the
+human account is never reused for this host.
+
+`bootstrap-host.sh --from-inventory` still exists for backwards
+compatibility, but do not use it for bulk enrollment. It does not rewrite
+the inventory by default, which leaves the inventory pointing at the
+human login and defeats the whole point of the ansible user. Use
+`autobootstrap.sh <env>` instead.
 
 ## Check A Host
 

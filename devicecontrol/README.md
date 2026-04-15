@@ -64,7 +64,38 @@ the wrong devices from the wrong location.
 
 ## Bootstrap
 
-Bootstrap is manual for now because it may need SSH passwords and sudo:
+Bootstrap is manual for now because it may need SSH passwords and sudo.
+
+The blessed workflow is:
+
+1. Edit the environment inventory by hand with the current human login
+   per host, e.g. `redacted-host ansible_host=100.x.y.z ansible_user=fons`.
+2. Dry-run autobootstrap against that environment:
+
+   ```bash
+   ./devicecontrol/tools/autobootstrap.sh museum --dry-run
+   ```
+
+3. Run for real:
+
+   ```bash
+   ./devicecontrol/tools/autobootstrap.sh museum
+   ```
+
+Autobootstrap will:
+
+- check whether `ansible@host` already works (skip if yes),
+- otherwise SSH in as the human login, create the `ansible` user, install
+  your public key, set a strong password, grant passwordless sudo,
+- re-verify, and **rewrite the inventory in place** to
+  `ansible_user=ansible bootstrap_user=<previous human login>`.
+
+After that, no devicecontrol tool touches the human account again. The
+human account is left intact as a rescue path, but every subsequent
+ansible-playbook run targets the dedicated `ansible` user.
+
+For a single new device not yet in an inventory, there is also a manual
+helper:
 
 ```bash
 ./devicecontrol/tools/bootstrap-host.sh \
@@ -74,24 +105,17 @@ Bootstrap is manual for now because it may need SSH passwords and sudo:
   --group media_players
 ```
 
-The script creates an `ansible` user by default, installs your public SSH key,
-prompts for a strong account password, and grants passwordless sudo for
-non-interactive Ansible automation.
+Do **not** use `bootstrap-host.sh --from-inventory` for bulk imports —
+autobootstrap is the intended bulk path and is the only one that
+guarantees the one-way flip to `ansible_user=ansible`.
 
-That means the account is not an empty-password desktop user. It is a plain SSH
-automation account with a real shell, because Ansible needs a shell to execute
-modules. It should not be used as a kiosk/runtime/desktop login.
+The `ansible` account is not an empty-password desktop user. It is a
+plain SSH automation account with a real shell, because Ansible needs a
+shell to execute modules. It should not be used as a kiosk/runtime/desktop
+login.
 
-See [NODES.md](./NODES.md) for the full candidate -> enrolled host workflow,
-inventory editing rules, and examples.
-
-For bulk imports, use:
-
-```bash
-./devicecontrol/tools/autobootstrap.sh \
-  --inventory devicecontrol/data/environments/museum/inventory.ini \
-  --dry-run
-```
+See [NODES.md](./NODES.md) for the full candidate -> enrolled host
+workflow, inventory editing rules, and examples.
 
 ## First Playbooks
 

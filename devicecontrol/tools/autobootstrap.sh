@@ -2,15 +2,26 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+DEVICECONTROL_DIR="$(cd "$DIR/.." && pwd)"
+ENV_ROOT="$DEVICECONTROL_DIR/data/environments"
 BOOTSTRAP="$DIR/bootstrap-host.sh"
 
 usage() {
     cat <<'EOF'
 Usage:
+  tools/autobootstrap.sh ENVIRONMENT [options]
   tools/autobootstrap.sh --inventory PATH [options]
 
+Examples:
+  tools/autobootstrap.sh testing
+  tools/autobootstrap.sh museum --dry-run
+  tools/autobootstrap.sh lab --limit media_players
+
+The positional ENVIRONMENT form resolves to:
+  devicecontrol/data/environments/<ENVIRONMENT>/inventory.ini
+
 Options:
-  --inventory PATH              Ansible INI inventory to process.
+  --inventory PATH              Override: use this inventory file directly.
   --limit HOST_OR_GROUP         Limit to one host or group. Can be repeated.
   --ansible-user USER           Management user to verify/create. Default: ansible.
   --login-var NAME              Current inventory SSH user var. Default: ansible_user.
@@ -41,6 +52,7 @@ EOF
 }
 
 INVENTORY=""
+ENVIRONMENT=""
 ANSIBLE_USER="ansible"
 LOGIN_VAR="ansible_user"
 BOOTSTRAP_VAR="bootstrap_user"
@@ -66,12 +78,35 @@ while [ "$#" -gt 0 ]; do
         --dry-run) DRY_RUN=1; shift ;;
         --stop-on-error) STOP_ON_ERROR=1; shift ;;
         -h|--help) usage; exit 0 ;;
-        *) echo "Unknown option: $1" >&2; usage; exit 2 ;;
+        --*) echo "Unknown option: $1" >&2; usage; exit 2 ;;
+        *)
+            if [ -n "$ENVIRONMENT" ]; then
+                echo "Unexpected argument: $1 (environment already set to $ENVIRONMENT)" >&2
+                exit 2
+            fi
+            ENVIRONMENT="$1"
+            shift
+            ;;
     esac
 done
 
+if [ -n "$ENVIRONMENT" ] && [ -n "$INVENTORY" ]; then
+    echo "Pass either ENVIRONMENT or --inventory, not both." >&2
+    exit 2
+fi
+
+if [ -n "$ENVIRONMENT" ]; then
+    if ! printf '%s' "$ENVIRONMENT" | grep -qE '^[a-z0-9-]+$'; then
+        echo "Invalid environment name: $ENVIRONMENT (use [a-z0-9-]+)" >&2
+        exit 2
+    fi
+    INVENTORY="$ENV_ROOT/$ENVIRONMENT/inventory.ini"
+fi
+
 if [ -z "$INVENTORY" ]; then
-    usage
+    echo "ERROR: pass an environment name (e.g. 'museum') or --inventory PATH." >&2
+    echo >&2
+    usage >&2
     exit 2
 fi
 
