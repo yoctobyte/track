@@ -50,6 +50,7 @@ map3d/.map3d.pid
 map3d/.map3d-*.pid
 devicecontrol/.devicecontrol-*.pid
 devicecontrol/data/.devicecontrol-secret-key
+devicecontrol/data/bootstrap-passwords.json
 devicecontrol/data/environments/*/run_logs/
 devicecontrol/data/environments/*/screenshots/
 tmp-capture-check.js

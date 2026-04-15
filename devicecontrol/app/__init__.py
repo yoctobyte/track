@@ -260,6 +260,8 @@ def create_app() -> Flask:
             "ansible-playbook",
             "-i",
             str(inventory_path(env)),
+            "--ssh-common-args",
+            "-o BatchMode=yes -o StrictHostKeyChecking=yes -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no",
             str(playbook),
         ]
         if target:
@@ -278,9 +280,14 @@ def create_app() -> Flask:
                 handle.write("ERROR: ansible-playbook was not found in PATH.\n")
                 return redirect(url_for("view_log", name=log_path.name))
             try:
+                run_env = os.environ.copy()
+                run_env["ANSIBLE_HOST_KEY_CHECKING"] = "True"
+                run_env["ANSIBLE_NOCOLOR"] = "1"
                 result = subprocess.run(
                     command,
                     cwd=BASE_DIR,
+                    env=run_env,
+                    stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,

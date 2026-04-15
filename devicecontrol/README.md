@@ -73,20 +73,20 @@ The blessed workflow is:
 2. Dry-run autobootstrap against that environment:
 
    ```bash
-   ./devicecontrol/tools/autobootstrap.sh museum --dry-run
+   ./devicecontrol/autobootstrap.sh museum --dry-run
    ```
 
 3. Run for real:
 
    ```bash
-   ./devicecontrol/tools/autobootstrap.sh museum
+   ./devicecontrol/autobootstrap.sh museum
    ```
 
 Autobootstrap will:
 
 - check whether `ansible@host` already works (skip if yes),
 - otherwise SSH in as the human login, create the `ansible` user, install
-  your public key, set a strong password, grant passwordless sudo,
+  your public key, set a generated strong password, grant passwordless sudo,
 - re-verify, and **rewrite the inventory in place** to
   `ansible_user=ansible bootstrap_user=<previous human login>`.
 
@@ -94,11 +94,19 @@ After that, no devicecontrol tool touches the human account again. The
 human account is left intact as a rescue path, but every subsequent
 ansible-playbook run targets the dedicated `ansible` user.
 
+The generated `ansible` account password is stored locally at:
+
+```text
+devicecontrol/data/bootstrap-passwords.json
+```
+
+That file is ignored by git and should stay server/operator-local.
+
 For a single new device not yet in an inventory, there is also a manual
 helper:
 
 ```bash
-./devicecontrol/tools/bootstrap-host.sh \
+./devicecontrol/bootstrap-host.sh \
   --host 192.168.1.50 \
   --login-user pi \
   --inventory devicecontrol/data/environments/testing/inventory.ini \

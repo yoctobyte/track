@@ -68,7 +68,7 @@ single hostname.
 Use the manual bootstrap helper from the repo root for one host:
 
 ```bash
-./devicecontrol/tools/bootstrap-host.sh \
+./devicecontrol/bootstrap-host.sh \
   --host 100.x.y.z \
   --login-user pi \
   --inventory devicecontrol/data/environments/museum/inventory.ini \
@@ -79,7 +79,7 @@ Defaults:
 
 - creates user `ansible`
 - installs your default public SSH key
-- prompts for a strong password for the remote `ansible` account
+- generates and stores a strong password for the remote `ansible` account
 - grants passwordless sudo to `ansible` so Ansible can become root non-interactively
 - keeps the account as a plain SSH automation user, not a desktop/runtime user
 
@@ -87,10 +87,19 @@ Ansible needs the management user to have a shell, so the bootstrap uses
 `/bin/bash`. Do not use this user for autologin, kiosk sessions, browser
 profiles, media playback, or day-to-day desktop work.
 
+The generated management-account password is stored locally here:
+
+```text
+devicecontrol/data/bootstrap-passwords.json
+```
+
+That file is ignored by git. It is meant for the operator/server, not for the
+public web interface.
+
 If you want sudo to require a password instead:
 
 ```bash
-./devicecontrol/tools/bootstrap-host.sh \
+./devicecontrol/bootstrap-host.sh \
   --host 100.x.y.z \
   --login-user pi \
   --sudo-mode password
@@ -103,7 +112,7 @@ support later.
 If you want key-only SSH with no usable account password:
 
 ```bash
-./devicecontrol/tools/bootstrap-host.sh \
+./devicecontrol/bootstrap-host.sh \
   --host 100.x.y.z \
   --login-user pi \
   --password-mode locked
@@ -127,19 +136,19 @@ redacted-host ansible_host=100.x.x.x ansible_user=fons
 Run a dry-run first:
 
 ```bash
-./devicecontrol/tools/autobootstrap.sh museum --dry-run
+./devicecontrol/autobootstrap.sh museum --dry-run
 ```
 
 Then run the real import:
 
 ```bash
-./devicecontrol/tools/autobootstrap.sh museum
+./devicecontrol/autobootstrap.sh museum
 ```
 
 Limit to a group:
 
 ```bash
-./devicecontrol/tools/autobootstrap.sh museum --limit video_players
+./devicecontrol/autobootstrap.sh museum --limit video_players
 ```
 
 Autobootstrap checks every selected inventory host first:
@@ -167,7 +176,7 @@ For a one-off device that is not yet in any inventory, use
 `bootstrap-host.sh` with an explicit host and login:
 
 ```bash
-./devicecontrol/tools/bootstrap-host.sh \
+./devicecontrol/bootstrap-host.sh \
   --host 100.x.y.z \
   --login-user pi \
   --inventory devicecontrol/data/environments/testing/inventory.ini \
@@ -212,6 +221,12 @@ The target field accepts:
 
 Start with `Ping`. Do not run upgrade/reboot actions until `Ping` is clean and
 the host grouping is correct.
+
+Web-triggered actions are deliberately non-interactive. They use SSH
+`BatchMode` and strict known-host checking, so they will not ask to accept host
+fingerprints or type passwords. If a web action fails with a host-key error,
+run `autobootstrap.sh <env>` or `bootstrap-host.sh` from the console first.
+Fingerprint acceptance belongs to enrollment, not to the web UI.
 
 ## Run Actions From The Shell
 

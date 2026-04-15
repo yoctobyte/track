@@ -1,21 +1,20 @@
 #!/bin/bash
 set -euo pipefail
 
-DIR="$(cd "$(dirname "$0")" && pwd)"
-DEVICECONTROL_DIR="$(cd "$DIR/.." && pwd)"
+DEVICECONTROL_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_ROOT="$DEVICECONTROL_DIR/data/environments"
-BOOTSTRAP="$DIR/bootstrap-host.sh"
+BOOTSTRAP="$DEVICECONTROL_DIR/bootstrap-host.sh"
 
 usage() {
     cat <<'EOF'
 Usage:
-  tools/autobootstrap.sh ENVIRONMENT [options]
-  tools/autobootstrap.sh --inventory PATH [options]
+  ./autobootstrap.sh ENVIRONMENT [options]
+  ./autobootstrap.sh --inventory PATH [options]
 
 Examples:
-  tools/autobootstrap.sh testing
-  tools/autobootstrap.sh museum --dry-run
-  tools/autobootstrap.sh lab --limit media_players
+  ./autobootstrap.sh testing
+  ./autobootstrap.sh museum --dry-run
+  ./autobootstrap.sh lab --limit media_players
 
 The positional ENVIRONMENT form resolves to:
   devicecontrol/data/environments/<ENVIRONMENT>/inventory.ini
@@ -28,7 +27,7 @@ Options:
   --bootstrap-var NAME          Optional original login var. Default: bootstrap_user.
   --host-var NAME               Inventory target address var. Default: ansible_host.
   --key PATH                    Public SSH key to install when bootstrapping.
-  --password-mode MODE          Passed to bootstrap-host.sh. Default: prompt.
+  --password-mode MODE          Passed to bootstrap-host.sh. Default: stored.
   --sudo-mode MODE              Passed to bootstrap-host.sh. Default: nopasswd.
   --dry-run                     Show checks/planned bootstrap/update steps only.
   --stop-on-error               Stop if bootstrap-host.sh fails.
@@ -57,7 +56,7 @@ ANSIBLE_USER="ansible"
 LOGIN_VAR="ansible_user"
 BOOTSTRAP_VAR="bootstrap_user"
 HOST_VAR="ansible_host"
-PASSWORD_MODE="prompt"
+PASSWORD_MODE="stored"
 SUDO_MODE="nopasswd"
 KEY_PATH=""
 DRY_RUN=0
@@ -116,7 +115,7 @@ if [ ! -f "$INVENTORY" ]; then
 fi
 
 case "$PASSWORD_MODE" in
-    prompt|random|locked|keep) ;;
+    stored|prompt|random|locked|keep) ;;
     *) echo "Invalid --password-mode: $PASSWORD_MODE" >&2; exit 2 ;;
 esac
 
@@ -277,6 +276,7 @@ if [ "${#NEEDS_BOOTSTRAP[@]}" -eq 0 ]; then
     echo
     echo "No bootstrap needed."
 else
+    BOOTSTRAP_FAILED=0
     {
         echo "[autobootstrap]"
         for row in "${NEEDS_BOOTSTRAP[@]}"; do
@@ -309,6 +309,7 @@ else
     fi
 
     "$BOOTSTRAP" "${BOOTSTRAP_ARGS[@]}" || {
+        BOOTSTRAP_FAILED=1
         if [ "$STOP_ON_ERROR" = "1" ]; then
             exit 1
         fi
@@ -398,4 +399,8 @@ PY
 fi
 
 echo
+if [ "${BOOTSTRAP_FAILED:-0}" = "1" ]; then
+    echo "Autobootstrap finished with bootstrap failures." >&2
+    exit 1
+fi
 echo "Autobootstrap complete."
