@@ -45,7 +45,7 @@ Role:
 - expose approved actions safely
 - support museum staff workflows
 
-### `netinventory`
+### `netinventory-client`
 
 Role:
 
@@ -57,6 +57,15 @@ Role:
   - local probes
   - privileged inspection where needed
   - persistent monitoring on controlled devices
+
+### `netinventory-host`
+
+Role:
+
+- provide the host-side web surface under TRACK
+- receive and later aggregate client/host submissions
+- publish client downloads and onboarding material
+- keep the attended client and central collector concerns separate
 
 ### `devicecontrol`
 
@@ -161,6 +170,20 @@ Preferred external/public topology:
 
 This is preferable to exposing one public subdomain or public port per subproject.
 
+### Central Launch Metadata
+
+Environment-specific wrapper scripts should not be the main control plane.
+
+Instead, TRACK should keep launch metadata centrally and start generic
+subservice entrypoints with injected environment variables.
+
+That central layer should define:
+
+- which app instances exist in which environment
+- which ones autostart on the current machine
+- which variables are passed to a generic `run.sh`
+- which services are intentionally absent in a given environment
+
 ### Supervision Policy
 
 By default, the umbrella should start subservices once and not automatically
@@ -218,5 +241,5 @@ That would reduce flexibility and make the umbrella brittle.
 
 `TRACK` is the umbrella.
 
-`map3d`, `museumcontrol`, `netinventory`, and `devicecontrol` are not
+`map3d`, `museumcontrol`, `netinventory-client`, `netinventory-host`, and `devicecontrol` are not
 “features” of a single app. They are subprojects under a common direction.

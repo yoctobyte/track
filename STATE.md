@@ -4,11 +4,12 @@ Last refreshed: 2026-04-15
 
 ## Current Reality
 
-The repository now contains four real subprojects:
+The repository now contains five real subprojects:
 
 - `map3d`
 - `museumcontrol`
-- `netinventory`
+- `netinventory-client`
+- `netinventory-host`
 - `devicecontrol`
 
 They are not yet unified under a root web shell.
@@ -37,7 +38,8 @@ Each subproject should continue to make sense by itself:
 
 - `map3d` should keep working as a standalone mapping/capture app
 - `museumcontrol` should keep working as a standalone control dashboard
-- `netinventory` should keep working as a standalone inventory/observation tool
+- `netinventory-client` should keep working as a standalone inventory/observation tool
+- `netinventory-host` should keep working as a standalone intake/publishing surface
 - `devicecontrol` should keep working as a standalone Ansible control surface
 
 ### 3. Define shared concepts before shared code
@@ -92,9 +94,9 @@ It is already a meaningful standalone project with:
 
 Near-term work should avoid breaking this independence.
 
-## netinventory Current State
+## netinventory-client Current State
 
-`netinventory` has now been imported with history intact.
+`netinventory-client` has now been imported with history intact.
 
 It is clearly its own project with:
 
@@ -116,6 +118,21 @@ defined at the umbrella level.
 More broadly, `TRACK` should expect subprojects to solve different parts of the
 documentation / organization / administration problem in different and sometimes
 inventive ways. Uniformity is less important than keeping the seams clear.
+
+## netinventory-host Current State
+
+`netinventory-host` is the new umbrella-facing host application for network
+inventory.
+
+Its current role is intentionally thin:
+
+- serve a stable `/netinventory/` entrypoint under TRACK
+- describe the attended client / unattended host split clearly
+- publish client bootstrap/download information
+- prepare a place for future collection and aggregation flows
+
+Near-term work should keep it lightweight while `netinventory-client` continues
+to evolve independently.
 
 ## devicecontrol Current State
 
@@ -153,7 +170,9 @@ Current intended routing support:
 
 Current intended launcher behavior:
 
-- the umbrella may start selected local subservices once
+- the umbrella starts subservices from central launch metadata in `trackhub/config.json`
+- autostart is explicit per environment/app instance
+- generic subservice launchers receive environment variables from the umbrella config
 - it should not auto-restart crashed subservices by default
 - temporary subservice downtime is acceptable during development
 - production should still aim for stable long-running subservices

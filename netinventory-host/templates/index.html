@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">TRACK / {{ instance_name }}</p>
+    <h1>{{ title }}</h1>
+    <p class="subtitle">{{ subtitle }}</p>
+    <div class="meta">
+      <span>Public path <code>{{ netinventory_public_path }}</code></span>
+      <span>Client path <code>{{ netinventory_client_public_path }}</code></span>
+      <span>Repo <a href="{{ github_repo }}">{{ github_repo }}</a></span>
+    </div>
+  </section>
+
+  <section class="layout">
+    <div class="panel">
+      <h2>Role Split</h2>
+      <div class="cards">
+        {% for card in cards %}
+          <article class="card">
+            <strong>{{ card.label }}</strong>
+            <span class="value">{{ card.value }}</span>
+            <div class="muted">{{ card.hint }}</div>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="panel grid-6">
+      <h3>What This Host App Does</h3>
+      <ul class="list">
+        <li>Reserve a clean host-side entrypoint under TRACK for later uploads, synchronization, and unattended reports.</li>
+        <li>Publish bootstrap/download material for the attended laptop-side client.</li>
+        <li>Keep host-side aggregation separate from privileged local laptop capture logic.</li>
+      </ul>
+      <a class="download" href="/downloads/netinventory-client-bootstrap.sh">Download Client Bootstrap</a>
+    </div>
+
+    <div class="panel grid-6">
+      <h3>Runtime Paths</h3>
+      <ul class="list">
+        <li><code>{{ paths.root }}</code></li>
+        <li><code>{{ paths.clients }}</code></li>
+        <li><code>{{ paths.host_reports }}</code></li>
+        <li><code>{{ paths.downloads }}</code></li>
+        <li><code>{{ paths.manifests }}</code></li>
+      </ul>
+    </div>
+
+    <div class="panel grid-4">
+      <h3>Client Packages</h3>
+      {% if client_packages %}
+        <ul class="list">
+          {% for item in client_packages %}
+            <li><code>{{ item.name or item.id or "unnamed" }}</code></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">No published client packages are recorded yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel grid-4">
+      <h3>Registered Hosts</h3>
+      {% if registered_hosts %}
+        <ul class="list">
+          {% for item in registered_hosts %}
+            <li><code>{{ item.name or item.id or "unnamed-host" }}</code></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">No unattended host reporters are registered yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel grid-4">
+      <h3>Recent Ingest</h3>
+      {% if recent_ingest %}
+        <ul class="list">
+          {% for item in recent_ingest %}
+            <li>{{ item.timestamp or "unknown time" }} - {{ item.summary or item.kind or "event" }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">No uploads or synchronization events have been recorded yet.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

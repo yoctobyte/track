@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card stack" style="max-width: 54rem; margin: 0 auto;">
+  <div class="row">
+    <div>
+      <h2 style="margin:0; font-family:'IBM Plex Serif', Georgia, serif;">{{ app_item.name }} is not reachable right now</h2>
+      <p class="muted" style="margin:0.45rem 0 0;">
+        TRACK routed this request to the <strong>{{ current_environment.name }}</strong> environment,
+        but the underlying subservice did not answer.
+      </p>
+    </div>
+    <span class="badge error">503</span>
+  </div>
+
+  <div class="grid">
+    <div class="card stack" style="box-shadow:none; background:var(--panel-strong);">
+      <strong>Subproject</strong>
+      <div>{{ app_item.name }}</div>
+      <div class="muted">{{ app_item.summary }}</div>
+    </div>
+    <div class="card stack" style="box-shadow:none; background:var(--panel-strong);">
+      <strong>Expected upstream</strong>
+      <code>{{ target_url }}</code>
+      <div class="muted">Current path: {{ app_item.public_path }}</div>
+    </div>
+  </div>
+
+  <div class="card stack" style="box-shadow:none; background:var(--panel-strong);">
+    <strong>Last proxy error</strong>
+    <code>{{ error_message }}</code>
+  </div>
+
+  <div class="row">
+    <a class="btn" href="{{ url_for('environment_detail', env_id=current_environment.id) }}">Back To {{ current_environment.name }}</a>
+    <a class="btn secondary" href="{{ url_for('choose_location', env_id=current_environment.id, next=request.path) }}">Switch Location</a>
+  </div>
+</section>
+{% endblock %}

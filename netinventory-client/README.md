@@ -1,6 +1,7 @@
-# NetInventory
+# NetInventory Client
 
-`netinventory` is the network-observation subsystem inside `TRACK`.
+`netinventory-client` is the laptop-side network-observation subsystem inside
+`TRACK`.
 
 It is intentionally not just a web app. Its current direction is:
 
@@ -26,7 +27,7 @@ The system needs to support a very physical workflow:
 - record what cable or port was actually used
 - preserve that evidence centrally later
 
-That makes `netinventory` a hybrid by design.
+That makes the overall NetInventory system a hybrid by design.
 
 ## Current TRACK Launcher
 
@@ -34,7 +35,9 @@ For umbrella use, TRACK starts:
 
 - [run-track.sh](./run-track.sh)
 
-This runs the hub web surface on `127.0.0.1:8888` by default.
+This runs the hub web surface on `127.0.0.1:8889` by default.
+
+Within TRACK, it is exposed under `/netinventory-client/`.
 
 It does **not** try to run privileged capture automatically.
 

@@ -6,7 +6,7 @@ cd "$DIR"
 
 VENV="$DIR/venv"
 HOST="${NETINVENTORY_UI_HOST:-127.0.0.1}"
-PORT="${NETINVENTORY_UI_PORT:-8888}"
+PORT="${NETINVENTORY_UI_PORT:-8889}"
 PID_FILE="$DIR/.netinventory-ui.pid"
 
 echo "Stopping any existing NetInventory hub on port $PORT..."
@@ -29,8 +29,10 @@ fi
 echo "Checking NetInventory dependencies..."
 "$VENV/bin/pip" install -q -e .
 
-echo "Starting NetInventory hub on http://$HOST:$PORT/..."
+export NETINV_PUBLIC_PATH="${NETINV_PUBLIC_PATH:-/netinventory-client/}"
+
+echo "Starting NetInventory client hub on http://$HOST:$PORT/..."
 NETINV_UI_BIND="$HOST:$PORT" nohup "$VENV/bin/netinv" hub-web > netinventory-ui.log 2>&1 &
 PID=$!
 echo "$PID" > "$PID_FILE"
-echo "NetInventory hub started with PID $PID. Logs: netinventory-ui.log"
+echo "NetInventory client hub started with PID $PID. Logs: netinventory-ui.log"

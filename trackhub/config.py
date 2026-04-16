@@ -30,6 +30,13 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "local_url": "http://127.0.0.1:5001/",
                     "public_path": "/map3d/",
                     "start_script": "./map3d/run-testing.sh",
+                    "launch_script": "./map3d/run.sh",
+                    "launch_env": {
+                        "MAP3D_INSTANCE": "testing",
+                        "MAP3D_PORT_HTTP": "5001",
+                        "MAP3D_PORT_HTTPS": "5444",
+                    },
+                    "autostart": True,
                     "status": "active",
                 },
                 {
@@ -39,15 +46,39 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "local_url": "http://127.0.0.1:4575/",
                     "public_path": "/museumcontrol/",
                     "start_script": "./museumcontrol/run.sh",
+                    "launch_script": "./museumcontrol/run.sh",
+                    "autostart": True,
                     "status": "imported",
                 },
                 {
                     "id": "netinventory",
-                    "name": "NetInventory",
-                    "summary": "Observe network environments, annotate findings, and build infrastructure memory.",
+                    "name": "NetInventory Host",
+                    "summary": "Collect uploads, publish client downloads, and centralize network observation data.",
                     "local_url": "http://127.0.0.1:8888/",
                     "public_path": "/netinventory/",
-                    "start_script": "./netinventory/run-track.sh",
+                    "start_script": "./netinventory-host/run-testing.sh",
+                    "launch_script": "./netinventory-host/run.sh",
+                    "launch_env": {
+                        "NETINVENTORY_HOST_INSTANCE": "testing",
+                        "NETINVENTORY_HOST_PORT": "8888",
+                        "NETINVENTORY_HOST_DATA_DIR": "./netinventory-host/data/environments/testing",
+                    },
+                    "autostart": True,
+                    "status": "imported",
+                },
+                {
+                    "id": "netinventory-client",
+                    "name": "NetInventory Client",
+                    "summary": "Run the attended laptop-side network inspection tool locally during field work.",
+                    "local_url": "http://127.0.0.1:8889/",
+                    "public_path": "/netinventory-client/",
+                    "start_script": "./netinventory-client/run-track.sh",
+                    "launch_script": "./netinventory-client/run-track.sh",
+                    "launch_env": {
+                        "NETINVENTORY_UI_PORT": "8889",
+                        "NETINV_PUBLIC_PATH": "/netinventory-client/",
+                    },
+                    "autostart": True,
                     "status": "imported",
                 },
                 {
@@ -57,6 +88,14 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "local_url": "http://127.0.0.1:5021/",
                     "public_path": "/devicecontrol/",
                     "start_script": "./devicecontrol/run-testing.sh",
+                    "launch_script": "./devicecontrol/run.sh",
+                    "launch_env": {
+                        "DEVICECONTROL_INSTANCE": "testing",
+                        "DEVICECONTROL_ENVIRONMENT": "testing",
+                        "DEVICECONTROL_PORT": "5021",
+                        "DEVICECONTROL_DATA_DIR": "./devicecontrol/data",
+                    },
+                    "autostart": True,
                     "status": "active",
                 },
             ],
@@ -74,6 +113,14 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "local_url": "http://127.0.0.1:5011/",
                     "public_path": "/map3d/",
                     "start_script": "./map3d/run-museum.sh",
+                    "launch_script": "./map3d/run.sh",
+                    "launch_env": {
+                        "MAP3D_INSTANCE": "museum",
+                        "MAP3D_PORT_HTTP": "5011",
+                        "MAP3D_PORT_HTTPS": "5454",
+                        "MAP3D_DATA_DIR": "./map3d/data/environments/museum",
+                    },
+                    "autostart": False,
                     "status": "active",
                 },
                 {
@@ -87,12 +134,19 @@ DEFAULT_CONFIG: dict[str, object] = {
                 },
                 {
                     "id": "netinventory",
-                    "name": "NetInventory",
-                    "summary": "Museum-side network observation and annotation surface.",
-                    "local_url": "",
+                    "name": "NetInventory Host",
+                    "summary": "Museum-side intake and publishing surface for network observation data.",
+                    "local_url": "http://127.0.0.1:8891/",
                     "public_path": "/netinventory/",
-                    "start_script": "",
-                    "status": "planned",
+                    "start_script": "./netinventory-host/run-museum.sh",
+                    "launch_script": "./netinventory-host/run.sh",
+                    "launch_env": {
+                        "NETINVENTORY_HOST_INSTANCE": "museum",
+                        "NETINVENTORY_HOST_PORT": "8891",
+                        "NETINVENTORY_HOST_DATA_DIR": "./netinventory-host/data/environments/museum",
+                    },
+                    "autostart": False,
+                    "status": "active",
                 },
                 {
                     "id": "devicecontrol",
@@ -101,6 +155,14 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "local_url": "http://127.0.0.1:5031/",
                     "public_path": "/devicecontrol/",
                     "start_script": "./devicecontrol/run-museum.sh",
+                    "launch_script": "./devicecontrol/run.sh",
+                    "launch_env": {
+                        "DEVICECONTROL_INSTANCE": "museum",
+                        "DEVICECONTROL_ENVIRONMENT": "museum",
+                        "DEVICECONTROL_PORT": "5031",
+                        "DEVICECONTROL_DATA_DIR": "./devicecontrol/data",
+                    },
+                    "autostart": False,
                     "status": "active",
                 },
             ],
@@ -118,6 +180,14 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "local_url": "http://127.0.0.1:5012/",
                     "public_path": "/map3d/",
                     "start_script": "./map3d/run-lab.sh",
+                    "launch_script": "./map3d/run.sh",
+                    "launch_env": {
+                        "MAP3D_INSTANCE": "lab",
+                        "MAP3D_PORT_HTTP": "5012",
+                        "MAP3D_PORT_HTTPS": "5455",
+                        "MAP3D_DATA_DIR": "./map3d/data/environments/lab",
+                    },
+                    "autostart": False,
                     "status": "active",
                 },
                 {
@@ -131,12 +201,19 @@ DEFAULT_CONFIG: dict[str, object] = {
                 },
                 {
                     "id": "netinventory",
-                    "name": "NetInventory",
-                    "summary": "Lab-side network and infrastructure observation tools.",
-                    "local_url": "",
+                    "name": "NetInventory Host",
+                    "summary": "Lab-side intake and publishing surface for network observation data.",
+                    "local_url": "http://127.0.0.1:8892/",
                     "public_path": "/netinventory/",
-                    "start_script": "",
-                    "status": "planned",
+                    "start_script": "./netinventory-host/run-lab.sh",
+                    "launch_script": "./netinventory-host/run.sh",
+                    "launch_env": {
+                        "NETINVENTORY_HOST_INSTANCE": "lab",
+                        "NETINVENTORY_HOST_PORT": "8892",
+                        "NETINVENTORY_HOST_DATA_DIR": "./netinventory-host/data/environments/lab",
+                    },
+                    "autostart": False,
+                    "status": "active",
                 },
                 {
                     "id": "devicecontrol",
@@ -145,6 +222,14 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "local_url": "http://127.0.0.1:5032/",
                     "public_path": "/devicecontrol/",
                     "start_script": "./devicecontrol/run-lab.sh",
+                    "launch_script": "./devicecontrol/run.sh",
+                    "launch_env": {
+                        "DEVICECONTROL_INSTANCE": "lab",
+                        "DEVICECONTROL_ENVIRONMENT": "lab",
+                        "DEVICECONTROL_PORT": "5032",
+                        "DEVICECONTROL_DATA_DIR": "./devicecontrol/data",
+                    },
+                    "autostart": False,
                     "status": "active",
                 },
             ],
@@ -211,3 +296,26 @@ def apply_environment_passwords(config: dict[str, object]) -> None:
             env["password"] = os.environ[env_var]
         else:
             env["password"] = ""
+
+
+def iter_launch_entries(config: dict[str, object]):
+    for env in config.get("environments", []):
+        env_id = str(env.get("id", "")).strip()
+        for app in env.get("apps", []):
+            launch_script = str(app.get("launch_script") or app.get("start_script") or "").strip()
+            if not launch_script:
+                continue
+            launch_env = app.get("launch_env")
+            if not isinstance(launch_env, dict):
+                launch_env = {}
+            autostart = app.get("autostart")
+            if autostart is None:
+                autostart = True
+            yield {
+                "name": f"{env_id}:{str(app.get('id', '')).strip()}",
+                "environment_id": env_id,
+                "app_id": str(app.get("id", "")).strip(),
+                "script": launch_script,
+                "env": {str(key): str(value) for key, value in launch_env.items()},
+                "autostart": bool(autostart),
+            }

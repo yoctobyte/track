@@ -14,19 +14,51 @@
           "id": "map3d",
           "local_url": "http://127.0.0.1:5001/",
           "public_path": "/map3d/",
-          "start_script": "./map3d/run-testing.sh"
+          "start_script": "./map3d/run-testing.sh",
+          "launch_script": "./map3d/run.sh",
+          "launch_env": {
+            "MAP3D_INSTANCE": "testing",
+            "MAP3D_PORT_HTTP": "5001",
+            "MAP3D_PORT_HTTPS": "5444"
+          },
+          "autostart": true
         },
         {
           "id": "museumcontrol",
           "local_url": "http://127.0.0.1:4575/",
           "public_path": "/museumcontrol/",
-          "start_script": "./museumcontrol/run.sh"
+          "start_script": "./museumcontrol/run.sh",
+          "launch_script": "./museumcontrol/run.sh",
+          "autostart": true
         },
         {
           "id": "netinventory",
+          "name": "NetInventory Host",
+          "summary": "Collect uploads, publish client downloads, and centralize network observation data.",
           "local_url": "http://127.0.0.1:8888/",
           "public_path": "/netinventory/",
-          "start_script": "./netinventory/run-track.sh"
+          "start_script": "./netinventory-host/run-testing.sh",
+          "launch_script": "./netinventory-host/run.sh",
+          "launch_env": {
+            "NETINVENTORY_HOST_INSTANCE": "testing",
+            "NETINVENTORY_HOST_PORT": "8888",
+            "NETINVENTORY_HOST_DATA_DIR": "./netinventory-host/data/environments/testing"
+          },
+          "autostart": true
+        },
+        {
+          "id": "netinventory-client",
+          "name": "NetInventory Client",
+          "summary": "Run the attended laptop-side network inspection tool locally during field work.",
+          "local_url": "http://127.0.0.1:8889/",
+          "public_path": "/netinventory-client/",
+          "start_script": "./netinventory-client/run-track.sh",
+          "launch_script": "./netinventory-client/run-track.sh",
+          "launch_env": {
+            "NETINVENTORY_UI_PORT": "8889",
+            "NETINV_PUBLIC_PATH": "/netinventory-client/"
+          },
+          "autostart": true
         },
         {
           "id": "devicecontrol",
@@ -35,6 +67,14 @@
           "local_url": "http://127.0.0.1:5021/",
           "public_path": "/devicecontrol/",
           "start_script": "./devicecontrol/run-testing.sh",
+          "launch_script": "./devicecontrol/run.sh",
+          "launch_env": {
+            "DEVICECONTROL_INSTANCE": "testing",
+            "DEVICECONTROL_ENVIRONMENT": "testing",
+            "DEVICECONTROL_PORT": "5021",
+            "DEVICECONTROL_DATA_DIR": "./devicecontrol/data"
+          },
+          "autostart": true,
           "status": "active"
         }
       ]

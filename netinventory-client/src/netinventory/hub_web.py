@@ -74,7 +74,7 @@ else
   git -C "$WORKDIR" pull --ff-only
 fi
 
-cd "$WORKDIR/netinventory"
+cd "$WORKDIR/netinventory-client"
 
 if [ ! -d venv-agent ]; then
   python3 -m venv venv-agent

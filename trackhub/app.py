@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import requests
+from requests import RequestException
 from flask import Flask, Response, abort, redirect, render_template, request, session, url_for
 
 from config import load_config, load_passwords, save_config, save_passwords
@@ -447,16 +448,33 @@ def create_app() -> Flask:
         upstream_headers["X-Forwarded-Host"] = request.host
         upstream_headers["X-Trackhub-Environment"] = str(env["id"])
         upstream_headers["X-Trackhub-Authenticated"] = "true"
-        upstream = requests.request(
-            method=request.method,
-            url=target_url,
-            headers=upstream_headers,
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False,
-            stream=True,
-            timeout=60,
-        )
+        try:
+            upstream = requests.request(
+                method=request.method,
+                url=target_url,
+                headers=upstream_headers,
+                data=request.get_data(),
+                cookies=request.cookies,
+                allow_redirects=False,
+                stream=True,
+                timeout=60,
+            )
+        except RequestException as exc:
+            return (
+                render_template(
+                    "service_unavailable.html",
+                    title=app.config["TRACKHUB"]["title"],
+                    subtitle=app.config["TRACKHUB"]["subtitle"],
+                    public_base_url=app.config["TRACKHUB"].get("public_base_url", ""),
+                    routing_mode=app.config["TRACKHUB"].get("routing_mode", "reverse-proxy"),
+                    environments=environments(),
+                    current_environment=env,
+                    app_item=app_item,
+                    target_url=target_url,
+                    error_message=str(exc),
+                ),
+                503,
+            )
 
         excluded_headers = {"content-encoding", "content-length", "transfer-encoding", "connection"}
         downstream_headers = []

@@ -52,9 +52,9 @@ Current focus:
 - secure proxy access
 - operator-facing control UI
 
-### `netinventory/`
+### `netinventory-client/`
 
-Network observation and field inventory tooling.
+Laptop-side network observation and field inventory tooling.
 
 Current focus:
 
@@ -63,6 +63,16 @@ Current focus:
 - task runtime
 - user context
 - sync/export workflows
+
+### `netinventory-host/`
+
+Host-side intake and publishing surface for NetInventory.
+
+Current focus:
+
+- receive and later aggregate client/host reports
+- publish client downloads and bootstrap entrypoints
+- centralize web-facing network inventory workflows
 
 ### `devicecontrol/`
 
@@ -84,7 +94,7 @@ Imported subprojects keep their own history inside this repo.
 That means:
 
 - `museumcontrol/` history was preserved
-- `netinventory/` history was preserved
+- `netinventory-client/` history was preserved
 - `map3d/` remains an actively developed subproject in the root repo
 
 ## Current Integration Strategy
@@ -103,6 +113,27 @@ Not yet:
 - one merged database
 - one merged codebase
 - one forced Flask application
+
+## Central Runtime Configuration
+
+TRACK now keeps per-environment subservice launch parameters in
+`trackhub/config.json`.
+
+That central config decides:
+
+- which environments exist
+- which subprojects are exposed in each environment
+- which app instances autostart on the current workstation
+- which environment variables are injected into generic subservice launchers
+
+Useful root tools:
+
+- `./track.sh`
+  - start the umbrella plus configured autostart subservices
+- `./track-configure.py list`
+  - inspect current environments, apps, and launch plan
+- `./track-configure.py validate`
+  - validate configured launch script targets
 
 ## Important Root Documents
 
