@@ -99,12 +99,16 @@
             "MAP3D_PORT_HTTPS": "5454",
             "MAP3D_DATA_DIR": "./map3d/data/environments/museum"
           },
-          "autostart": false
+          "autostart": true
         },
         {
           "id": "museumcontrol",
-          "local_url": "",
-          "public_path": "/museumcontrol/"
+          "local_url": "http://127.0.0.1:4575/",
+          "public_path": "/museumcontrol/",
+          "start_script": "./museumcontrol/run.sh",
+          "launch_script": "./museumcontrol/run.sh",
+          "autostart": true,
+          "status": "active"
         },
         {
           "id": "netinventory",
@@ -119,7 +123,7 @@
             "NETINVENTORY_HOST_PORT": "8891",
             "NETINVENTORY_HOST_DATA_DIR": "./netinventory-host/data/environments/museum"
           },
-          "autostart": false
+          "autostart": true
         },
         {
           "id": "devicecontrol",
@@ -135,7 +139,7 @@
             "DEVICECONTROL_PORT": "5031",
             "DEVICECONTROL_DATA_DIR": "./devicecontrol/data"
           },
-          "autostart": false,
+          "autostart": true,
           "status": "active"
         }
       ]
