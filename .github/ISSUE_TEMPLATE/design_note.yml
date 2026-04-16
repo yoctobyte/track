@@ -1,0 +1,44 @@
+name: Design note
+description: Capture architecture, workflow, or product design decisions before implementation.
+title: "[design] "
+labels:
+  - design
+body:
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - umbrella architecture
+        - trackhub
+        - devicecontrol
+        - map3d
+        - museumcontrol
+        - netinventory
+        - cross-project data model
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What situation or decision point led to this design discussion?
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Proposed decision
+      description: State the design clearly and directly.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other paths were considered, and why not choose them?
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Consequences
+      description: What becomes simpler, harder, or explicitly deferred?

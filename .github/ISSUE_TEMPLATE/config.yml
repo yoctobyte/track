@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: TRACK architecture and philosophy
+    url: https://github.com/yoctobyte/track/blob/main/ARCHITECTURE.md
+    about: Read the umbrella architecture before proposing structural changes.
+  - name: TRACK current state
+    url: https://github.com/yoctobyte/track/blob/main/STATE.md
+    about: Check the current implementation status before filing integration issues.
+  - name: TRACK project goals
+    url: https://github.com/yoctobyte/track/blob/main/GOALS.md
+    about: Use the goals document to frame larger feature requests and milestones.

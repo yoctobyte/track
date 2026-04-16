@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a concrete malfunction in TRACK or one of its subprojects.
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of TRACK is affected?
+      options:
+        - trackhub
+        - devicecontrol
+        - map3d
+        - museumcontrol
+        - netinventory
+        - root docs / integration
+        - unknown
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Which environment or location did this happen in?
+      placeholder: museum / lab / testing / local dev
+  - type: textarea
+    id: summary
+    attributes:
+      label: What broke?
+      description: Describe the problem plainly.
+      placeholder: The screenshot action succeeds on GNOME Wayland hosts but returns black captures.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: What exact steps reproduce the issue?
+      placeholder: |
+        1. Open Device Control
+        2. Run Screenshot on museum
+        3. Inspect fetched screenshot for host ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: A non-black screenshot from a powered display.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, or other evidence
+      description: Paste only relevant excerpts. Do not include secrets.
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything else that matters?

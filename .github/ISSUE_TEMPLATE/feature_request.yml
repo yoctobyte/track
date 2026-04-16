@@ -1,0 +1,46 @@
+name: Feature request
+description: Propose a new capability, workflow, or improvement.
+title: "[feature] "
+labels:
+  - enhancement
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of TRACK is this primarily about?
+      options:
+        - trackhub
+        - devicecontrol
+        - map3d
+        - museumcontrol
+        - netinventory
+        - cross-project integration
+        - documentation
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What operational pain or missing workflow does this address?
+      placeholder: Staff can reboot devices, but cannot yet browse recent screenshots across all hosts.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Describe the desired feature and how it should behave.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and assumptions
+      description: Mention security, environment separation, performance, or deployment constraints.
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Explicitly out of scope
+      description: State what should not be folded into this issue.
