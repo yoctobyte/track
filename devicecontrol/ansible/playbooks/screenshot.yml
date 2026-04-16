@@ -19,17 +19,17 @@
     screenshot_xauthority: ""
     screenshot_required_packages: >-
       {%- if screenshot_desktop_hint == 'openbox-x11' -%}
-      ["scrot"]
+      ["scrot", "imagemagick"]
       {%- elif screenshot_desktop_hint == 'gnome-x11' -%}
-      ["gnome-screenshot", "scrot"]
+      ["gnome-screenshot", "scrot", "imagemagick"]
       {%- elif screenshot_desktop_hint == 'gnome-wayland' -%}
-      ["gnome-screenshot"]
+      ["gnome-screenshot", "imagemagick"]
       {%- elif screenshot_session_type == 'wayland' -%}
-      ["gnome-screenshot"]
+      ["gnome-screenshot", "imagemagick"]
       {%- elif screenshot_session_type == 'x11' -%}
-      ["gnome-screenshot", "scrot"]
+      ["gnome-screenshot", "scrot", "imagemagick"]
       {%- else -%}
-      ["gnome-screenshot", "scrot"]
+      ["gnome-screenshot", "scrot", "imagemagick"]
       {%- endif -%}
   tasks:
     - name: Install screenshot helper packages for the detected desktop
