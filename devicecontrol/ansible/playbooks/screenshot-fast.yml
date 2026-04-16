@@ -1,12 +1,12 @@
 ---
-- name: Capture a best-effort desktop screenshot
+- name: Capture a best-effort desktop screenshot without package installation
   hosts: all
   become: true
   gather_facts: false
   vars:
     screenshot_remote_path: /tmp/track-devicecontrol-screenshot.png
     screenshot_display: ":0"
-    screenshot_strategy: full
+    screenshot_strategy: fast
     screenshot_host_profile: "{{ (screenshot_profiles | default({})).get(inventory_hostname, {}) }}"
     screenshot_host_context: "{{ (screenshot_context | default({})).get(inventory_hostname, {}) }}"
     screenshot_runtime_user: "{{ screenshot_host_context.runtime_user | default(bootstrap_user | default(ansible_user | default('ansible'))) }}"
@@ -17,27 +17,6 @@
     screenshot_profile_auth_mode: "{{ screenshot_host_profile.preferred_auth_mode | default('') }}"
     screenshot_profile_run_as: "{{ screenshot_host_profile.preferred_run_as | default('') }}"
     screenshot_xauthority: ""
-    screenshot_required_packages: >-
-      {%- if screenshot_desktop_hint == 'openbox-x11' -%}
-      ["scrot"]
-      {%- elif screenshot_desktop_hint == 'gnome-x11' -%}
-      ["gnome-screenshot", "scrot"]
-      {%- elif screenshot_desktop_hint == 'gnome-wayland' -%}
-      ["gnome-screenshot"]
-      {%- elif screenshot_session_type == 'wayland' -%}
-      ["gnome-screenshot"]
-      {%- elif screenshot_session_type == 'x11' -%}
-      ["gnome-screenshot", "scrot"]
-      {%- else -%}
-      ["gnome-screenshot", "scrot"]
-      {%- endif -%}
   tasks:
-    - name: Install screenshot helper packages for the detected desktop
-      ansible.builtin.apt:
-        name: "{{ screenshot_required_packages }}"
-        state: present
-        update_cache: true
-      ignore_errors: true
-
     - name: Run screenshot capture workflow
       ansible.builtin.import_tasks: tasks/screenshot_capture.yml

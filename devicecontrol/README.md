@@ -135,10 +135,32 @@ Current approved actions:
 - `reboot`
 - `update-and-reboot`
 - `screenshot`
+- `screenshot-setup`
 - `collect-stats`
 
 The screenshot playbook is best-effort. Linux desktop screenshot behavior varies
 by display server, desktop user, Xauthority, Wayland/X11, and installed tools.
+
+`screenshot` captures using already-installed tools. `screenshot-setup` also
+installs missing screenshot helpers before capturing. Use `screenshot-setup`
+on first run or after a fresh OS install.
+
+Both screenshot actions are desktop-aware for the currently supported cases:
+
+- `openbox-x11`
+- `gnome-x11`
+- `gnome-wayland`
+
+DeviceControl keeps a small per-host operational memory under:
+
+```text
+devicecontrol/data/environments/<environment>/capture_profiles/<host>.json
+```
+
+That profile stores the last known-good capture method, such as preferred tool,
+display, auth mode, and whether capture succeeded as the desktop user or root.
+`screenshot` uses that profile to reduce probing. `screenshot-setup` can
+rediscover and refresh it.
 
 `collect-stats` is the lightweight status probe used by the web UI. It stores
 cached per-host runtime information under:

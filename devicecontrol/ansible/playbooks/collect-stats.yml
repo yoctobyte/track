@@ -10,7 +10,7 @@
     - name: Collect host runtime stats
       ansible.builtin.shell: |
         set -eu
-        python3 - "{{ devicecontrol_runtime_user }}" > "{{ devicecontrol_stats_remote_path }}" <<'PY'
+        python3 - {{ devicecontrol_runtime_user | quote }} > {{ devicecontrol_stats_remote_path | quote }} <<'PY'
         import json
         import os
         import platform
@@ -91,24 +91,57 @@
             }
 
         def desktop_hint():
+            loginctl_list = run(["loginctl", "list-sessions", "--no-legend"])
             probes = {
                 "openbox": run(["pgrep", "-u", runtime_user, "-a", "openbox"]),
                 "gnome": run(["pgrep", "-u", runtime_user, "-a", "gnome-shell"]),
+                "gdm_wayland_session": run(["pgrep", "-u", runtime_user, "-a", "gdm-wayland-session"]),
+                "gnome_session": run(["pgrep", "-u", runtime_user, "-a", "gnome-session"]),
                 "xorg": run(["pgrep", "-a", "Xorg"]),
                 "xwayland": run(["pgrep", "-a", "Xwayland"]),
                 "wayland": run(["pgrep", "-u", runtime_user, "-a", "wayland"]),
             }
+            sessions = []
+            for line in loginctl_list.splitlines():
+                parts = line.split()
+                if len(parts) < 3 or parts[2] != runtime_user:
+                    continue
+                session_id = parts[0]
+                raw = run(["loginctl", "show-session", session_id, "-p", "Type", "-p", "State", "-p", "Name", "-p", "Class"])
+                session = {"id": session_id}
+                for item in raw.splitlines():
+                    if "=" not in item:
+                        continue
+                    key, value = item.split("=", 1)
+                    session[key.lower()] = value
+                sessions.append(session)
+
+            session_type = ""
+            for session in sessions:
+                if session.get("state") == "active" and session.get("type"):
+                    session_type = session["type"]
+                    break
+            if not session_type and sessions:
+                session_type = sessions[0].get("type", "")
+            if not session_type:
+                if probes["gdm_wayland_session"] or probes["xwayland"] or probes["wayland"]:
+                    session_type = "wayland"
+                elif probes["xorg"] or probes["openbox"]:
+                    session_type = "x11"
+                else:
+                    session_type = "unknown"
+
             if probes["gnome"]:
-                hint = "gnome"
+                hint = f"gnome-{session_type}" if session_type in {"wayland", "x11"} else "gnome"
             elif probes["openbox"]:
-                hint = "openbox"
-            elif probes["xwayland"] or probes["wayland"]:
-                hint = "wayland/xwayland"
-            elif probes["xorg"]:
-                hint = "xorg"
+                hint = f"openbox-{session_type}" if session_type in {"wayland", "x11"} else "openbox"
+            elif session_type == "wayland":
+                hint = "wayland"
+            elif session_type == "x11":
+                hint = "x11"
             else:
                 hint = "unknown"
-            return {"hint": hint, "probes": probes}
+            return {"hint": hint, "session_type": session_type, "sessions": sessions, "probes": probes}
 
         def processes():
             output = run(["ps", "-u", runtime_user, "-o", "pid=,comm=,%cpu=,%mem=", "--sort=-%cpu"])

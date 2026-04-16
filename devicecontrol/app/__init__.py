@@ -7,6 +7,7 @@ import secrets
 import shlex
 import shutil
 import subprocess
+import tempfile
 import threading
 import struct
 import zlib
@@ -49,8 +50,14 @@ ACTIONS: dict[str, Action] = {
     "screenshot": Action(
         "screenshot",
         "Screenshot",
+        "screenshot-fast.yml",
+        "Capture desktop screenshots using already-installed tools.",
+    ),
+    "screenshot-setup": Action(
+        "screenshot-setup",
+        "Screenshot Setup",
         "screenshot.yml",
-        "Attempt to capture desktop screenshots and fetch them into this environment.",
+        "Install screenshot tools if missing, then capture desktop screenshots.",
         "careful",
     ),
     "collect-stats": Action(
@@ -138,6 +145,7 @@ def create_app() -> Flask:
         (root / "stats").mkdir(parents=True, exist_ok=True)
         (root / "display_events").mkdir(parents=True, exist_ok=True)
         (root / "device_events").mkdir(parents=True, exist_ok=True)
+        (root / "capture_profiles").mkdir(parents=True, exist_ok=True)
         inventory = root / "inventory.ini"
         if not inventory.exists():
             inventory.write_text("[ungrouped]\n", encoding="utf-8")
@@ -284,6 +292,55 @@ def create_app() -> Flask:
             "name": path.name,
             "modified": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
         }
+
+    def capture_profile_path(env: str, host: str) -> Path:
+        return env_dir(env) / "capture_profiles" / f"{host}.json"
+
+    def load_capture_profile(env: str, host: str) -> dict[str, object] | None:
+        path = capture_profile_path(env, host)
+        if not path.exists():
+            return None
+        try:
+            profile = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return None
+        for key in ("preferred_tool", "preferred_display", "preferred_auth_mode", "preferred_run_as", "runtime_user", "desktop_hint", "session_type"):
+            value = profile.get(key)
+            if isinstance(value, str):
+                profile[key] = re.sub(r"[^A-Za-z0-9._:/-]", "", value.strip())
+        return profile
+
+    def save_capture_profile(env: str, host: str, profile: dict[str, object]) -> None:
+        path = capture_profile_path(env, host)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def sanitize_capture_value(value: str) -> str:
+        return re.sub(r"[^A-Za-z0-9._:/-]", "", value.strip())
+
+    def build_screenshot_context(env: str) -> tuple[dict[str, dict[str, object]], dict[str, dict[str, object]]]:
+        _groups, hosts = parse_inventory(inventory_path(env))
+        profiles: dict[str, dict[str, object]] = {}
+        context: dict[str, dict[str, object]] = {}
+        for host in hosts:
+            name = str(host["name"])
+            stats = load_raw_host_stats(env, name) or {}
+            desktop = stats.get("desktop") or {}
+            runtime_user = str(
+                stats.get("runtime_user")
+                or host["vars"].get("bootstrap_user")
+                or host["vars"].get("ansible_user")
+                or "ansible"
+            )
+            context[name] = {
+                "runtime_user": runtime_user,
+                "desktop_hint": str(desktop.get("hint") or ""),
+                "session_type": str(desktop.get("session_type") or ""),
+            }
+            profile = load_capture_profile(env, name)
+            if profile:
+                profiles[name] = profile
+        return profiles, context
 
     def display_event_path(env: str, host: str) -> Path:
         return env_dir(env) / "display_events" / f"{host}.jsonl"
@@ -480,7 +537,33 @@ def create_app() -> Flask:
             )
 
         content = log_path.read_text(encoding="utf-8", errors="replace")
+        success_re = re.compile(
+            r"TRACK_CAPTURE host=(?P<host>\S+) tool=(?P<tool>\S+) display=(?P<display>\S+) auth_mode=(?P<auth_mode>\S+) run_as=(?P<run_as>\S+)"
+        )
+        for match in success_re.finditer(content):
+            host = match.group("host")
+            current = load_raw_host_stats(env, host) or {}
+            desktop = current.get("desktop") or {}
+            profile = load_capture_profile(env, host) or {}
+            profile.update(
+                {
+                    "runtime_user": current.get("runtime_user") or profile.get("runtime_user"),
+                    "desktop_hint": desktop.get("hint") or profile.get("desktop_hint"),
+                    "session_type": desktop.get("session_type") or profile.get("session_type"),
+                    "preferred_tool": sanitize_capture_value(match.group("tool")),
+                    "preferred_display": sanitize_capture_value(match.group("display")),
+                    "preferred_auth_mode": sanitize_capture_value(match.group("auth_mode")),
+                    "preferred_run_as": sanitize_capture_value(match.group("run_as")),
+                    "last_success": datetime.now().isoformat(timespec="seconds"),
+                    "last_result": "success",
+                }
+            )
+            save_capture_profile(env, host, profile)
         for host in sorted(set(re.findall(r"Screenshot failed for ([A-Za-z0-9_.:-]+)", content))):
+            profile = load_capture_profile(env, host) or {}
+            profile["last_failure"] = datetime.now().isoformat(timespec="seconds")
+            profile["last_result"] = "failed"
+            save_capture_profile(env, host, profile)
             append_display_event(
                 env,
                 host,
@@ -651,6 +734,7 @@ def create_app() -> Flask:
                     **host,
                     "screenshot": latest_screenshot(env, name),
                     "stats": load_host_stats(env, name),
+                    "capture_profile": load_capture_profile(env, name),
                     "display_event": latest_display_event(env, name),
                     "display_events": list_display_events(env, name),
                     "device_event": latest_device_event(env, name),
@@ -678,6 +762,7 @@ def create_app() -> Flask:
         action_id: str,
         started_at: datetime,
         previous_stats: dict[str, dict[str, object]] | None = None,
+        cleanup_paths: list[Path] | None = None,
     ) -> None:
         with log_path.open("a", encoding="utf-8") as handle:
             if not ansible_available():
@@ -701,7 +786,7 @@ def create_app() -> Flask:
                 )
                 handle.write(f"\nExit code: {result.returncode}\n")
                 handle.flush()
-                if action_id == "screenshot":
+                if action_id in {"screenshot", "screenshot-setup"}:
                     record_screenshot_events(env, log_path, started_at)
                 if action_id == "collect-stats":
                     record_collect_stats_events(env, log_path, started_at, previous_stats or {})
@@ -709,6 +794,12 @@ def create_app() -> Flask:
             except subprocess.TimeoutExpired:
                 handle.write(f"\nERROR: action timed out after {timeout_seconds} seconds.\n")
                 write_status(log_path, "failed", f"timeout={timeout_seconds}")
+            finally:
+                for path in cleanup_paths or []:
+                    try:
+                        path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
 
     @app.context_processor
     def inject_state():
@@ -781,8 +872,25 @@ def create_app() -> Flask:
         ]
         if target:
             command.extend(["--limit", target])
-        if action_id == "screenshot":
-            command.extend(["--extra-vars", f"screenshot_output_dir={screenshot_dir}"])
+        cleanup_paths: list[Path] = []
+        if action_id in {"screenshot", "screenshot-setup"}:
+            profiles, context = build_screenshot_context(env)
+            extra_vars_path = env_dir(env) / "run_logs" / f"{log_path.stem}.extra-vars.json"
+            extra_vars_path.write_text(
+                json.dumps(
+                    {
+                        "screenshot_output_dir": str(screenshot_dir),
+                        "screenshot_profiles": profiles,
+                        "screenshot_context": context,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            cleanup_paths.append(extra_vars_path)
+            command.extend(["--extra-vars", f"@{extra_vars_path}"])
         if action_id == "collect-stats":
             command.extend(["--extra-vars", f"devicecontrol_stats_output_dir={env_dir(env) / 'stats'}"])
         previous_stats = snapshot_host_stats(env) if action_id == "collect-stats" else None
@@ -799,7 +907,7 @@ def create_app() -> Flask:
         write_status(log_path, "running")
         thread = threading.Thread(
             target=run_playbook_job,
-            args=(command, log_path, timeout, env, action_id, started_at, previous_stats),
+            args=(command, log_path, timeout, env, action_id, started_at, previous_stats, cleanup_paths),
             daemon=True,
         )
         thread.start()

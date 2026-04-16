@@ -64,7 +64,13 @@
                     unknown
                   {% endif %}
                 </div>
-                <div class="muted">Desktop: {{ device.stats.desktop.hint if device.stats.desktop else 'unknown' }}</div>
+                <div class="muted">
+                  Desktop:
+                  {{ device.stats.desktop.hint if device.stats.desktop else 'unknown' }}
+                  {% if device.stats.desktop and device.stats.desktop.session_type %}
+                    · {{ device.stats.desktop.session_type }}
+                  {% endif %}
+                </div>
               {% else %}
                 <div class="muted">Details available after the first stats run.</div>
               {% endif %}

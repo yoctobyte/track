@@ -93,6 +93,23 @@
               <th>Desktop hint</th>
               <td>{{ device.stats.desktop.hint if device.stats.desktop else 'unknown' }}</td>
             </tr>
+            <tr>
+              <th>Session type</th>
+              <td>{{ device.stats.desktop.session_type if device.stats.desktop and device.stats.desktop.session_type else 'unknown' }}</td>
+            </tr>
+            <tr>
+              <th>Capture profile</th>
+              <td>
+                {% if device.capture_profile %}
+                  {{ device.capture_profile.preferred_tool | default('unknown') }}
+                  on {{ device.capture_profile.preferred_display | default('unknown') }}
+                  via {{ device.capture_profile.preferred_auth_mode | default('unknown') }}
+                  as {{ device.capture_profile.preferred_run_as | default('unknown') }}
+                {% else %}
+                  not learned yet
+                {% endif %}
+              </td>
+            </tr>
           </tbody>
         </table>
       {% else %}

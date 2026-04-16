@@ -1,0 +1,271 @@
+---
+- name: Capture screenshot through desktop-aware strategy
+  ansible.builtin.shell: |
+    set -eu
+    runtime_user={{ screenshot_runtime_user | quote }}
+    runtime_uid="$(id -u "$runtime_user")"
+    configured_xauthority={{ screenshot_xauthority | quote }}
+    desktop_hint={{ screenshot_desktop_hint | quote }}
+    session_type={{ screenshot_session_type | quote }}
+    profile_tool={{ screenshot_profile_tool | quote }}
+    profile_display={{ screenshot_profile_display | quote }}
+    profile_auth_mode={{ screenshot_profile_auth_mode | quote }}
+    profile_run_as={{ screenshot_profile_run_as | quote }}
+    strategy={{ screenshot_strategy | quote }}
+    tried="/tmp/track-devicecontrol-screenshot-tried.txt"
+    : > "$tried"
+
+    find_tool() {
+      command -v "$1" >/dev/null 2>&1
+    }
+
+    add_unique() {
+      value="$1"
+      list="$2"
+      case " $list " in
+        *" $value "*) printf '%s' "$list" ;;
+        *) printf '%s %s' "$list" "$value" ;;
+      esac
+    }
+
+    choose_tools() {
+      result=""
+      if [ -n "$profile_tool" ] && find_tool "$profile_tool"; then
+        result="$(add_unique "$profile_tool" "$result")"
+      fi
+
+      case "$desktop_hint:$session_type" in
+        openbox-x11:x11|openbox:x11)
+          for tool in scrot import; do
+            find_tool "$tool" && result="$(add_unique "$tool" "$result")"
+          done
+          ;;
+        gnome-x11:x11|gnome:x11)
+          for tool in gnome-screenshot scrot import; do
+            find_tool "$tool" && result="$(add_unique "$tool" "$result")"
+          done
+          ;;
+        gnome-wayland:wayland|gnome:wayland)
+          for tool in gnome-screenshot; do
+            find_tool "$tool" && result="$(add_unique "$tool" "$result")"
+          done
+          [ "$strategy" = "full" ] && find_tool import && result="$(add_unique import "$result")"
+          ;;
+        *)
+          if [ "$strategy" = "fast" ]; then
+            for tool in gnome-screenshot scrot; do
+              find_tool "$tool" && result="$(add_unique "$tool" "$result")"
+            done
+          else
+            for tool in gnome-screenshot scrot import; do
+              find_tool "$tool" && result="$(add_unique "$tool" "$result")"
+            done
+          fi
+          ;;
+      esac
+
+      [ -n "$result" ] || {
+        echo "No supported screenshot tool found." >&2
+        exit 127
+      }
+      printf '%s\n' "$result"
+    }
+
+    auth_path_for_mode() {
+      case "$1" in
+        none) printf '%s\n' "" ;;
+        configured) printf '%s\n' "$configured_xauthority" ;;
+        home) printf '%s\n' "/home/$runtime_user/.Xauthority" ;;
+        gdm) printf '%s\n' "/run/user/$runtime_uid/gdm/Xauthority" ;;
+        runtime) printf '%s\n' "/run/user/$runtime_uid/Xauthority" ;;
+        lightdm-root) printf '%s\n' "/var/run/lightdm/root/:0" ;;
+        lightdm) printf '%s\n' "/var/lib/lightdm/.Xauthority" ;;
+        wayland)
+          for candidate in /run/user/"$runtime_uid"/.mutter-Xwaylandauth.*; do
+            if [ -e "$candidate" ]; then
+              printf '%s\n' "$candidate"
+              return 0
+            fi
+          done
+          printf '%s\n' ""
+          ;;
+        *) printf '%s\n' "" ;;
+      esac
+    }
+
+    wayland_display_for_user() {
+      for candidate in /run/user/"$runtime_uid"/wayland-*; do
+        if [ -S "$candidate" ]; then
+          basename "$candidate"
+          return 0
+        fi
+      done
+      printf '%s\n' "wayland-0"
+    }
+
+    build_env_args() {
+      auth_mode="$1"
+      xauthority="$2"
+      if [ "$session_type" = "wayland" ] || [ "$auth_mode" = "wayland" ]; then
+        wayland_display="$(wayland_display_for_user)"
+        printf '%s\n' \
+          "XDG_RUNTIME_DIR=/run/user/$runtime_uid" \
+          "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$runtime_uid/bus" \
+          "WAYLAND_DISPLAY=$wayland_display"
+        return 0
+      fi
+      if [ -n "$xauthority" ]; then
+        printf '%s\n' "XAUTHORITY=$xauthority"
+      fi
+    }
+
+    choose_auth_modes() {
+      result=""
+      [ -n "$profile_auth_mode" ] && result="$(add_unique "$profile_auth_mode" "$result")"
+      case "$desktop_hint:$session_type" in
+        openbox-x11:x11|openbox:x11)
+          for mode in home runtime lightdm-root lightdm configured none; do
+            result="$(add_unique "$mode" "$result")"
+          done
+          ;;
+        gnome-x11:x11|gnome:x11)
+          for mode in home gdm runtime lightdm-root lightdm configured none; do
+            result="$(add_unique "$mode" "$result")"
+          done
+          ;;
+        gnome-wayland:wayland|gnome:wayland)
+          for mode in runtime home wayland gdm configured; do
+            result="$(add_unique "$mode" "$result")"
+          done
+          [ "$strategy" = "full" ] && result="$(add_unique none "$result")"
+          ;;
+        *)
+          if [ "$strategy" = "fast" ]; then
+            for mode in configured home runtime gdm; do
+              result="$(add_unique "$mode" "$result")"
+            done
+          else
+            for mode in configured home runtime gdm wayland lightdm-root lightdm none; do
+              result="$(add_unique "$mode" "$result")"
+            done
+          fi
+          ;;
+      esac
+      printf '%s\n' "$result"
+    }
+
+    choose_displays() {
+      result=""
+      default_display="$profile_display"
+      [ -n "$default_display" ] || default_display="{{ screenshot_display }}"
+      result="$(add_unique "$default_display" "$result")"
+      if [ "$strategy" = "full" ]; then
+        result="$(add_unique ":0" "$result")"
+        result="$(add_unique ":1" "$result")"
+      fi
+      printf '%s\n' "$result"
+    }
+
+    capture_user() {
+      tool="$1"
+      display="$2"
+      auth_mode="$3"
+      xauthority="$4"
+      echo "display=$display auth_mode=$auth_mode tool=$tool run_as=user" >> "$tried"
+      if [ -n "$xauthority" ]; then
+        if [ ! -r "$xauthority" ]; then
+          return 1
+        fi
+      fi
+      env_args="$(build_env_args "$auth_mode" "$xauthority" | tr '\n' ' ')"
+      if [ "$tool" = "scrot" ]; then
+        runuser -u "$runtime_user" -- env DISPLAY="$display" $env_args scrot "{{ screenshot_remote_path }}"
+      elif [ "$tool" = "gnome-screenshot" ]; then
+        runuser -u "$runtime_user" -- env DISPLAY="$display" $env_args gnome-screenshot -f "{{ screenshot_remote_path }}"
+      else
+        runuser -u "$runtime_user" -- env DISPLAY="$display" $env_args import -window root "{{ screenshot_remote_path }}"
+      fi
+    }
+
+    capture_root() {
+      tool="$1"
+      display="$2"
+      auth_mode="$3"
+      xauthority="$4"
+      [ -n "$xauthority" ] || return 1
+      [ -r "$xauthority" ] || return 1
+      echo "display=$display auth_mode=$auth_mode tool=$tool run_as=root" >> "$tried"
+      env_args="$(build_env_args "$auth_mode" "$xauthority" | tr '\n' ' ')"
+      if [ "$tool" = "scrot" ]; then
+        env DISPLAY="$display" $env_args scrot "{{ screenshot_remote_path }}"
+      elif [ "$tool" = "gnome-screenshot" ]; then
+        env DISPLAY="$display" $env_args gnome-screenshot -f "{{ screenshot_remote_path }}"
+      else
+        env DISPLAY="$display" $env_args import -window root "{{ screenshot_remote_path }}"
+      fi
+    }
+
+    tools="$(choose_tools)"
+    auth_modes="$(choose_auth_modes)"
+    displays="$(choose_displays)"
+
+    for tool in $tools; do
+      for display in $displays; do
+        for auth_mode in $auth_modes; do
+          xauthority="$(auth_path_for_mode "$auth_mode")"
+          if [ "${profile_run_as:-}" = "root" ] && capture_root "$tool" "$display" "$auth_mode" "$xauthority" >/tmp/track-devicecontrol-screenshot.err 2>&1; then
+            echo "TRACK_CAPTURE host={{ inventory_hostname }} tool=$tool display=$display auth_mode=$auth_mode run_as=root"
+            exit 0
+          fi
+          if capture_user "$tool" "$display" "$auth_mode" "$xauthority" >/tmp/track-devicecontrol-screenshot.err 2>&1; then
+            echo "TRACK_CAPTURE host={{ inventory_hostname }} tool=$tool display=$display auth_mode=$auth_mode run_as=user"
+            exit 0
+          fi
+          if [ "$strategy" = "full" ] && [ "${profile_run_as:-user}" != "root" ] && capture_root "$tool" "$display" "$auth_mode" "$xauthority" >/tmp/track-devicecontrol-screenshot.err 2>&1; then
+            echo "TRACK_CAPTURE host={{ inventory_hostname }} tool=$tool display=$display auth_mode=$auth_mode run_as=root"
+            exit 0
+          fi
+        done
+      done
+    done
+
+    echo "Screenshot attempts failed." >&2
+    echo "Runtime user: $runtime_user uid=$runtime_uid" >&2
+    echo "Desktop hint: $desktop_hint session_type=$session_type strategy=$strategy" >&2
+    echo "Profile: tool=${profile_tool:-<none>} display=${profile_display:-<none>} auth_mode=${profile_auth_mode:-<none>} run_as=${profile_run_as:-<none>}" >&2
+    echo "Tried:" >&2
+    cat "$tried" >&2
+    echo "Last tool error:" >&2
+    cat /tmp/track-devicecontrol-screenshot.err >&2
+    exit 1
+  args:
+    executable: /bin/bash
+  register: screenshot_capture
+  changed_when: screenshot_capture.rc == 0
+  failed_when: false
+
+- name: Report screenshot capture method
+  ansible.builtin.debug:
+    msg: "{{ screenshot_capture.stdout | trim }}"
+  when: screenshot_capture.rc == 0 and (screenshot_capture.stdout | trim) != ""
+
+- name: Report screenshot capture failure
+  ansible.builtin.debug:
+    msg: >-
+      Screenshot failed for {{ inventory_hostname }} as {{ screenshot_runtime_user }}
+      with desktop {{ screenshot_desktop_hint | default('unknown') }} / {{ screenshot_session_type | default('unknown') }}:
+      {{ screenshot_capture.stderr | default(screenshot_capture.stdout, true) | default('no error output', true) }}
+  when: screenshot_capture.rc != 0
+
+- name: Fetch screenshot
+  ansible.builtin.fetch:
+    src: "{{ screenshot_remote_path }}"
+    dest: "{{ screenshot_output_dir }}/"
+    flat: false
+  when: screenshot_capture.rc == 0
+
+- name: Remove temporary screenshot
+  ansible.builtin.file:
+    path: "{{ screenshot_remote_path }}"
+    state: absent
+  when: screenshot_capture.rc == 0
