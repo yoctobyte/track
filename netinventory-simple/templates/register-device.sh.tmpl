@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+
+TARGET_URL="${TRACK_SIMPLE_URL:-__TARGET_URL__}"
+TOKEN="${TRACK_SIMPLE_TOKEN:-__TOKEN__}"
+DESCRIPTION="${1:-$(hostname 2>/dev/null || echo unknown-device)}"
+
+HOSTNAME_VALUE="$(hostname 2>/dev/null || echo unknown)"
+USER_VALUE="${USER:-unknown}"
+KERNEL_VALUE="$(uname -a 2>/dev/null || echo unknown)"
+IP_VALUE="$(hostname -I 2>/dev/null | xargs echo || echo unknown)"
+ROUTE_VALUE="$(ip route 2>/dev/null | tr '\n' ';' || echo unknown)"
+export DESCRIPTION HOSTNAME_VALUE USER_VALUE KERNEL_VALUE IP_VALUE ROUTE_VALUE
+
+PAYLOAD=$(python3 - <<'PY'
+import json
+import os
+payload = {
+    "kind": "script-shell",
+    "description": os.environ["DESCRIPTION"],
+    "hostname": os.environ["HOSTNAME_VALUE"],
+    "user": os.environ["USER_VALUE"],
+    "kernel": os.environ["KERNEL_VALUE"],
+    "ips": os.environ["IP_VALUE"],
+    "routes": os.environ["ROUTE_VALUE"],
+}
+print(json.dumps(payload))
+PY
+)
+
+curl -fsS "$TARGET_URL" \
+  -H "Content-Type: application/json" \
+  -H "X-NetInventory-Simple-Token: $TOKEN" \
+  --data "$PAYLOAD"
+echo
+echo "NetInventory simple upload complete."

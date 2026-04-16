@@ -31,6 +31,7 @@
       <ul class="list">
         <li>Reserve a clean host-side entrypoint under TRACK for later uploads, synchronization, and unattended reports.</li>
         <li>Publish bootstrap/download material for the attended laptop-side client.</li>
+        <li>Offer a very small browser-and-script registration path for ordinary devices.</li>
         <li>Keep host-side aggregation separate from privileged local laptop capture logic.</li>
       </ul>
       <a class="download" href="/downloads/netinventory-client-bootstrap.sh">Download Client Bootstrap</a>
@@ -85,5 +86,110 @@
         <p class="muted">No uploads or synchronization events have been recorded yet.</p>
       {% endif %}
     </div>
+
+    <div class="panel grid-6">
+      <h3>Simple Registration</h3>
+      <p class="muted">Use this for ordinary devices where you just want a browser visit or a tiny collector script, not the full attended client.</p>
+      <form id="simple-browser-form" class="stack">
+        <label for="simple-description">Description</label>
+        <textarea id="simple-description" name="description" placeholder="Entrance desk PC with printer, lobby laptop, office spare machine"></textarea>
+        <button type="submit" class="download">Register This Browser</button>
+      </form>
+      <div id="simple-browser-result" class="muted"></div>
+      <div class="stack">
+        <div class="muted">Current simple upload token</div>
+        <code>{{ simple_upload_token }}</code>
+      </div>
+      <div class="stack">
+        <a class="download" href="/downloads/register-device.sh">Download `register-device.sh`</a>
+        <a class="download" href="/downloads/register-device.bat">Download `register-device.bat`</a>
+      </div>
+    </div>
+
+    <div class="panel grid-6">
+      <h3>Browser Sees</h3>
+      <p class="muted">This is the limited metadata the browser can report before any richer client is installed.</p>
+      <pre id="simple-browser-preview">Gathering browser facts...</pre>
+    </div>
+
+    <div class="panel">
+      <h3>Recent Simple Registrations</h3>
+      {% if simple_recent %}
+        <table>
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Kind</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in simple_recent %}
+              <tr>
+                <td>{{ item.timestamp }}</td>
+                <td>{{ item.kind }}</td>
+                <td>{{ item.description or "-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No simple registrations stored yet.</p>
+      {% endif %}
+    </div>
   </section>
+
+  <script>
+    const simpleBrowserFacts = {
+      userAgent: navigator.userAgent || "",
+      language: navigator.language || "",
+      languages: navigator.languages || [],
+      platform: navigator.platform || "",
+      hardwareConcurrency: navigator.hardwareConcurrency || null,
+      deviceMemory: navigator.deviceMemory || null,
+      online: navigator.onLine,
+      cookieEnabled: navigator.cookieEnabled,
+      screen: {
+        width: window.screen?.width || null,
+        height: window.screen?.height || null,
+        colorDepth: window.screen?.colorDepth || null,
+        pixelRatio: window.devicePixelRatio || null,
+      },
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+      locationHref: window.location.href,
+    };
+
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (connection) {
+      simpleBrowserFacts.connection = {
+        effectiveType: connection.effectiveType || null,
+        downlink: connection.downlink || null,
+        rtt: connection.rtt || null,
+        saveData: connection.saveData || false,
+      };
+    }
+
+    document.getElementById("simple-browser-preview").textContent = JSON.stringify(simpleBrowserFacts, null, 2);
+
+    document.getElementById("simple-browser-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const result = document.getElementById("simple-browser-result");
+      result.textContent = "Submitting...";
+      const response = await fetch("/api/simple-browser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: document.getElementById("simple-description").value.trim(),
+          browser: simpleBrowserFacts,
+        }),
+      });
+      const payload = await response.json();
+      if (payload.ok) {
+        result.textContent = `Stored at ${payload.stored}`;
+        document.getElementById("simple-description").value = "";
+      } else {
+        result.textContent = payload.error || "Registration failed.";
+      }
+    });
+  </script>
 {% endblock %}

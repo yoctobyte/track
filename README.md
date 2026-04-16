@@ -72,7 +72,18 @@ Current focus:
 
 - receive and later aggregate client/host reports
 - publish client downloads and bootstrap entrypoints
+- provide a lightweight browser-and-script registration path for ordinary devices
 - centralize web-facing network inventory workflows
+
+### `netinventory-simple/`
+
+Client-side lightweight registration assets for NetInventory.
+
+Current focus:
+
+- isolated `.sh` / `.bat` collector templates
+- room for future binary or packaged collectors
+- no standalone server runtime
 
 ### `devicecontrol/`
 

@@ -65,7 +65,16 @@ Role:
 - provide the host-side web surface under TRACK
 - receive and later aggregate client/host submissions
 - publish client downloads and onboarding material
+- provide the lowest-friction browser-and-script registration path for ordinary devices
 - keep the attended client and central collector concerns separate
+
+### `netinventory-simple`
+
+Role:
+
+- hold lightweight downloadable client assets outside the host runtime
+- isolate shell / batch / future binary collectors from server code
+- stay non-running while still being part of the umbrella
 
 ### `devicecontrol`
 
@@ -241,5 +250,5 @@ That would reduce flexibility and make the umbrella brittle.
 
 `TRACK` is the umbrella.
 
-`map3d`, `museumcontrol`, `netinventory-client`, `netinventory-host`, and `devicecontrol` are not
+`map3d`, `museumcontrol`, `netinventory-client`, `netinventory-host`, `netinventory-simple`, and `devicecontrol` are not
 “features” of a single app. They are subprojects under a common direction.

@@ -58,6 +58,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "public_path": "/netinventory/",
                     "start_script": "./netinventory-host/run-testing.sh",
                     "launch_script": "./netinventory-host/run.sh",
+                    "public_proxy_paths": ["/api/simple-ingest"],
                     "launch_env": {
                         "NETINVENTORY_HOST_INSTANCE": "testing",
                         "NETINVENTORY_HOST_PORT": "8888",
@@ -142,6 +143,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "public_path": "/netinventory/",
                     "start_script": "./netinventory-host/run-museum.sh",
                     "launch_script": "./netinventory-host/run.sh",
+                    "public_proxy_paths": ["/api/simple-ingest"],
                     "launch_env": {
                         "NETINVENTORY_HOST_INSTANCE": "museum",
                         "NETINVENTORY_HOST_PORT": "8891",
@@ -209,6 +211,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "public_path": "/netinventory/",
                     "start_script": "./netinventory-host/run-lab.sh",
                     "launch_script": "./netinventory-host/run.sh",
+                    "public_proxy_paths": ["/api/simple-ingest"],
                     "launch_env": {
                         "NETINVENTORY_HOST_INSTANCE": "lab",
                         "NETINVENTORY_HOST_PORT": "8892",

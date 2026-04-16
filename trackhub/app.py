@@ -112,8 +112,8 @@ def create_app() -> Flask:
     def select_location_redirect(next_url: str):
         return redirect(url_for("choose_location", next=next_url))
 
-    def proxy_app_for_request_path(path: str):
-        selected_env = current_environment()
+    def proxy_app_for_request_path(path: str, preferred_env_id: str = ""):
+        selected_env = environment_by_id(preferred_env_id, include_disabled=True) if preferred_env_id else current_environment()
         normalized = "/" + path.lstrip("/")
 
         if selected_env is not None and selected_env.get("enabled", True):
@@ -128,6 +128,23 @@ def create_app() -> Flask:
                 if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
                     return env, item
         return None, None
+
+    def is_public_proxy_path(app_item, proxied_path: str):
+        public_path = str(app_item.get("public_path", "")).rstrip("/")
+        normalized = "/" + proxied_path.lstrip("/")
+        relative = normalized[len(public_path):] if public_path and normalized.startswith(public_path) else normalized
+        allowed = app_item.get("public_proxy_paths", [])
+        if not isinstance(allowed, list):
+            return False
+        for prefix in allowed:
+            prefix_text = str(prefix).strip()
+            if not prefix_text:
+                continue
+            if not prefix_text.startswith("/"):
+                prefix_text = "/" + prefix_text
+            if relative == prefix_text or relative.startswith(prefix_text + "/"):
+                return True
+        return False
 
     def proxied_target_url(app_item, proxied_path: str):
         base_url = str(app_item.get("local_url", "")).rstrip("/") + "/"
@@ -426,10 +443,11 @@ def create_app() -> Flask:
         if app.config["TRACKHUB"].get("routing_mode") != "app-proxy":
             abort(404)
 
-        env, app_item = proxy_app_for_request_path(proxied_path)
+        requested_env_id = request.args.get("env", "").strip()
+        env, app_item = proxy_app_for_request_path(proxied_path, preferred_env_id=requested_env_id)
         if app_item is None or env is None:
             abort(404)
-        if not is_authenticated_for(env["id"]):
+        if not is_authenticated_for(env["id"]) and not is_public_proxy_path(app_item, proxied_path):
             return select_location_redirect("/" + proxied_path.lstrip("/"))
 
         local_url = str(app_item.get("local_url", "")).strip()
@@ -446,6 +464,7 @@ def create_app() -> Flask:
         upstream_headers["X-Forwarded-Prefix"] = str(app_item.get("public_path", "")).rstrip("/")
         upstream_headers["X-Forwarded-Proto"] = request.scheme
         upstream_headers["X-Forwarded-Host"] = request.host
+        upstream_headers["X-Forwarded-For"] = request.headers.get("X-Forwarded-For", request.remote_addr or "")
         upstream_headers["X-Trackhub-Environment"] = str(env["id"])
         upstream_headers["X-Trackhub-Authenticated"] = "true"
         try:

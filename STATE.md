@@ -4,12 +4,13 @@ Last refreshed: 2026-04-15
 
 ## Current Reality
 
-The repository now contains five real subprojects:
+The repository now contains six real subprojects:
 
 - `map3d`
 - `museumcontrol`
 - `netinventory-client`
 - `netinventory-host`
+- `netinventory-simple`
 - `devicecontrol`
 
 They are not yet unified under a root web shell.
@@ -40,6 +41,7 @@ Each subproject should continue to make sense by itself:
 - `museumcontrol` should keep working as a standalone control dashboard
 - `netinventory-client` should keep working as a standalone inventory/observation tool
 - `netinventory-host` should keep working as a standalone intake/publishing surface
+- `netinventory-simple` should keep working as an isolated non-server client asset pack
 - `devicecontrol` should keep working as a standalone Ansible control surface
 
 ### 3. Define shared concepts before shared code
@@ -133,6 +135,17 @@ Its current role is intentionally thin:
 
 Near-term work should keep it lightweight while `netinventory-client` continues
 to evolve independently.
+
+## netinventory-simple Current State
+
+`netinventory-simple` is not a separate runtime. It is the isolated home for
+lightweight downloadable client assets.
+
+It currently exists to hold:
+
+- shell and Windows batch collector templates
+- future PowerShell or binary collectors
+- the minimal client-side pieces that `netinventory-host` serves for download
 
 ## devicecontrol Current State
 
