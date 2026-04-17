@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">TRACK / {{ instance_name }}</p>
+    <h1>{{ title }}</h1>
+    <p class="subtitle">{{ subtitle }}</p>
+    <div class="meta">
+      <span><a href="{{ url_for('index') }}">NetInventory overview</a></span>
+      {% if rack.id %}<span>Rack ID <code>{{ rack.id }}</code></span>{% endif %}
+      <span>Photos {{ photo_count }}</span>
+      <span>Devices {{ rack_devices|length if rack_devices else rack.devices|selectattr('name')|list|length }}</span>
+    </div>
+  </section>
+
+  <section class="layout">
+    {% if error %}
+      <div class="panel error">
+        <strong>{{ error }}</strong>
+      </div>
+    {% endif %}
+
+    {% if request.args.get('saved') %}
+      <div class="panel">
+        <span class="badge">Saved: {{ request.args.get('saved') }}</span>
+      </div>
+    {% endif %}
+
+    <div class="panel">
+      <div class="rack-preview-shell">
+        <div class="rack-preview">
+          <div class="rack-grid">
+            {% if rack_devices %}
+              {% for device in rack_devices %}
+                {% set top = ((device.row_start - 1) / 42.0) * 100 %}
+                {% set height = (device.row_span / 42.0) * 100 %}
+                <article class="rack-unit" style="top: {{ '%.3f'|format(top) }}%; height: {{ '%.3f'|format(height) }}%;">
+                  <strong>{{ device.name }}</strong>
+                  <small>{{ device.kind or "device" }}{% if device.brand %} · {{ device.brand }}{% endif %}</small>
+                  <small>U{{ device.row_start }}{% if device.row_span > 1 %}-{{ device.row_start + device.row_span - 1 }}{% endif %}</small>
+                  {% if device.port_count %}
+                    <small>{{ device.port_count }} ports</small>
+                  {% endif %}
+                </article>
+              {% endfor %}
+            {% else %}
+              <article class="inventory-item">
+                <h4>No devices yet</h4>
+                <p class="muted">Add a few device rows below and this left-side rack view starts filling up immediately.</p>
+              </article>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="inventory-list">
+          <article class="inventory-item">
+            <h4>Location</h4>
+            <p>{{ rack.site or instance_name }}{% if rack.building %} / {{ rack.building }}{% endif %}{% if rack.location %} / {{ rack.location }}{% endif %}{% if rack.area %} / {{ rack.area }}{% endif %}</p>
+          </article>
+          <article class="inventory-item">
+            <h4>Description</h4>
+            <p>{{ rack.description or "No description yet." }}</p>
+          </article>
+          <article class="inventory-item">
+            <h4>Items On This Rack</h4>
+            {% if rack_devices %}
+              <div class="inventory-list">
+                {% for device in rack_devices %}
+                  <article class="inventory-item">
+                    <strong>{{ device.name }}</strong>
+                    <p class="muted">{{ device.kind or "device" }}{% if device.brand %} · {{ device.brand }}{% endif %}</p>
+                    {% if device.notes %}<p>{{ device.notes }}</p>{% endif %}
+                    <p class="muted">U{{ device.row_start }}{% if device.row_span > 1 %}-{{ device.row_start + device.row_span - 1 }}{% endif %}{% if device.port_count %} · {{ device.port_count }} ports{% endif %}</p>
+                  </article>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="muted">Nothing listed yet.</p>
+            {% endif %}
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel grid-8">
+      <h3>{{ "Create Rack Record" if mode == "new" else "Edit Rack Record" }}</h3>
+      <form class="stack" method="post" action="{{ url_for('rack_create') if mode == 'new' else url_for('rack_update', rack_id=rack.id) }}" enctype="multipart/form-data">
+        <div class="split">
+          <div>
+            <label for="name">Rack or cabinet name</label>
+            <input id="name" name="name" value="{{ rack.name }}" placeholder="South rack A, tunnel cabinet, entrance AV rack" required>
+          </div>
+          <div>
+            <label for="site">Site</label>
+            <input id="site" name="site" value="{{ rack.site or instance_name }}" placeholder="museum">
+          </div>
+          <div>
+            <label for="building">Building</label>
+            <input id="building" name="building" value="{{ rack.building }}" placeholder="main building">
+          </div>
+          <div>
+            <label for="location">Location</label>
+            <input id="location" name="location" value="{{ rack.location }}" placeholder="server room, tunnel room 2, entrance desk">
+          </div>
+          <div>
+            <label for="area">Area / sub-location</label>
+            <input id="area" name="area" value="{{ rack.area }}" placeholder="left cabinet, top shelf, wall rack">
+          </div>
+          <div>
+            <label>Photos</label>
+            <div class="photo-upload-grid">
+              <article class="upload-card">
+                <h5>Upload Existing Photos</h5>
+                <p class="muted">Pick one or several images from the device gallery or filesystem.</p>
+                <input id="photos" name="photos" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,image/*">
+              </article>
+              <article class="upload-card">
+                <h5>Capture With Camera</h5>
+                <p class="muted">Phone browsers should open the camera directly or prefer camera capture.</p>
+                <input id="photos-capture" name="photos" type="file" accept="image/*" capture="environment">
+              </article>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label for="description">Rack description</label>
+          <textarea id="description" name="description" placeholder="What this rack is for, what room it serves, what users should know">{{ rack.description }}</textarea>
+        </div>
+
+        <div>
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" placeholder="Loose comments, labeling problems, suspected devices, future AI/photo hints">{{ rack.notes }}</textarea>
+        </div>
+
+        <div class="stack">
+          <h4>Devices</h4>
+          <p class="muted">Keep it simple for today: name, type, brand, notes, ports, and optional U position/height. Ports and patch details can grow later from this record.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Kind</th>
+                <th>Brand</th>
+                <th>Ports</th>
+                <th>U size</th>
+                <th>U start</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for device in rack.devices %}
+                <tr>
+                  <td>
+                    <input type="hidden" name="device_id" value="{{ device.id or '' }}">
+                    <input name="device_name" value="{{ device.name or '' }}" placeholder="switch-a">
+                  </td>
+                  <td><input name="device_kind" value="{{ device.kind or '' }}" placeholder="switch, router, patch panel"></td>
+                  <td><input name="device_brand" value="{{ device.brand or '' }}" placeholder="Cisco, Ubiquiti"></td>
+                  <td><input name="device_port_count" value="{{ device.port_count or '' }}" placeholder="24"></td>
+                  <td><input name="device_unit_size" value="{{ device.unit_size or '' }}" placeholder="1"></td>
+                  <td><input name="device_u_position" value="{{ device.u_position or '' }}" placeholder="12"></td>
+                  <td><input name="device_notes" value="{{ device.notes or '' }}" placeholder="uplinks to hallway APs"></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="rack-hero-actions">
+          <button type="submit" class="download">{{ "Create Rack" if mode == "new" else "Save Changes" }}</button>
+          <a class="download alt" href="{{ url_for('index') }}">Back To Overview</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel grid-4">
+      <h3>Photos</h3>
+      {% if rack.photos %}
+        <div class="photo-strip">
+          {% for photo in rack.photos %}
+            <article class="photo-card">
+              <a href="{{ url_for('rack_photo', rack_id=rack.id, filename=photo.filename) }}" target="_blank" rel="noreferrer">
+                <img src="{{ url_for('rack_photo', rack_id=rack.id, filename=photo.filename) }}" alt="{{ photo.original_name or photo.filename }}">
+              </a>
+              <div class="photo-meta">
+                <strong>{{ photo.original_name or photo.filename }}</strong>
+                <span class="muted">{{ photo.stored_at or "unknown time" }}</span>
+                {% if photo.size_bytes %}<span class="muted">{{ photo.size_bytes }} bytes</span>{% endif %}
+                <a class="open-link" href="{{ url_for('rack_photo', rack_id=rack.id, filename=photo.filename) }}" target="_blank" rel="noreferrer">Open full image</a>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No photos stored yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel grid-4">
+      <h3>Change History</h3>
+      {% if history %}
+        <table>
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Action</th>
+              <th>Summary</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in history %}
+              <tr>
+                <td>{{ item.timestamp }}</td>
+                <td>{{ item.action }}</td>
+                <td>{{ item.summary }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No history yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel grid-4">
+      <h3>Next Layer Later</h3>
+      <ul class="list">
+        <li>Port objects and patching between devices.</li>
+        <li>Drag/drop rack placement instead of typed U fields.</li>
+        <li>Photo-assisted prefilling from LLM/vision tooling.</li>
+        <li>Diff views when a cabinet changes over time.</li>
+      </ul>
+    </div>
+  </section>
+{% endblock %}

@@ -26,6 +26,23 @@
         color: var(--ink);
       }
       a { color: var(--accent); }
+      .topbar {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 1rem 1.25rem 0;
+      }
+      .track-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        color: var(--muted);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .track-link:hover { color: var(--accent); }
       .shell {
         max-width: 1120px;
         margin: 0 auto;
@@ -94,6 +111,9 @@
         grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
         gap: 0.9rem;
       }
+      .cards.tight {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
       .card {
         border: 1px solid var(--line);
         border-radius: 18px;
@@ -127,6 +147,11 @@
         color: #fff;
         text-decoration: none;
         font-weight: 700;
+        border: 0;
+        cursor: pointer;
+      }
+      .download.alt {
+        background: var(--accent-2);
       }
       code {
         font-family: "IBM Plex Mono", "Fira Code", monospace;
@@ -142,6 +167,13 @@
       }
       input, textarea, button {
         font: inherit;
+      }
+      input {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        padding: 0.72rem 0.8rem;
+        background: rgba(255,255,255,0.86);
       }
       textarea {
         width: 100%;
@@ -162,12 +194,159 @@
         text-align: left;
         vertical-align: top;
       }
+      .stack {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+      }
+      .inventory-list {
+        display: grid;
+        gap: 0.65rem;
+      }
+      .inventory-item {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 0.75rem 0.9rem;
+        background: rgba(255,255,255,0.82);
+      }
+      .inventory-item h4 {
+        margin: 0 0 0.25rem;
+      }
+      .inventory-item p {
+        margin: 0.2rem 0 0;
+      }
+      .rack-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 1rem;
+      }
+      .rack-preview-shell {
+        display: grid;
+        grid-template-columns: minmax(300px, 440px) minmax(260px, 1fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .rack-preview {
+        position: relative;
+        min-height: 840px;
+        border-radius: 24px;
+        padding: 1rem;
+        border: 2px solid #61534a;
+        background:
+          linear-gradient(90deg, rgba(34,27,23,0.08) 0 14%, transparent 14% 86%, rgba(34,27,23,0.08) 86% 100%),
+          linear-gradient(180deg, rgba(255,255,255,0.55), rgba(0,0,0,0.02)),
+          #ece2d2;
+        overflow: hidden;
+      }
+      .rack-grid {
+        position: relative;
+        min-height: 800px;
+        border-radius: 18px;
+        background:
+          repeating-linear-gradient(
+            to bottom,
+            rgba(34,27,23,0.10) 0,
+            rgba(34,27,23,0.10) 1px,
+            transparent 1px,
+            transparent calc(100% / 42)
+          );
+      }
+      .rack-unit {
+        position: absolute;
+        left: 1rem;
+        right: 1rem;
+        border-radius: 12px;
+        border: 1px solid rgba(34,27,23,0.22);
+        background: linear-gradient(135deg, rgba(15,108,92,0.85), rgba(15,108,92,0.55));
+        color: #fff;
+        padding: 0.45rem 0.65rem;
+        box-shadow: 0 8px 14px rgba(34,27,23,0.14);
+        overflow: hidden;
+      }
+      .rack-unit strong {
+        display: block;
+      }
+      .rack-unit small {
+        display: block;
+        opacity: 0.9;
+      }
+      .photo-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.8rem;
+      }
+      .photo-upload-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.9rem;
+      }
+      .upload-card {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 0.9rem;
+        background: rgba(255,255,255,0.72);
+      }
+      .upload-card h5 {
+        margin: 0 0 0.35rem;
+      }
+      .photo-card img {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        display: block;
+        background: #ddd2c2;
+        aspect-ratio: 4 / 3;
+        object-fit: cover;
+      }
+      .photo-card {
+        display: grid;
+        gap: 0.45rem;
+      }
+      .photo-meta {
+        display: grid;
+        gap: 0.15rem;
+      }
+      .photo-card a {
+        text-decoration: none;
+      }
+      .photo-card .open-link {
+        font-weight: 700;
+        font-size: 0.92rem;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        padding: 0.4rem 0.7rem;
+        background: rgba(255,255,255,0.8);
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .error {
+        border-color: rgba(170, 44, 44, 0.28);
+        background: rgba(170, 44, 44, 0.08);
+        color: #7b1c1c;
+      }
       @media (max-width: 820px) {
         .grid-6, .grid-4 { grid-column: span 12; }
+        .split,
+        .rack-preview-shell { grid-template-columns: 1fr; }
+        .rack-preview { min-height: 560px; }
+        .rack-grid { min-height: 520px; }
       }
     </style>
   </head>
   <body>
+    <div class="topbar">
+      <a class="track-link" href="{{ track_base }}">← TRACK</a>
+    </div>
     <main class="shell">
       {% block body %}{% endblock %}
     </main>

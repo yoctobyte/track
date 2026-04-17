@@ -4,11 +4,13 @@ import json
 import os
 import platform
 import secrets
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_from_directory, url_for
+from werkzeug.utils import secure_filename
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -50,6 +52,9 @@ def runtime_paths() -> dict[str, Path]:
         "host_reports": root / "host-reports",
         "downloads": root / "downloads",
         "manifests": root / "manifests",
+        "rack_inventory": root / "rack-inventory",
+        "rack_photos": root / "rack-photos",
+        "rack_history": root / "rack-history",
         "simple_registrations": root / "simple-registrations.jsonl",
         "simple_upload_token": root / ".simple-upload-token",
     }
@@ -114,6 +119,232 @@ def append_simple_registration(payload: dict[str, Any]) -> None:
         handle.write(json.dumps(payload, ensure_ascii=True) + "\n")
 
 
+def slugify(value: str) -> str:
+    cleaned = "".join(char.lower() if char.isalnum() else "-" for char in value.strip())
+    collapsed = "-".join(part for part in cleaned.split("-") if part)
+    return collapsed[:64] or f"rack-{uuid.uuid4().hex[:8]}"
+
+
+def rack_inventory_path(rack_id: str) -> Path:
+    return runtime_paths()["rack_inventory"] / f"{rack_id}.json"
+
+
+def rack_history_path(rack_id: str) -> Path:
+    return runtime_paths()["rack_history"] / f"{rack_id}.jsonl"
+
+
+def now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def default_rack_record() -> dict[str, Any]:
+    return {
+        "id": "",
+        "name": "",
+        "site": instance_name(),
+        "building": "",
+        "location": "",
+        "area": "",
+        "description": "",
+        "notes": "",
+        "photos": [],
+        "devices": [],
+        "created_at": None,
+        "updated_at": None,
+    }
+
+
+def normalise_device(device: dict[str, Any], index: int) -> dict[str, Any]:
+    name = str(device.get("name", "")).strip()
+    if not name:
+        return {}
+    kind = str(device.get("kind", "")).strip()
+    brand = str(device.get("brand", "")).strip()
+    notes = str(device.get("notes", "")).strip()
+    ports_raw = str(device.get("port_count", "")).strip()
+    units_raw = str(device.get("unit_size", "")).strip()
+    position_raw = str(device.get("u_position", "")).strip()
+    try:
+        port_count = max(0, min(256, int(ports_raw))) if ports_raw else 0
+    except ValueError:
+        port_count = 0
+    try:
+        unit_size = max(1, min(20, int(units_raw))) if units_raw else 1
+    except ValueError:
+        unit_size = 1
+    try:
+        u_position = max(1, min(48, int(position_raw))) if position_raw else None
+    except ValueError:
+        u_position = None
+    return {
+        "id": str(device.get("id", "")).strip() or f"dev-{index + 1}",
+        "name": name,
+        "kind": kind,
+        "brand": brand,
+        "notes": notes,
+        "port_count": port_count,
+        "unit_size": unit_size,
+        "u_position": u_position,
+    }
+
+
+def rack_form_data(form: Any) -> dict[str, Any]:
+    devices: list[dict[str, Any]] = []
+    names = form.getlist("device_name")
+    for index, name in enumerate(names):
+        device = normalise_device(
+            {
+                "id": form.getlist("device_id")[index] if index < len(form.getlist("device_id")) else "",
+                "name": name,
+                "kind": form.getlist("device_kind")[index] if index < len(form.getlist("device_kind")) else "",
+                "brand": form.getlist("device_brand")[index] if index < len(form.getlist("device_brand")) else "",
+                "notes": form.getlist("device_notes")[index] if index < len(form.getlist("device_notes")) else "",
+                "port_count": form.getlist("device_port_count")[index]
+                if index < len(form.getlist("device_port_count"))
+                else "",
+                "unit_size": form.getlist("device_unit_size")[index]
+                if index < len(form.getlist("device_unit_size"))
+                else "",
+                "u_position": form.getlist("device_u_position")[index]
+                if index < len(form.getlist("device_u_position"))
+                else "",
+            },
+            index,
+        )
+        if device:
+            devices.append(device)
+    return {
+        "name": str(form.get("name", "")).strip(),
+        "site": str(form.get("site", "")).strip() or instance_name(),
+        "building": str(form.get("building", "")).strip(),
+        "location": str(form.get("location", "")).strip(),
+        "area": str(form.get("area", "")).strip(),
+        "description": str(form.get("description", "")).strip(),
+        "notes": str(form.get("notes", "")).strip(),
+        "devices": devices,
+    }
+
+
+def save_rack_record(record: dict[str, Any]) -> None:
+    path = rack_inventory_path(record["id"])
+    path.write_text(json.dumps(record, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+
+def load_rack_record(rack_id: str) -> dict[str, Any] | None:
+    path = rack_inventory_path(rack_id)
+    if not path.exists():
+        return None
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(loaded, dict):
+        return None
+    record = default_rack_record()
+    record.update(loaded)
+    record["photos"] = loaded.get("photos", []) if isinstance(loaded.get("photos"), list) else []
+    record["devices"] = loaded.get("devices", []) if isinstance(loaded.get("devices"), list) else []
+    return record
+
+
+def list_racks() -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for path in sorted(runtime_paths()["rack_inventory"].glob("*.json")):
+        rack = load_rack_record(path.stem)
+        if not rack:
+            continue
+        rows.append(rack)
+    rows.sort(key=lambda item: item.get("updated_at") or "", reverse=True)
+    return rows
+
+
+def append_rack_history(rack_id: str, event: dict[str, Any]) -> None:
+    path = rack_history_path(rack_id)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, ensure_ascii=True) + "\n")
+
+
+def read_rack_history(rack_id: str, limit: int = 20) -> list[dict[str, Any]]:
+    path = rack_history_path(rack_id)
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return list(reversed(rows[-limit:]))
+
+
+def allowed_photo(filename: str) -> bool:
+    suffix = Path(filename).suffix.lower()
+    return suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+
+
+def save_uploaded_photos(rack_id: str, uploaded_files: list[Any]) -> list[dict[str, Any]]:
+    saved: list[dict[str, Any]] = []
+    photo_dir = runtime_paths()["rack_photos"] / rack_id
+    photo_dir.mkdir(parents=True, exist_ok=True)
+    for uploaded in uploaded_files:
+        if not uploaded or not getattr(uploaded, "filename", ""):
+            continue
+        filename = secure_filename(uploaded.filename)
+        if not filename or not allowed_photo(filename):
+            continue
+        final_name = f"{datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}{Path(filename).suffix.lower()}"
+        target = photo_dir / final_name
+        uploaded.save(target)
+        saved.append(
+            {
+                "filename": final_name,
+                "original_name": filename,
+                "stored_at": now_iso(),
+                "size_bytes": target.stat().st_size,
+            }
+        )
+    return saved
+
+
+def rack_summary(record: dict[str, Any]) -> str:
+    parts = [record.get("name") or record.get("id") or "rack"]
+    location_parts = [record.get("site"), record.get("building"), record.get("location"), record.get("area")]
+    joined = " / ".join(part for part in location_parts if part)
+    if joined:
+        parts.append(joined)
+    return " - ".join(parts)
+
+
+def rack_visual_devices(record: dict[str, Any]) -> list[dict[str, Any]]:
+    devices = record.get("devices", []) if isinstance(record.get("devices"), list) else []
+    rows: list[dict[str, Any]] = []
+    next_position = 1
+    for index, device in enumerate(devices):
+        if not isinstance(device, dict):
+            continue
+        unit_size = max(1, int(device.get("unit_size") or 1))
+        requested = device.get("u_position")
+        try:
+            position = int(requested) if requested else next_position
+        except (TypeError, ValueError):
+            position = next_position
+        position = max(1, min(42, position))
+        next_position = max(next_position, position + unit_size)
+        rows.append(
+            {
+                **device,
+                "row_start": position,
+                "row_span": unit_size,
+                "display_index": index + 1,
+            }
+        )
+    return rows
+
+
 def simple_template_path(name: str) -> Path:
     return SIMPLE_DIR / "templates" / name
 
@@ -174,6 +405,7 @@ def create_app() -> Flask:
 
     @app.get("/")
     def index():
+        racks = list_racks()
         paths = runtime_paths()
         manifest = load_manifest(paths)
         client_packages = manifest.get("client_packages", [])
@@ -181,6 +413,11 @@ def create_app() -> Flask:
         recent_ingest = manifest.get("recent_ingest", [])
         simple_recent = read_simple_registrations()
         cards = [
+            {
+                "label": "Rack Records",
+                "value": str(len(racks)),
+                "hint": "Cabinets, wall racks, or device clusters being documented here.",
+            },
             {
                 "label": "Client Packages",
                 "value": str(len(client_packages)),
@@ -205,8 +442,9 @@ def create_app() -> Flask:
         return render_template(
             "index.html",
             title="NetInventory Host",
-            subtitle="Host-side intake, publishing, and aggregation surface",
+            subtitle="Rack inventory intake, publishing, and aggregation surface",
             cards=cards,
+            racks=racks,
             manifest=manifest,
             client_packages=client_packages,
             registered_hosts=registered_hosts,
@@ -215,6 +453,124 @@ def create_app() -> Flask:
             paths={key: str(value) for key, value in paths.items()},
             current_host=platform.node(),
         )
+
+    @app.get("/racks/new")
+    def rack_new():
+        record = default_rack_record()
+        record["devices"] = [{} for _ in range(6)]
+        return render_template(
+            "rack_form.html",
+            title="New Rack",
+            subtitle="Create a cabinet, rack, or device cluster record",
+            rack=record,
+            history=[],
+            rack_devices=[],
+            photo_count=0,
+            mode="new",
+        )
+
+    @app.get("/racks/<rack_id>")
+    def rack_detail(rack_id: str):
+        record = load_rack_record(rack_id)
+        if not record:
+            abort(404)
+        form_rack = {**record}
+        form_rack["devices"] = list(record.get("devices", [])) + [{} for _ in range(3)]
+        return render_template(
+            "rack_form.html",
+            title=record.get("name") or rack_id,
+            subtitle="Edit rack location, photos, and device list",
+            rack=form_rack,
+            history=read_rack_history(rack_id),
+            rack_devices=rack_visual_devices(record),
+            photo_count=len(record.get("photos", [])),
+            mode="edit",
+        )
+
+    @app.post("/racks")
+    def rack_create():
+        record = default_rack_record()
+        posted = rack_form_data(request.form)
+        record.update(posted)
+        if not record["name"]:
+            return render_template(
+                "rack_form.html",
+                title="New Rack",
+                subtitle="Create a cabinet, rack, or device cluster record",
+                rack={**record, "devices": posted["devices"] + [{} for _ in range(3)]},
+                history=[],
+                rack_devices=rack_visual_devices(record),
+                photo_count=0,
+                mode="new",
+                error="Rack name is required.",
+            ), 400
+        rack_id = slugify(record["name"])
+        while rack_inventory_path(rack_id).exists():
+            rack_id = f"{slugify(record['name'])}-{uuid.uuid4().hex[:4]}"
+        timestamp = now_iso()
+        record["id"] = rack_id
+        record["created_at"] = timestamp
+        record["updated_at"] = timestamp
+        record["photos"] = save_uploaded_photos(rack_id, request.files.getlist("photos"))
+        save_rack_record(record)
+        append_rack_history(
+            rack_id,
+            {
+                "timestamp": timestamp,
+                "action": "created",
+                "summary": rack_summary(record),
+                "photo_count": len(record["photos"]),
+                "device_count": len(record["devices"]),
+            },
+        )
+        return redirect(url_for("rack_detail", rack_id=rack_id, saved="created"))
+
+    @app.post("/racks/<rack_id>")
+    def rack_update(rack_id: str):
+        record = load_rack_record(rack_id)
+        if not record:
+            abort(404)
+        posted = rack_form_data(request.form)
+        if not posted["name"]:
+            form_rack = {**record, **posted}
+            form_rack["id"] = rack_id
+            form_rack["photos"] = record.get("photos", [])
+            form_rack["devices"] = posted["devices"] + [{} for _ in range(3)]
+            return render_template(
+                "rack_form.html",
+                title=record.get("name") or rack_id,
+                subtitle="Edit rack location, photos, and device list",
+                rack=form_rack,
+                history=read_rack_history(rack_id),
+                rack_devices=rack_visual_devices(form_rack),
+                photo_count=len(record.get("photos", [])),
+                mode="edit",
+                error="Rack name is required.",
+            ), 400
+        before = json.dumps(record, sort_keys=True)
+        record.update(posted)
+        new_photos = save_uploaded_photos(rack_id, request.files.getlist("photos"))
+        record["photos"] = list(record.get("photos", [])) + new_photos
+        record["updated_at"] = now_iso()
+        save_rack_record(record)
+        after = json.dumps(record, sort_keys=True)
+        append_rack_history(
+            rack_id,
+            {
+                "timestamp": record["updated_at"],
+                "action": "updated",
+                "summary": rack_summary(record),
+                "photo_count": len(new_photos),
+                "device_count": len(record["devices"]),
+                "changed": before != after,
+            },
+        )
+        return redirect(url_for("rack_detail", rack_id=rack_id, saved="updated"))
+
+    @app.get("/rack-photos/<rack_id>/<filename>")
+    def rack_photo(rack_id: str, filename: str):
+        photo_dir = runtime_paths()["rack_photos"] / rack_id
+        return send_from_directory(photo_dir, filename)
 
     @app.get("/downloads/netinventory-client-bootstrap.sh")
     def download_bootstrap():

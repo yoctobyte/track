@@ -8,14 +8,19 @@
     <div class="meta">
       <span>Public path <code>{{ netinventory_public_path }}</code></span>
       <span>Client path <code>{{ netinventory_client_public_path }}</code></span>
+      <span>Host <code>{{ current_host }}</code></span>
       <span>Repo <a href="{{ github_repo }}">{{ github_repo }}</a></span>
+    </div>
+    <div class="rack-hero-actions">
+      <a class="download alt" href="{{ url_for('rack_new') }}">Create Rack Record</a>
+      <a class="download" href="/downloads/netinventory-client-bootstrap.sh">Download Client Bootstrap</a>
     </div>
   </section>
 
   <section class="layout">
     <div class="panel">
-      <h2>Role Split</h2>
-      <div class="cards">
+      <h2>Inventory Overview</h2>
+      <div class="cards tight">
         {% for card in cards %}
           <article class="card">
             <strong>{{ card.label }}</strong>
@@ -26,70 +31,53 @@
       </div>
     </div>
 
-    <div class="panel grid-6">
-      <h3>What This Host App Does</h3>
+    <div class="panel grid-8">
+      <h3>Rack Records</h3>
+      {% if racks %}
+        <div class="inventory-list">
+          {% for rack in racks %}
+            <article class="inventory-item">
+              <div class="split">
+                <div>
+                  <h4><a href="{{ url_for('rack_detail', rack_id=rack.id) }}">{{ rack.name or rack.id }}</a></h4>
+                  <p class="muted">
+                    {{ rack.site or instance_name }}
+                    {% if rack.building %} / {{ rack.building }}{% endif %}
+                    {% if rack.location %} / {{ rack.location }}{% endif %}
+                    {% if rack.area %} / {{ rack.area }}{% endif %}
+                  </p>
+                </div>
+                <div>
+                  <div class="badge">{{ rack.devices|length }} device{{ "" if rack.devices|length == 1 else "s" }}</div>
+                  <div class="badge">{{ rack.photos|length }} photo{{ "" if rack.photos|length == 1 else "s" }}</div>
+                  <div class="badge">Updated {{ rack.updated_at or "unknown" }}</div>
+                </div>
+              </div>
+              {% if rack.description %}
+                <p>{{ rack.description }}</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No rack or cabinet records yet. Create the first one and start uploading photos today.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel grid-4">
+      <h3>What This MVP Captures</h3>
       <ul class="list">
-        <li>Reserve a clean host-side entrypoint under TRACK for later uploads, synchronization, and unattended reports.</li>
-        <li>Publish bootstrap/download material for the attended laptop-side client.</li>
-        <li>Offer a very small browser-and-script registration path for ordinary devices.</li>
-        <li>Keep host-side aggregation separate from privileged local laptop capture logic.</li>
+        <li>Rack or cabinet name plus site, building, location, and area.</li>
+        <li>Rack description and free-form notes for later AI/photo-assisted prefilling.</li>
+        <li>One or multiple photos attached to the rack record.</li>
+        <li>Simple device rows with kind, brand, notes, ports, and U hints.</li>
+        <li>Append-only change history per rack.</li>
       </ul>
-      <a class="download" href="/downloads/netinventory-client-bootstrap.sh">Download Client Bootstrap</a>
-    </div>
-
-    <div class="panel grid-6">
-      <h3>Runtime Paths</h3>
-      <ul class="list">
-        <li><code>{{ paths.root }}</code></li>
-        <li><code>{{ paths.clients }}</code></li>
-        <li><code>{{ paths.host_reports }}</code></li>
-        <li><code>{{ paths.downloads }}</code></li>
-        <li><code>{{ paths.manifests }}</code></li>
-      </ul>
-    </div>
-
-    <div class="panel grid-4">
-      <h3>Client Packages</h3>
-      {% if client_packages %}
-        <ul class="list">
-          {% for item in client_packages %}
-            <li><code>{{ item.name or item.id or "unnamed" }}</code></li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="muted">No published client packages are recorded yet.</p>
-      {% endif %}
-    </div>
-
-    <div class="panel grid-4">
-      <h3>Registered Hosts</h3>
-      {% if registered_hosts %}
-        <ul class="list">
-          {% for item in registered_hosts %}
-            <li><code>{{ item.name or item.id or "unnamed-host" }}</code></li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="muted">No unattended host reporters are registered yet.</p>
-      {% endif %}
-    </div>
-
-    <div class="panel grid-4">
-      <h3>Recent Ingest</h3>
-      {% if recent_ingest %}
-        <ul class="list">
-          {% for item in recent_ingest %}
-            <li>{{ item.timestamp or "unknown time" }} - {{ item.summary or item.kind or "event" }}</li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="muted">No uploads or synchronization events have been recorded yet.</p>
-      {% endif %}
     </div>
 
     <div class="panel grid-6">
       <h3>Simple Registration</h3>
-      <p class="muted">Use this for ordinary devices where you just want a browser visit or a tiny collector script, not the full attended client.</p>
+      <p class="muted">Keep this for quick workstation registration. It is still separate from the rack/cabinet editor.</p>
       <form id="simple-browser-form" class="stack">
         <label for="simple-description">Description</label>
         <textarea id="simple-description" name="description" placeholder="Entrance desk PC with printer, lobby laptop, office spare machine"></textarea>
