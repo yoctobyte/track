@@ -269,24 +269,24 @@
       fi
     elif command -v python3 >/dev/null 2>&1; then
       python3 - "$src" "$max_width" <<'PY'
-import struct, sys
-path, max_w = sys.argv[1], int(sys.argv[2])
-with open(path, "rb") as f:
-    header = f.read(24)
-if header[:8] != b"\x89PNG\r\n\x1a\n":
-    sys.exit(0)
-width = struct.unpack(">I", header[16:20])[0]
-if width <= max_w:
-    sys.exit(0)
-try:
-    from PIL import Image
-    img = Image.open(path)
-    ratio = max_w / img.width
-    img = img.resize((max_w, round(img.height * ratio)), Image.LANCZOS)
-    img.save(path, "PNG", optimize=True)
-except ImportError:
-    pass
-PY
+      import struct, sys
+      path, max_w = sys.argv[1], int(sys.argv[2])
+      with open(path, "rb") as f:
+          header = f.read(24)
+      if header[:8] != b"\x89PNG\r\n\x1a\n":
+          sys.exit(0)
+      width = struct.unpack(">I", header[16:20])[0]
+      if width <= max_w:
+          sys.exit(0)
+      try:
+          from PIL import Image
+          img = Image.open(path)
+          ratio = max_w / img.width
+          img = img.resize((max_w, round(img.height * ratio)), Image.LANCZOS)
+          img.save(path, "PNG", optimize=True)
+      except ImportError:
+          pass
+      PY
     fi
   args:
     executable: /bin/bash
