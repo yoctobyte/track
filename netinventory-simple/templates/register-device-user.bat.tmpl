@@ -1,0 +1,24 @@
+@echo off
+setlocal EnableDelayedExpansion
+set "TARGET_URL=%TRACK_SIMPLE_URL%"
+if "%TARGET_URL%"=="" set "TARGET_URL=__TARGET_URL__"
+set "TOKEN=%TRACK_SIMPLE_TOKEN%"
+if "%TOKEN%"=="" set "TOKEN=__TOKEN__"
+set "DESCRIPTION=%~1"
+if "%DESCRIPTION%"=="" set "DESCRIPTION=%COMPUTERNAME%"
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference = 'SilentlyContinue';" ^
+  "$cs = Get-CimInstance Win32_ComputerSystem;" ^
+  "$os = Get-CimInstance Win32_OperatingSystem;" ^
+  "$cpu = Get-CimInstance Win32_Processor | Select-Object -First 1;" ^
+  "$bios = Get-CimInstance Win32_BIOS | Select-Object -First 1;" ^
+  "$net = Get-NetIPConfiguration | ForEach-Object { [ordered]@{ interfaceAlias=$_.InterfaceAlias; interfaceDescription=$_.InterfaceDescription; ipv4=@($_.IPv4Address | ForEach-Object { $_.IPAddress }); ipv6=@($_.IPv6Address | ForEach-Object { $_.IPAddress }); gateway=@($_.IPv4DefaultGateway | ForEach-Object { $_.NextHop }); dns=@($_.DNSServer.ServerAddresses) } };" ^
+  "$routes = Get-NetRoute -AddressFamily IPv4 | Select-Object DestinationPrefix,NextHop,InterfaceAlias,RouteMetric;" ^
+  "$displays = Get-CimInstance Win32_DesktopMonitor | Select-Object Name,ScreenWidth,ScreenHeight,PNPDeviceID;" ^
+  "$ext = $null; try { $ext = (Invoke-RestMethod -TimeoutSec 4 -Uri 'https://api.ipify.org') } catch {};" ^
+  "$payload = [ordered]@{ kind='script-batch-user'; description=$env:DESCRIPTION; mode='user'; platform='windows'; host=[ordered]@{ hostname=$env:COMPUTERNAME; user=$env:USERNAME; domain=$env:USERDOMAIN; osCaption=$os.Caption; osVersion=$os.Version; buildNumber=$os.BuildNumber; biosSerial=$bios.SerialNumber }; hardware=[ordered]@{ manufacturer=$cs.Manufacturer; model=$cs.Model; totalPhysicalMemory=$cs.TotalPhysicalMemory; cpuName=$cpu.Name; cpuCores=$cpu.NumberOfCores; cpuLogical=$cpu.NumberOfLogicalProcessors; architecture=$cpu.AddressWidth; }; network=[ordered]@{ interfaces=$net; routes=$routes; externalIp=$ext }; displays=$displays; browserless=$true }; " ^
+  "$body = $payload | ConvertTo-Json -Depth 8 -Compress;" ^
+  "Invoke-RestMethod -Method Post -Uri $env:TARGET_URL -Headers @{ 'X-NetInventory-Simple-Token' = $env:TOKEN } -ContentType 'application/json' -Body $body | Out-Null"
+
+echo NetInventory simple user upload complete.

@@ -1,0 +1,33 @@
+@echo off
+setlocal EnableDelayedExpansion
+set "TARGET_URL=%TRACK_SIMPLE_URL%"
+if "%TARGET_URL%"=="" set "TARGET_URL=__TARGET_URL__"
+set "TOKEN=%TRACK_SIMPLE_TOKEN%"
+if "%TOKEN%"=="" set "TOKEN=__TOKEN__"
+set "DESCRIPTION=%~1"
+if "%DESCRIPTION%"=="" set "DESCRIPTION=%COMPUTERNAME%"
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference = 'SilentlyContinue';" ^
+  "$identity = [Security.Principal.WindowsIdentity]::GetCurrent();" ^
+  "$principal = New-Object Security.Principal.WindowsPrincipal($identity);" ^
+  "$isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);" ^
+  "$cs = Get-CimInstance Win32_ComputerSystem;" ^
+  "$os = Get-CimInstance Win32_OperatingSystem;" ^
+  "$cpu = Get-CimInstance Win32_Processor;" ^
+  "$bios = Get-CimInstance Win32_BIOS;" ^
+  "$board = Get-CimInstance Win32_BaseBoard;" ^
+  "$disks = Get-CimInstance Win32_DiskDrive | ForEach-Object { [ordered]@{ model=$_.Model; serial=$_.SerialNumber; size=$_.Size; interfaceType=$_.InterfaceType; mediaType=$_.MediaType; partitions=$_.Partitions } };" ^
+  "$logical = Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID,VolumeName,FileSystem,Size,FreeSpace,VolumeSerialNumber;" ^
+  "$net = Get-NetAdapter | Select-Object Name,InterfaceDescription,MacAddress,Status,LinkSpeed,InterfaceGuid;" ^
+  "$ip = Get-NetIPConfiguration | ForEach-Object { [ordered]@{ interfaceAlias=$_.InterfaceAlias; interfaceDescription=$_.InterfaceDescription; ipv4=@($_.IPv4Address | ForEach-Object { $_.IPAddress }); ipv6=@($_.IPv6Address | ForEach-Object { $_.IPAddress }); gateway=@($_.IPv4DefaultGateway | ForEach-Object { $_.NextHop }); dns=@($_.DNSServer.ServerAddresses) } };" ^
+  "$routes = Get-NetRoute | Select-Object AddressFamily,DestinationPrefix,NextHop,InterfaceAlias,RouteMetric;" ^
+  "$displays = Get-CimInstance Win32_DesktopMonitor | Select-Object Name,ScreenWidth,ScreenHeight,PNPDeviceID,Status;" ^
+  "$video = Get-CimInstance Win32_VideoController | Select-Object Name,AdapterRAM,DriverVersion,VideoProcessor,CurrentHorizontalResolution,CurrentVerticalResolution;" ^
+  "$pnp = Get-CimInstance Win32_PnPEntity | Select-Object -First 120 Name,ClassGuid,Manufacturer,Status,PNPDeviceID;" ^
+  "$ext = $null; try { $ext = (Invoke-RestMethod -TimeoutSec 4 -Uri 'https://api.ipify.org') } catch {};" ^
+  "$payload = [ordered]@{ kind='script-batch-admin'; description=$env:DESCRIPTION; mode='admin'; platform='windows'; privileged=$isAdmin; host=[ordered]@{ hostname=$env:COMPUTERNAME; user=$env:USERNAME; domain=$env:USERDOMAIN; osCaption=$os.Caption; osVersion=$os.Version; buildNumber=$os.BuildNumber; installDate=$os.InstallDate }; hardware=[ordered]@{ manufacturer=$cs.Manufacturer; model=$cs.Model; totalPhysicalMemory=$cs.TotalPhysicalMemory; cpu=$cpu; bios=$bios; baseboard=$board; displays=$displays; video=$video }; storage=[ordered]@{ disks=$disks; logicalDisks=$logical }; network=[ordered]@{ adapters=$net; interfaceConfig=$ip; routes=$routes; externalIp=$ext }; peripherals=[ordered]@{ pnpSample=$pnp } }; " ^
+  "$body = $payload | ConvertTo-Json -Depth 10 -Compress;" ^
+  "Invoke-RestMethod -Method Post -Uri $env:TARGET_URL -Headers @{ 'X-NetInventory-Simple-Token' = $env:TOKEN } -ContentType 'application/json' -Body $body | Out-Null"
+
+echo NetInventory simple admin upload complete.

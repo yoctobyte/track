@@ -8,6 +8,7 @@ This is not a separate running server.
 Its job is to hold:
 
 - tiny downloadable shell / batch collectors
+- separate user-mode and admin-mode collectors for Linux and Windows
 - future PowerShell or packaged binary variants
 - minimal client-side documentation and templates
 

@@ -1,0 +1,132 @@
+#!/bin/bash
+set -u
+
+TARGET_URL="${TRACK_SIMPLE_URL:-__TARGET_URL__}"
+TOKEN="${TRACK_SIMPLE_TOKEN:-__TOKEN__}"
+DESCRIPTION="${1:-$(hostname 2>/dev/null || echo unknown-device)}"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 is required for register-device-user.sh" >&2
+  exit 1
+fi
+
+run_cmd() {
+  "$@" 2>/dev/null || true
+}
+
+first_line() {
+  "$@" 2>/dev/null | head -n 1 || true
+}
+
+read_file() {
+  if [ -r "$1" ]; then
+    cat "$1" 2>/dev/null || true
+  fi
+}
+
+USER_VALUE="${USER:-$(id -un 2>/dev/null || echo unknown)}"
+HOSTNAME_VALUE="$(hostname 2>/dev/null || echo unknown)"
+FQDN_VALUE="$(hostname -f 2>/dev/null || echo "")"
+KERNEL_VALUE="$(uname -srvmo 2>/dev/null || uname -a 2>/dev/null || echo unknown)"
+MACHINE_ID_VALUE="$(tr -d '\n' </etc/machine-id 2>/dev/null || true)"
+BOOT_ID_VALUE="$(tr -d '\n' </proc/sys/kernel/random/boot_id 2>/dev/null || true)"
+OS_RELEASE_VALUE="$(tr '\n' ';' </etc/os-release 2>/dev/null || true)"
+CPU_MODEL_VALUE="$(awk -F: '/Model name/ {gsub(/^[ \t]+/, \"\", $2); print $2; exit}' <(lscpu 2>/dev/null) || true)"
+if [ -z "$CPU_MODEL_VALUE" ]; then
+  CPU_MODEL_VALUE="$(awk -F: '/model name/ {gsub(/^[ \t]+/, \"\", $2); print $2; exit}' /proc/cpuinfo 2>/dev/null || true)"
+fi
+CPU_ARCH_VALUE="$(uname -m 2>/dev/null || true)"
+CPU_THREADS_VALUE="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo "")"
+CPU_CORES_VALUE="$(awk -F: '/Core\\(s\\) per socket/ {gsub(/^[ \t]+/, \"\", $2); print $2; exit}' <(lscpu 2>/dev/null) || true)"
+MEM_TOTAL_KB_VALUE="$(awk '/MemTotal/ {print $2; exit}' /proc/meminfo 2>/dev/null || true)"
+SWAP_TOTAL_KB_VALUE="$(awk '/SwapTotal/ {print $2; exit}' /proc/meminfo 2>/dev/null || true)"
+IP_BRIEF_VALUE="$(run_cmd ip -brief address | tr '\n' ';')"
+ROUTE_VALUE="$(run_cmd ip route | tr '\n' ';')"
+DEFAULT_ROUTE_VALUE="$(run_cmd ip route show default | head -n 1)"
+NAMESERVER_VALUE="$(awk '/^nameserver/ {print $2}' /etc/resolv.conf 2>/dev/null | paste -sd, - || true)"
+LSBLK_VALUE="$(run_cmd lsblk -J -o NAME,TYPE,SIZE,MOUNTPOINT,FSTYPE,MODEL,RM,ROTA)"
+DISK_USAGE_VALUE="$(run_cmd df -hT | tr '\n' ';')"
+PCI_VALUE="$(run_cmd lspci -mm | head -n 60 | tr '\n' ';')"
+USB_VALUE="$(run_cmd lsusb | head -n 40 | tr '\n' ';')"
+DISPLAY_VALUE="$(run_cmd xrandr --query | tr '\n' ';')"
+EXTERNAL_IP_VALUE=""
+if command -v curl >/dev/null 2>&1; then
+  EXTERNAL_IP_VALUE="$(curl -4fsS --max-time 4 https://api.ipify.org 2>/dev/null || true)"
+elif command -v wget >/dev/null 2>&1; then
+  EXTERNAL_IP_VALUE="$(wget -4qO- --timeout=4 https://api.ipify.org 2>/dev/null || true)"
+fi
+
+export TARGET_URL TOKEN DESCRIPTION USER_VALUE HOSTNAME_VALUE FQDN_VALUE KERNEL_VALUE
+export MACHINE_ID_VALUE BOOT_ID_VALUE OS_RELEASE_VALUE CPU_MODEL_VALUE CPU_ARCH_VALUE
+export CPU_THREADS_VALUE CPU_CORES_VALUE MEM_TOTAL_KB_VALUE SWAP_TOTAL_KB_VALUE
+export IP_BRIEF_VALUE ROUTE_VALUE DEFAULT_ROUTE_VALUE NAMESERVER_VALUE LSBLK_VALUE
+export DISK_USAGE_VALUE PCI_VALUE USB_VALUE DISPLAY_VALUE EXTERNAL_IP_VALUE
+
+PAYLOAD="$(python3 - <<'PY'
+import json
+import os
+
+def split_semicolon(value: str) -> list[str]:
+    return [item for item in value.split(";") if item]
+
+payload = {
+    "kind": "script-shell-user",
+    "description": os.environ["DESCRIPTION"],
+    "mode": "user",
+    "platform": "linux",
+    "host": {
+        "hostname": os.environ["HOSTNAME_VALUE"],
+        "fqdn": os.environ["FQDN_VALUE"],
+        "user": os.environ["USER_VALUE"],
+        "kernel": os.environ["KERNEL_VALUE"],
+        "machine_id": os.environ["MACHINE_ID_VALUE"],
+        "boot_id": os.environ["BOOT_ID_VALUE"],
+        "os_release_raw": os.environ["OS_RELEASE_VALUE"],
+    },
+    "hardware": {
+        "cpu_model": os.environ["CPU_MODEL_VALUE"],
+        "cpu_arch": os.environ["CPU_ARCH_VALUE"],
+        "cpu_threads_online": os.environ["CPU_THREADS_VALUE"],
+        "cpu_cores_per_socket": os.environ["CPU_CORES_VALUE"],
+        "memory_total_kb": os.environ["MEM_TOTAL_KB_VALUE"],
+        "swap_total_kb": os.environ["SWAP_TOTAL_KB_VALUE"],
+    },
+    "network": {
+        "interface_addresses": split_semicolon(os.environ["IP_BRIEF_VALUE"]),
+        "routes": split_semicolon(os.environ["ROUTE_VALUE"]),
+        "default_route": os.environ["DEFAULT_ROUTE_VALUE"],
+        "nameservers": [item for item in os.environ["NAMESERVER_VALUE"].split(",") if item],
+        "external_ip": os.environ["EXTERNAL_IP_VALUE"],
+    },
+    "storage": {
+        "lsblk_json": os.environ["LSBLK_VALUE"],
+        "disk_usage": split_semicolon(os.environ["DISK_USAGE_VALUE"]),
+    },
+    "peripherals": {
+        "pci_summary": split_semicolon(os.environ["PCI_VALUE"]),
+        "usb_summary": split_semicolon(os.environ["USB_VALUE"]),
+        "display_summary": split_semicolon(os.environ["DISPLAY_VALUE"]),
+    },
+}
+print(json.dumps(payload, ensure_ascii=True))
+PY
+)"
+
+if command -v curl >/dev/null 2>&1; then
+  curl -fsS "$TARGET_URL" \
+    -H "Content-Type: application/json" \
+    -H "X-NetInventory-Simple-Token: $TOKEN" \
+    --data "$PAYLOAD"
+elif command -v wget >/dev/null 2>&1; then
+  wget -qO- \
+    --header="Content-Type: application/json" \
+    --header="X-NetInventory-Simple-Token: $TOKEN" \
+    --post-data="$PAYLOAD" \
+    "$TARGET_URL"
+else
+  echo "curl or wget is required for register-device-user.sh" >&2
+  exit 1
+fi
+
+echo
+echo "NetInventory simple user upload complete."

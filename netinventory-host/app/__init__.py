@@ -125,6 +125,25 @@ def render_simple_template(name: str, replacements: dict[str, str]) -> str:
     return text
 
 
+def simple_ingest_url(app: Flask) -> str:
+    return f'{app.config["NETINV_HOST_TRACK_BASE"]}/netinventory/api/simple-ingest?env={app.config["NETINV_HOST_INSTANCE"]}'
+
+
+def simple_download_response(app: Flask, template_name: str, download_name: str, mimetype: str) -> Response:
+    script = render_simple_template(
+        template_name,
+        {
+            "__TARGET_URL__": simple_ingest_url(app),
+            "__TOKEN__": load_or_create_simple_upload_token(),
+        },
+    )
+    return Response(
+        script,
+        mimetype=mimetype,
+        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
+    )
+
+
 def create_app() -> Flask:
     app = Flask(__name__, template_folder=str(BASE_DIR / "templates"))
     app.config["SECRET_KEY"] = load_secret_key()
@@ -264,40 +283,40 @@ cd "$WORKDIR/netinventory-client"
         append_simple_registration(entry)
         return jsonify({"ok": True, "stored": entry["timestamp"]})
 
-    @app.get("/downloads/register-device.sh")
-    def download_simple_shell():
-        base = app.config["NETINV_HOST_TRACK_BASE"]
-        instance = app.config["NETINV_HOST_INSTANCE"]
-        token = load_or_create_simple_upload_token()
-        script = render_simple_template(
-            "register-device.sh.tmpl",
-            {
-                "__TARGET_URL__": f"{base}/netinventory/api/simple-ingest?env={instance}",
-                "__TOKEN__": token,
-            },
-        )
-        return Response(
-            script,
-            mimetype="text/x-shellscript",
-            headers={"Content-Disposition": 'attachment; filename="register-device.sh"'},
+    @app.get("/downloads/register-device-user.sh")
+    def download_simple_shell_user():
+        return simple_download_response(
+            app,
+            "register-device-user.sh.tmpl",
+            "register-device-user.sh",
+            "text/x-shellscript",
         )
 
-    @app.get("/downloads/register-device.bat")
-    def download_simple_batch():
-        base = app.config["NETINV_HOST_TRACK_BASE"]
-        instance = app.config["NETINV_HOST_INSTANCE"]
-        token = load_or_create_simple_upload_token()
-        script = render_simple_template(
-            "register-device.bat.tmpl",
-            {
-                "__TARGET_URL__": f"{base}/netinventory/api/simple-ingest?env={instance}",
-                "__TOKEN__": token,
-            },
+    @app.get("/downloads/register-device-admin.sh")
+    def download_simple_shell_admin():
+        return simple_download_response(
+            app,
+            "register-device-admin.sh.tmpl",
+            "register-device-admin.sh",
+            "text/x-shellscript",
         )
-        return Response(
-            script,
-            mimetype="text/plain",
-            headers={"Content-Disposition": 'attachment; filename="register-device.bat"'},
+
+    @app.get("/downloads/register-device-user.bat")
+    def download_simple_batch_user():
+        return simple_download_response(
+            app,
+            "register-device-user.bat.tmpl",
+            "register-device-user.bat",
+            "text/plain",
+        )
+
+    @app.get("/downloads/register-device-admin.bat")
+    def download_simple_batch_admin():
+        return simple_download_response(
+            app,
+            "register-device-admin.bat.tmpl",
+            "register-device-admin.bat",
+            "text/plain",
         )
 
     @app.get("/health")
