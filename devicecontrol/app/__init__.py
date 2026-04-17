@@ -14,6 +14,7 @@ import zlib
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlunsplit
 
 from flask import Flask, abort, redirect, render_template, request, send_from_directory, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -95,6 +96,7 @@ def create_app() -> Flask:
     app.config["SESSION_COOKIE_NAME"] = "devicecontrol_session"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["TRACK_BASE_URL"] = os.environ.get("TRACK_BASE_URL", "/").rstrip("/") or "/"
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=1, x_host=1, x_prefix=1)
 
     default_environment = sanitize_environment(os.environ.get("DEVICECONTROL_ENVIRONMENT", "testing"))
@@ -803,11 +805,17 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_state():
+        track_base_url = app.config["TRACK_BASE_URL"]
+        forwarded_host = request.headers.get("X-Forwarded-Host", "").strip()
+        forwarded_proto = request.headers.get("X-Forwarded-Proto", "").strip() or request.scheme
+        if forwarded_host:
+            track_base_url = urlunsplit((forwarded_proto, forwarded_host, "", "", "")) or track_base_url
         return {
             "current_environment": current_environment(),
             "actions": ACTIONS,
             "ansible_available": ansible_available(),
             "csrf_token": csrf_token,
+            "track_base_url": track_base_url,
         }
 
     @app.get("/")

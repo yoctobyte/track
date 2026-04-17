@@ -112,6 +112,16 @@ def create_app() -> Flask:
     def select_location_redirect(next_url: str):
         return redirect(url_for("choose_location", next=next_url))
 
+    def matching_proxy_apps(path: str):
+        normalized = "/" + path.lstrip("/")
+        matches = []
+        for env in environments():
+            for item in env["apps"]:
+                public_path = str(item.get("public_path", "")).rstrip("/")
+                if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
+                    matches.append((env, item))
+        return matches
+
     def proxy_app_for_request_path(path: str, preferred_env_id: str = ""):
         selected_env = environment_by_id(preferred_env_id, include_disabled=True) if preferred_env_id else current_environment()
         normalized = "/" + path.lstrip("/")
@@ -122,11 +132,9 @@ def create_app() -> Flask:
                 if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
                     return selected_env, item
 
-        for env in environments():
-            for item in env["apps"]:
-                public_path = str(item.get("public_path", "")).rstrip("/")
-                if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
-                    return env, item
+        matches = matching_proxy_apps(path)
+        if len(matches) == 1:
+            return matches[0]
         return None, None
 
     def is_public_proxy_path(app_item, proxied_path: str):
@@ -202,7 +210,7 @@ def create_app() -> Flask:
                 pos = start
             return "".join(result)
 
-        for marker in ('href="/', "href='/", 'src="/', "src='/", 'action="/', "action='/", 'fetch("/', "fetch('/"):
+        for marker in ('href="/', "href='/", 'src="/', "src='/", 'action="/', "action='/", 'fetch("/', "fetch('/", 'fetch(`/'):
             text = prefix_after_marker(text, marker)
         return text.encode("utf-8")
 
@@ -444,6 +452,11 @@ def create_app() -> Flask:
             abort(404)
 
         requested_env_id = request.args.get("env", "").strip()
+        if not requested_env_id and current_environment() is None:
+            matches = matching_proxy_apps(proxied_path)
+            matched_env_ids = {env["id"] for env, _item in matches}
+            if len(matched_env_ids) > 1:
+                return select_location_redirect("/" + proxied_path.lstrip("/"))
         env, app_item = proxy_app_for_request_path(proxied_path, preferred_env_id=requested_env_id)
         if app_item is None or env is None:
             abort(404)

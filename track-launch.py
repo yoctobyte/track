@@ -18,7 +18,10 @@ from config import iter_launch_entries, load_config  # noqa: E402
 def resolve_env(env_map: dict[str, str]) -> dict[str, str]:
     resolved: dict[str, str] = {}
     for key, value in env_map.items():
-        resolved[key] = value.replace("$ROOT_DIR", str(ROOT_DIR))
+        expanded = value.replace("$ROOT_DIR", str(ROOT_DIR))
+        if expanded.startswith("./") or expanded.startswith("../"):
+            expanded = str((ROOT_DIR / expanded).resolve())
+        resolved[key] = expanded
     return resolved
 
 

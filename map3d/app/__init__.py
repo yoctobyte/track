@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from urllib.parse import urlunsplit
 
 from flask import Flask, jsonify, redirect, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -56,6 +57,7 @@ def create_app():
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=365)
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["TRACK_BASE_URL"] = os.environ.get("TRACK_BASE_URL", "/").rstrip("/") or "/"
 
     db.init_app(app)
 
@@ -68,6 +70,17 @@ def create_app():
     app.register_blueprint(capture.bp)
     app.register_blueprint(api.bp)
     app.register_blueprint(viewer.bp)
+
+    @app.context_processor
+    def inject_track_globals():
+        track_base_url = app.config["TRACK_BASE_URL"]
+        forwarded_host = request.headers.get("X-Forwarded-Host", "").strip()
+        forwarded_proto = request.headers.get("X-Forwarded-Proto", "").strip() or request.scheme
+        if forwarded_host:
+            track_base_url = urlunsplit((forwarded_proto, forwarded_host, "", "", "")) or track_base_url
+        return {
+            "track_base_url": track_base_url,
+        }
 
     @app.before_request
     def require_password():

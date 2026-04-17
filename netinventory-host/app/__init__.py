@@ -37,9 +37,9 @@ def instance_name() -> str:
 def data_root() -> Path:
     configured = os.environ.get("NETINVENTORY_HOST_DATA_DIR", "").strip()
     if configured:
-        root = Path(configured).expanduser()
+        root = Path(configured).expanduser().resolve()
     else:
-        root = BASE_DIR / "data" / "environments" / instance_name()
+        root = (BASE_DIR / "data" / "environments" / instance_name()).resolve()
     root.mkdir(parents=True, exist_ok=True)
     return root
 
