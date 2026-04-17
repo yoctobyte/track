@@ -41,7 +41,13 @@ def inject_config():
     except Exception:
         pass
         
-    return dict(app_title=title, app_subtitle=subtitle, app_lang=language, t=t)
+    return dict(
+        app_title=title,
+        app_subtitle=subtitle,
+        app_lang=language,
+        t=t,
+        track_base_url=app.config.get("TRACK_BASE_URL", "/"),
+    )
 
 def load_devices():
     if not os.path.exists(app.config['DEVICES_FILE']):

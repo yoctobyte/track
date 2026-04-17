@@ -54,6 +54,20 @@
     .muted { color: var(--muted); }
     .stack { display: grid; gap: 1rem; }
     .row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .brand-stack { display: grid; gap: 0.35rem; }
+    .track-link {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 0.35rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+    }
+    .track-link:hover { color: var(--accent-dark); }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
     .device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
     .card {
@@ -142,7 +156,8 @@
 </head>
 <body>
   <header class="row">
-    <div>
+    <div class="brand-stack">
+      <a class="track-link" href="{{ track_base_url }}">← TRACK</a>
       <h1>Device Control</h1>
       <div class="muted">TRACK Ansible control kit · environment <strong>{{ current_environment }}</strong></div>
     </div>

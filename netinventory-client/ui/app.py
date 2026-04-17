@@ -7,6 +7,13 @@ app = Flask(__name__)
 # Adjust path to point to the correct data directory relative to ui/app.py
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
 ANNOTATIONS_FILE = os.path.join(DATA_DIR, 'annotations.json')
+TRACK_BASE_URL = (os.environ.get('TRACK_BASE_URL') or '/').rstrip('/') or '/'
+
+@app.context_processor
+def inject_globals():
+    return {
+        'track_base_url': TRACK_BASE_URL,
+    }
 
 def load_annotations():
     if os.path.exists(ANNOTATIONS_FILE):

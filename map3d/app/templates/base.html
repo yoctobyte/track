@@ -39,6 +39,18 @@
         radial-gradient(circle at top, rgba(255, 247, 214, 0.7), transparent 38%),
         linear-gradient(180deg, #e3d4a3 0%, #d7c89b 48%, #ccb985 100%);
     }
+    .track-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      margin-bottom: 0.9em;
+      color: var(--bg-surface);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .track-link:hover {
+      color: var(--purple-dim);
+    }
 
     /* --- Nav --- */
     nav {
@@ -180,6 +192,7 @@
   </style>
 </head>
 <body>
+  <a class="track-link" href="{{ track_base_url }}">← TRACK</a>
   {% if session.get('authenticated') %}
   <nav>
     <a href="/">Buildings</a>

@@ -29,7 +29,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Capture spatial evidence, reconstruct spaces, and browse 3D results.",
                     "local_url": "http://127.0.0.1:5001/",
                     "public_path": "/map3d/",
-                    "start_script": "./map3d/run-testing.sh",
                     "launch_script": "./map3d/run.sh",
                     "launch_env": {
                         "MAP3D_INSTANCE": "testing",
@@ -45,7 +44,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Operate kiosk devices, inspect status, and reach local web controls.",
                     "local_url": "http://127.0.0.1:4575/",
                     "public_path": "/museumcontrol/",
-                    "start_script": "./museumcontrol/run.sh",
                     "launch_script": "./museumcontrol/run.sh",
                     "autostart": True,
                     "status": "imported",
@@ -56,7 +54,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Collect uploads, publish client downloads, and centralize network observation data.",
                     "local_url": "http://127.0.0.1:8888/",
                     "public_path": "/netinventory/",
-                    "start_script": "./netinventory-host/run-testing.sh",
                     "launch_script": "./netinventory-host/run.sh",
                     "public_proxy_paths": ["/api/simple-ingest"],
                     "launch_env": {
@@ -73,7 +70,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Run the attended laptop-side network inspection tool locally during field work.",
                     "local_url": "http://127.0.0.1:8889/",
                     "public_path": "/netinventory-client/",
-                    "start_script": "./netinventory-client/run-track.sh",
                     "launch_script": "./netinventory-client/run-track.sh",
                     "launch_env": {
                         "NETINVENTORY_UI_PORT": "8889",
@@ -88,7 +84,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Run approved Ansible maintenance actions against enrolled devices.",
                     "local_url": "http://127.0.0.1:5021/",
                     "public_path": "/devicecontrol/",
-                    "start_script": "./devicecontrol/run-testing.sh",
                     "launch_script": "./devicecontrol/run.sh",
                     "launch_env": {
                         "DEVICECONTROL_INSTANCE": "testing",
@@ -113,7 +108,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Museum-side capture and reconstruction entrypoint.",
                     "local_url": "http://127.0.0.1:5011/",
                     "public_path": "/map3d/",
-                    "start_script": "./map3d/run-museum.sh",
                     "launch_script": "./map3d/run.sh",
                     "launch_env": {
                         "MAP3D_INSTANCE": "museum",
@@ -130,7 +124,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Museum-side device operations and status dashboard.",
                     "local_url": "http://127.0.0.1:4575/",
                     "public_path": "/museumcontrol/",
-                    "start_script": "./museumcontrol/run.sh",
                     "launch_script": "./museumcontrol/run.sh",
                     "autostart": True,
                     "status": "active",
@@ -141,7 +134,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Museum-side intake and publishing surface for network observation data.",
                     "local_url": "http://127.0.0.1:8891/",
                     "public_path": "/netinventory/",
-                    "start_script": "./netinventory-host/run-museum.sh",
                     "launch_script": "./netinventory-host/run.sh",
                     "public_proxy_paths": ["/api/simple-ingest"],
                     "launch_env": {
@@ -158,7 +150,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Museum-side Ansible operations for enrolled devices.",
                     "local_url": "http://127.0.0.1:5031/",
                     "public_path": "/devicecontrol/",
-                    "start_script": "./devicecontrol/run-museum.sh",
                     "launch_script": "./devicecontrol/run.sh",
                     "launch_env": {
                         "DEVICECONTROL_INSTANCE": "museum",
@@ -183,7 +174,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Lab-side spatial capture and reconstruction.",
                     "local_url": "http://127.0.0.1:5012/",
                     "public_path": "/map3d/",
-                    "start_script": "./map3d/run-lab.sh",
                     "launch_script": "./map3d/run.sh",
                     "launch_env": {
                         "MAP3D_INSTANCE": "lab",
@@ -200,7 +190,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Lab-side device control and proxy entrypoint.",
                     "local_url": "",
                     "public_path": "/museumcontrol/",
-                    "start_script": "",
                     "status": "planned",
                 },
                 {
@@ -209,7 +198,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Lab-side intake and publishing surface for network observation data.",
                     "local_url": "http://127.0.0.1:8892/",
                     "public_path": "/netinventory/",
-                    "start_script": "./netinventory-host/run-lab.sh",
                     "launch_script": "./netinventory-host/run.sh",
                     "public_proxy_paths": ["/api/simple-ingest"],
                     "launch_env": {
@@ -226,7 +214,6 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "summary": "Lab-side Ansible operations for enrolled devices.",
                     "local_url": "http://127.0.0.1:5032/",
                     "public_path": "/devicecontrol/",
-                    "start_script": "./devicecontrol/run-lab.sh",
                     "launch_script": "./devicecontrol/run.sh",
                     "launch_env": {
                         "DEVICECONTROL_INSTANCE": "lab",
@@ -307,7 +294,7 @@ def iter_launch_entries(config: dict[str, object]):
     for env in config.get("environments", []):
         env_id = str(env.get("id", "")).strip()
         for app in env.get("apps", []):
-            launch_script = str(app.get("launch_script") or app.get("start_script") or "").strip()
+            launch_script = str(app.get("launch_script") or "").strip()
             if not launch_script:
                 continue
             launch_env = app.get("launch_env")

@@ -8,6 +8,7 @@ Use this folder for:
 - design philosophy
 - conceptual framing
 - notes extracted from broader planning conversations
+- concise scope/intent notes such as `TRACK_SCOPE.md`
 
 Do not use this folder for:
 

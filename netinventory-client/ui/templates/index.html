@@ -105,6 +105,21 @@
             border-bottom: 1px solid var(--border);
             letter-spacing: -0.5px;
         }
+        .track-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 12px 20px 0;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .track-link:hover {
+            color: var(--accent);
+        }
 
         .network-list {
             flex: 1;
@@ -201,6 +216,7 @@
 <body>
 
     <nav id="sidebar">
+        <a class="track-link" href="{{ track_base_url }}">← Track</a>
         <div class="brand">NetInventory</div>
         <div
             style="padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">

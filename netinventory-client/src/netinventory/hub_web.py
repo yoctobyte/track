@@ -19,6 +19,7 @@ def create_hub_web() -> Flask:
         return {
             "hub_settings": app.config["NETINV_SETTINGS"],
             "now": datetime.now(UTC),
+            "track_base_url": app.config["NETINV_SETTINGS"].track_base_url,
         }
 
     @app.get("/")

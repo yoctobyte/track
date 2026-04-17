@@ -11,7 +11,10 @@
 <body>
     <header class="header">
         <div class="container">
-            <h1>{{ app_title }}</h1>
+            <div>
+                <a href="{{ track_base_url }}" style="display:inline-block; margin-bottom:0.45rem; font-size:0.8rem; font-weight:700; text-decoration:none; opacity:0.8;">← TRACK</a>
+                <h1>{{ app_title }}</h1>
+            </div>
             <nav>
                 <a href="/">{{ t.dashboard }}</a>
                 <a href="/admin">{{ t.admin_login }}</a>
