@@ -154,6 +154,13 @@ def default_rack_record() -> dict[str, Any]:
     }
 
 
+def generated_rack_name(site: str, building: str, location: str, area: str) -> str:
+    parts = [part for part in [site, building, location, area] if part]
+    if parts:
+        return " / ".join(parts) + f" / {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}"
+    return f"Untitled rack {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}"
+
+
 def normalise_device(device: dict[str, Any], index: int) -> dict[str, Any]:
     name = str(device.get("name", "")).strip()
     if not name:
@@ -493,17 +500,12 @@ def create_app() -> Flask:
         posted = rack_form_data(request.form)
         record.update(posted)
         if not record["name"]:
-            return render_template(
-                "rack_form.html",
-                title="New Rack",
-                subtitle="Create a cabinet, rack, or device cluster record",
-                rack={**record, "devices": posted["devices"] + [{} for _ in range(3)]},
-                history=[],
-                rack_devices=rack_visual_devices(record),
-                photo_count=0,
-                mode="new",
-                error="Rack name is required.",
-            ), 400
+            record["name"] = generated_rack_name(
+                record.get("site", ""),
+                record.get("building", ""),
+                record.get("location", ""),
+                record.get("area", ""),
+            )
         rack_id = slugify(record["name"])
         while rack_inventory_path(rack_id).exists():
             rack_id = f"{slugify(record['name'])}-{uuid.uuid4().hex[:4]}"
@@ -532,21 +534,12 @@ def create_app() -> Flask:
             abort(404)
         posted = rack_form_data(request.form)
         if not posted["name"]:
-            form_rack = {**record, **posted}
-            form_rack["id"] = rack_id
-            form_rack["photos"] = record.get("photos", [])
-            form_rack["devices"] = posted["devices"] + [{} for _ in range(3)]
-            return render_template(
-                "rack_form.html",
-                title=record.get("name") or rack_id,
-                subtitle="Edit rack location, photos, and device list",
-                rack=form_rack,
-                history=read_rack_history(rack_id),
-                rack_devices=rack_visual_devices(form_rack),
-                photo_count=len(record.get("photos", [])),
-                mode="edit",
-                error="Rack name is required.",
-            ), 400
+            posted["name"] = record.get("name") or generated_rack_name(
+                posted.get("site", "") or record.get("site", ""),
+                posted.get("building", "") or record.get("building", ""),
+                posted.get("location", "") or record.get("location", ""),
+                posted.get("area", "") or record.get("area", ""),
+            )
         before = json.dumps(record, sort_keys=True)
         record.update(posted)
         new_photos = save_uploaded_photos(rack_id, request.files.getlist("photos"))

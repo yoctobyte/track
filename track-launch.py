@@ -27,6 +27,7 @@ def main() -> int:
     launches = [entry for entry in iter_launch_entries(config) if entry.get("autostart", True)]
 
     child_processes: list[subprocess.Popen] = []
+    stop_announced = False
 
     def cleanup() -> None:
         for process in reversed(child_processes):
@@ -39,6 +40,10 @@ def main() -> int:
                 process.kill()
 
     def handle_signal(*_args):
+        nonlocal stop_announced
+        if not stop_announced:
+            stop_announced = True
+            print("\nStopping TRACK and subservices...", flush=True)
         cleanup()
         raise SystemExit(0)
 
