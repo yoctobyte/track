@@ -31,6 +31,10 @@
   </form>
 </div>
 
+{% if current_session_id %}
+  <p class="mb"><a class="btn" href="/session/{{ current_session_id }}">Open session details</a></p>
+{% endif %}
+
 {% if frames %}
 <p class="muted mb">{{ frames | length }} image(s)</p>
 <div class="grid">

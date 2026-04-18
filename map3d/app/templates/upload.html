@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Upload — map3d{% endblock %}
+{% block title %}Upload Media — map3d{% endblock %}
 {% block content %}
-<h1>Upload Photos</h1>
+<h1>Upload Media</h1>
 
 <div class="card">
   <form id="upload-form" method="post" enctype="multipart/form-data">
@@ -25,23 +25,39 @@
     </label>
 
     <label>Photos
-      <input type="file" name="photos" accept="image/*" multiple required>
+      <input type="file" name="photos" accept="image/*" multiple>
+    </label>
+
+    <label>Videos
+      <input type="file" name="videos" accept="video/*" multiple>
     </label>
 
     <button type="submit">Upload</button>
     <span id="upload-status" class="muted"></span>
+    <div id="upload-progress-wrap" style="display:none; margin-top:0.8rem;">
+      <div style="height:10px; background:#1d1a21; border-radius:999px; overflow:hidden;">
+        <div id="upload-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg, #ff8f40, #ffd166);"></div>
+      </div>
+      <div id="upload-progress-text" class="muted" style="margin-top:0.35rem;">0%</div>
+    </div>
   </form>
 </div>
 
 <script>
 const buildings = {{ buildings_json | safe }};
 const locsByBuilding = {{ locations_by_building_json | safe }};
+const videoChunkSize = {{ video_chunk_size | int }};
 let resolvedBuildingId = null;
 let resolvedLocationId = null;
 
 const buildingInput = document.getElementById('building-input');
 const locationInput = document.getElementById('location-input');
 const locationList = document.getElementById('location-list');
+const uploadForm = document.getElementById('upload-form');
+const uploadStatusEl = document.getElementById('upload-status');
+const progressWrap = document.getElementById('upload-progress-wrap');
+const progressBar = document.getElementById('upload-progress-bar');
+const progressText = document.getElementById('upload-progress-text');
 
 // Pre-select building if passed in URL
 {% if request.args.get('building_id') %}
@@ -96,19 +112,98 @@ locationInput.addEventListener('change', () => {
 
 if (resolvedBuildingId) updateLocationDatalist();
 
+function setUploadProgress(percent, text) {
+  progressWrap.style.display = 'block';
+  progressBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  progressText.textContent = text || `${Math.round(percent)}%`;
+}
+
+function resetUploadProgress() {
+  progressWrap.style.display = 'none';
+  progressBar.style.width = '0%';
+  progressText.textContent = '0%';
+}
+
+async function startChunkedVideoUpload(file, buildingId, locationId) {
+  const startResp = await fetch('./api/uploads/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filename: file.name,
+      file_size: file.size,
+      content_type: file.type,
+      building_id: buildingId,
+      location_id: locationId || null,
+    }),
+  });
+  if (!startResp.ok) {
+    throw new Error(`Upload start failed (${startResp.status})`);
+  }
+  const startData = await startResp.json();
+  const uploadId = startData.upload_id;
+  const chunkSize = startData.chunk_size || videoChunkSize;
+  const totalChunks = Math.ceil(file.size / chunkSize);
+  let uploadedBytes = 0;
+
+  for (let index = 0; index < totalChunks; index += 1) {
+    const start = index * chunkSize;
+    const end = Math.min(file.size, start + chunkSize);
+    const chunk = file.slice(start, end);
+    const formData = new FormData();
+    formData.append('chunk_index', String(index));
+    formData.append('chunk', chunk, `${file.name}.part`);
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `./api/uploads/${uploadId}/chunk`);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          uploadedBytes = end;
+          const percent = (uploadedBytes / file.size) * 100;
+          setUploadProgress(percent, `Uploading ${file.name} · ${index + 1}/${totalChunks} chunks · ${Math.round(percent)}%`);
+          resolve();
+        } else {
+          reject(new Error(`Chunk upload failed (${xhr.status})`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Chunk upload failed'));
+      xhr.send(formData);
+    });
+  }
+
+  const finishResp = await fetch(`./api/uploads/${uploadId}/finish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ total_chunks: totalChunks }),
+  });
+  if (!finishResp.ok) {
+    throw new Error(`Upload finalize failed (${finishResp.status})`);
+  }
+  return finishResp.json();
+}
+
 // On submit: resolve building/location (create if new), then submit form
-document.getElementById('upload-form').addEventListener('submit', async (e) => {
+uploadForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const statusEl = document.getElementById('upload-status');
+  const statusEl = uploadStatusEl;
   const bName = buildingInput.value.trim();
+  const photoInput = document.querySelector('input[name="photos"]');
+  const videoInput = document.querySelector('input[name="videos"]');
+  const hasPhotos = photoInput.files.length > 0;
+  const hasVideos = videoInput.files.length > 0;
   if (!bName) { statusEl.textContent = 'Enter a building name'; return; }
+  if (!hasPhotos && !hasVideos) { statusEl.textContent = 'Add photos or videos'; return; }
+  if (hasPhotos && hasVideos) {
+    statusEl.textContent = 'For now, upload photos and videos separately.';
+    return;
+  }
 
   statusEl.textContent = 'Resolving...';
+  resetUploadProgress();
 
   // Resolve building
   let buildingId = resolvedBuildingId;
   if (!buildingId) {
-    const r = await fetch('/api/buildings/resolve', {
+    const r = await fetch('./api/buildings/resolve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: bName }),
@@ -121,7 +216,7 @@ document.getElementById('upload-form').addEventListener('submit', async (e) => {
   const lName = locationInput.value.trim();
   let locationId = resolvedLocationId;
   if (lName && !locationId) {
-    const r = await fetch(`/api/buildings/${buildingId}/locations/resolve`, {
+    const r = await fetch(`./api/buildings/${buildingId}/locations/resolve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: lName }),
@@ -133,6 +228,30 @@ document.getElementById('upload-form').addEventListener('submit', async (e) => {
   document.getElementById('building-id-hidden').value = buildingId;
   document.getElementById('location-id-hidden').value = locationId || '';
   statusEl.textContent = '';
+
+  if (hasVideos) {
+    try {
+      const videos = Array.from(videoInput.files);
+      let lastRedirect = null;
+      for (let i = 0; i < videos.length; i += 1) {
+        const file = videos[i];
+        statusEl.textContent = `Preparing ${file.name} (${i + 1}/${videos.length})...`;
+        const result = await startChunkedVideoUpload(file, buildingId, locationId);
+        lastRedirect = result.redirect_url || lastRedirect;
+      }
+      setUploadProgress(100, 'Upload complete');
+      statusEl.textContent = 'Video uploaded.';
+      if (lastRedirect) {
+        window.location.href = lastRedirect;
+      }
+      return;
+    } catch (error) {
+      statusEl.textContent = error.message || 'Video upload failed.';
+      return;
+    }
+  }
+
+  statusEl.textContent = 'Uploading photos...';
   e.target.submit();
 });
 </script>

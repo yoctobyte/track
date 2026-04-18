@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Session {{ capture_session.id }} — map3d{% endblock %}
+{% block content %}
+<h1>{{ capture_session.label or ("Session " ~ capture_session.id) }}</h1>
+
+<div class="card mb">
+  <div style="display:grid; gap:0.45rem;">
+    <div><strong>Building:</strong> {{ capture_session.building.name if capture_session.building else 'Unknown' }}</div>
+    <div><strong>Source:</strong> {{ capture_session.source_type }}</div>
+    <div><strong>Started:</strong> {{ capture_session.start_time.strftime('%Y-%m-%d %H:%M:%S') if capture_session.start_time else '—' }}</div>
+    <div><strong>Ended:</strong> {{ capture_session.end_time.strftime('%Y-%m-%d %H:%M:%S') if capture_session.end_time else '—' }}</div>
+    <div><strong>Assets:</strong> {{ assets|length }} total · {{ image_assets|length }} image assets · {{ video_assets|length }} video assets</div>
+    <div><strong>Prepared frames:</strong> {{ image_frames|length }}</div>
+  </div>
+</div>
+
+{% if video_assets %}
+<div class="card mb">
+  <h2>Video Workflow</h2>
+  <p class="muted">Upload stores the original video only. Extraction happens later when you prepare or reconstruct the session.</p>
+  {% if ffmpeg_ready %}
+    <p><strong>Prepare frames:</strong> <code>{{ prepare_command }}</code></p>
+    <p><strong>Reconstruct:</strong> <code>{{ reconstruct_command }}</code></p>
+  {% else %}
+    <p class="muted">ffmpeg / ffprobe are not available on this machine, so video preparation cannot run yet.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if video_assets %}
+  <h2>Video Assets</h2>
+  <div class="grid">
+    {% for asset in video_assets %}
+      {% set meta = parse_asset_metadata(asset) %}
+      {% set video = meta.get('video', {}) %}
+      {% set prepared = meta.get('prepared', {}) %}
+      <div class="card">
+        {% if meta.get('preview_path') %}
+          <img src="/data/{{ meta.get('preview_path') }}" alt="{{ asset.original_filename }}" style="width:100%; border-radius:6px; margin-bottom:0.75rem;">
+        {% endif %}
+        <div><strong>{{ asset.original_filename }}</strong></div>
+        <div class="muted" style="margin-top:0.35rem;">
+          {{ asset.mime_type or 'video' }}
+          {% if video.get('width') and video.get('height') %} · {{ video.get('width') }}x{{ video.get('height') }}{% endif %}
+          {% if video.get('duration_seconds') %} · {{ "%.1f"|format(video.get('duration_seconds')) }}s{% endif %}
+          {% if video.get('fps') %} · {{ "%.2f"|format(video.get('fps')) }} fps{% endif %}
+        </div>
+        <div class="muted" style="margin-top:0.35rem;">
+          <a href="/data/{{ asset.storage_path }}">Open video</a>
+        </div>
+        {% if prepared %}
+          <div class="muted" style="margin-top:0.65rem;">
+            Prepared {{ prepared.get('kept_count', 0) }} kept from {{ prepared.get('candidate_count', 0) }} candidates
+            {% if prepared.get('candidate_fps') %} · candidate {{ "%.1f"|format(prepared.get('candidate_fps')) }} fps{% endif %}
+            {% if prepared.get('target_fps') %} · target {{ "%.1f"|format(prepared.get('target_fps')) }} fps{% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if image_frames %}
+  <h2>Prepared Frames</h2>
+  <div class="grid">
+    {% for frame in image_frames[:40] %}
+      <a href="/frame/{{ frame.id }}" class="thumb" style="text-decoration:none; color:inherit;">
+        {% if frame.preview_path %}
+          <img src="/data/{{ frame.preview_path }}" alt="{{ frame.asset.original_filename }}">
+        {% endif %}
+        <div class="info">
+          {{ frame.asset.original_filename | truncate(34) }}<br>
+          <span class="muted">{{ frame.asset.import_source }}</span>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+  {% if image_frames|length > 40 %}
+    <p class="muted mb">Showing first 40 prepared frames.</p>
+  {% endif %}
+{% endif %}
+
+{% if not video_assets and not image_frames %}
+  <p class="muted">This session does not have prepared video frames yet.</p>
+{% endif %}
+{% endblock %}

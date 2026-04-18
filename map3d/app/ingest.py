@@ -3,8 +3,11 @@ from datetime import timedelta
 
 from . import db
 from .models import Asset, Frame, Observation, Session, utcnow
-from .storage import store_original, store_preview
+from pathlib import Path
+
+from .storage import get_absolute_path, store_asset_preview, store_original, store_original_path, store_preview
 from .metadata import extract_metadata, generate_preview
+from .video_pipeline import build_video_poster, probe_video_metadata
 
 
 MANUAL_CAPTURE_SESSION_TIMEOUT = timedelta(minutes=30)
@@ -76,6 +79,89 @@ def ingest_image(file_data: bytes, original_filename: str, session: Session,
     return frame
 
 
+def ingest_video(file_data: bytes, original_filename: str, session: Session,
+                 location_id: int | None = None) -> Asset:
+    storage_info = store_original(file_data, original_filename, session.id)
+    asset = Asset(
+        session_id=session.id,
+        type="video",
+        original_filename=original_filename,
+        storage_path=storage_info["storage_path"],
+        hash_sha256=storage_info["hash_sha256"],
+        file_size=storage_info["file_size"],
+        mime_type=storage_info["mime_type"],
+        metadata_json="{}",
+    )
+    db.session.add(asset)
+    db.session.flush()
+
+    asset_meta = {}
+    if location_id:
+        asset_meta["default_location_id"] = location_id
+
+    video_path = get_absolute_path(storage_info["storage_path"])
+    video_info = probe_video_metadata(video_path)
+    if video_info:
+        asset_meta["video"] = video_info
+    poster_bytes = build_video_poster(
+        video_path,
+        duration_seconds=video_info.get("duration_seconds") if video_info else None,
+    )
+    if poster_bytes:
+        asset_meta["preview_path"] = store_asset_preview(poster_bytes, asset.id)
+
+    asset.metadata_json = json.dumps(asset_meta)
+    session.end_time = utcnow()
+    db.session.commit()
+    return asset
+
+
+def ingest_video_file(source_path: str | Path, original_filename: str, session: Session,
+                      location_id: int | None = None) -> Asset:
+    source_path = Path(source_path)
+    storage_info = store_original_path(source_path, original_filename, session.id)
+    asset = Asset(
+        session_id=session.id,
+        type="video",
+        original_filename=original_filename,
+        storage_path=storage_info["storage_path"],
+        hash_sha256=storage_info["hash_sha256"],
+        file_size=storage_info["file_size"],
+        mime_type=storage_info["mime_type"],
+        metadata_json="{}",
+    )
+    db.session.add(asset)
+    db.session.flush()
+
+    asset_meta = {}
+    if location_id:
+        asset_meta["default_location_id"] = location_id
+
+    video_path = get_absolute_path(storage_info["storage_path"])
+    video_info = probe_video_metadata(video_path)
+    if video_info:
+        asset_meta["video"] = video_info
+    poster_bytes = build_video_poster(
+        video_path,
+        duration_seconds=video_info.get("duration_seconds") if video_info else None,
+    )
+    if poster_bytes:
+        asset_meta["preview_path"] = store_asset_preview(poster_bytes, asset.id)
+
+    asset.metadata_json = json.dumps(asset_meta)
+    session.end_time = utcnow()
+    db.session.commit()
+    return asset
+
+
+def upload_source_type(image_count: int, video_count: int) -> str:
+    if image_count and video_count:
+        return "mixed_upload"
+    if video_count:
+        return "video_import"
+    return "file_upload"
+
+
 def get_or_create_session(building_id: int, label: str = "",
                           source_type: str = "file_upload",
                           capture_run_key: str = "",
@@ -124,6 +210,10 @@ def get_or_create_session(building_id: int, label: str = "",
         label=label or (
             f"Capture run {utcnow().strftime('%Y-%m-%d %H:%M')}"
             if source_type == "manual_capture"
+            else f"Video import {utcnow().strftime('%Y-%m-%d %H:%M')}"
+            if source_type == "video_import"
+            else f"Media upload {utcnow().strftime('%Y-%m-%d %H:%M')}"
+            if source_type == "mixed_upload"
             else f"Upload {utcnow().strftime('%Y-%m-%d %H:%M')}"
         ),
         source_type=source_type,

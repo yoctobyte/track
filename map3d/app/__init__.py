@@ -20,6 +20,7 @@ def ensure_data_dirs(data_dir: Path) -> None:
         data_dir / "originals",
         data_dir / "previews",
         data_dir / "extracted_frames",
+        data_dir / "incoming_uploads",
         data_dir / "derived" / "features",
         data_dir / "derived" / "matches",
         data_dir / "derived" / "reconstructions",
@@ -29,16 +30,23 @@ def ensure_data_dirs(data_dir: Path) -> None:
 
 def ensure_schema(app):
     with app.app_context():
-        columns = {
+        session_columns = {
             row[1] for row in db.session.execute(text("PRAGMA table_info(session)")).fetchall()
         }
-        if "capture_run_key" not in columns:
+        if "capture_run_key" not in session_columns:
             db.session.execute(text(
                 "ALTER TABLE session ADD COLUMN capture_run_key VARCHAR(64) DEFAULT ''"
             ))
-        if "capture_mode" not in columns:
+        if "capture_mode" not in session_columns:
             db.session.execute(text(
                 "ALTER TABLE session ADD COLUMN capture_mode VARCHAR(20) DEFAULT ''"
+            ))
+        asset_columns = {
+            row[1] for row in db.session.execute(text("PRAGMA table_info(asset)")).fetchall()
+        }
+        if "metadata_json" not in asset_columns:
+            db.session.execute(text(
+                "ALTER TABLE asset ADD COLUMN metadata_json TEXT DEFAULT '{}'"
             ))
         db.session.commit()
 

@@ -3,26 +3,35 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAP3D_DIR="$ROOT_DIR/map3d"
-DEFAULT_ORIGINALS_DIR="$MAP3D_DIR/data/originals"
-DEFAULT_OUTPUT_BASE="$MAP3D_DIR/data/derived/reconstructions"
+DATA_DIR="${MAP3D_DATA_DIR:-$MAP3D_DIR/data}"
+DEFAULT_ORIGINALS_DIR="$DATA_DIR/originals"
+DEFAULT_OUTPUT_BASE="$DATA_DIR/derived/reconstructions"
 COLLECTOR_SCRIPT="$ROOT_DIR/map3d-collect-reconstruction-set.sh"
+PREPARE_SCRIPT="$ROOT_DIR/map3d-prepare-session.sh"
+JOBS_SCRIPT="$ROOT_DIR/map3d-jobs.sh"
 
 usage() {
   cat <<'EOF'
 Usage:
   ./map3d-reconstruct.sh
+  ./map3d-reconstruct.sh --environment museum
+  ./map3d-reconstruct.sh --environment museum --building ij --location patch
   ./map3d-reconstruct.sh --session 0121
+  ./map3d-reconstruct.sh --environment museum --session 0121
   ./map3d-reconstruct.sh --images /absolute/or/relative/image_dir --name pilot-room
 
 Options:
-  --session ID         Use map3d/data/originals/session_XXXX as the image set.
-                       If omitted, the latest contiguous capture run is used.
+  --environment NAME  Use map3d/data/environments/NAME as the data dir.
+  --session ID         Reconstruct one specific session.
+  --building TEXT      Filter by building name fragment.
+  --location TEXT      Filter by location name fragment.
+  --tag TEXT           Filter by tag fragment.
+  --list               List matching reconstruction jobs and exit.
   --images DIR         Use a specific image directory.
   --name NAME          Output workspace name. Defaults to session_XXXX or the
                        image directory name.
   --output-dir DIR     Base output directory.
                        Default: map3d/data/derived/reconstructions
-  --max-gap-sec N      Max gap in seconds for collecting latest run. Default: 15
   --camera-model NAME  COLMAP camera model. Default: SIMPLE_RADIAL
   --single-camera      Tell COLMAP to assume one shared camera intrinsics model.
                        This is the default (one user, one phone per capture).
@@ -43,6 +52,7 @@ Reality check:
   - 1 image cannot produce a 3D reconstruction.
   - A useful pilot usually wants at least 20-30 overlapping images.
   - A solid room/cabinet pass is more like 80-150 images.
+  - With no session/images specified, reconstruct all matching unreconstructed jobs.
 EOF
 }
 
@@ -56,6 +66,11 @@ die() {
 }
 
 SESSION_ID=""
+ENV_NAME=""
+BUILDING_FILTER=""
+LOCATION_FILTER=""
+TAG_FILTER=""
+LIST_ONLY=0
 IMAGES_DIR=""
 RUN_NAME=""
 OUTPUT_BASE="$DEFAULT_OUTPUT_BASE"
@@ -68,14 +83,32 @@ SINGLE_CAMERA=1
 MULTI_CAMERA=0
 FORCE=0
 CPU_ONLY=0
-MAX_GAP_SEC=""
-AUTO_MODE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --session)
       SESSION_ID="${2:-}"
       shift 2
+      ;;
+    --environment|--env)
+      ENV_NAME="${2:-}"
+      shift 2
+      ;;
+    --building)
+      BUILDING_FILTER="${2:-}"
+      shift 2
+      ;;
+    --location)
+      LOCATION_FILTER="${2:-}"
+      shift 2
+      ;;
+    --tag)
+      TAG_FILTER="${2:-}"
+      shift 2
+      ;;
+    --list)
+      LIST_ONLY=1
+      shift
       ;;
     --images)
       IMAGES_DIR="${2:-}"
@@ -105,10 +138,6 @@ while [[ $# -gt 0 ]]; do
       CPU_ONLY=1
       shift
       ;;
-    --max-gap-sec)
-      MAX_GAP_SEC="${2:-}"
-      shift 2
-      ;;
     --force)
       FORCE=1
       shift
@@ -125,32 +154,70 @@ done
 
 [[ -d "$MAP3D_DIR" ]] || die "Expected map3d directory at $MAP3D_DIR"
 
+if [[ -n "$ENV_NAME" ]]; then
+  DATA_DIR="$MAP3D_DIR/data/environments/$ENV_NAME"
+  export MAP3D_DATA_DIR="$DATA_DIR"
+  DEFAULT_ORIGINALS_DIR="$DATA_DIR/originals"
+  DEFAULT_OUTPUT_BASE="$DATA_DIR/derived/reconstructions"
+  if [[ "$OUTPUT_BASE" == "$MAP3D_DIR/data"* ]]; then
+    OUTPUT_BASE="$DEFAULT_OUTPUT_BASE${OUTPUT_BASE#"$MAP3D_DIR/data/derived/reconstructions"}"
+  elif [[ "$OUTPUT_BASE" == "$DEFAULT_OUTPUT_BASE"* ]]; then
+    OUTPUT_BASE="$OUTPUT_BASE"
+  fi
+fi
+
+if [[ "$LIST_ONLY" -eq 1 ]]; then
+  JOB_ARGS=(--need reconstruct)
+  [[ -n "$ENV_NAME" ]] && JOB_ARGS=(--environment "$ENV_NAME" "${JOB_ARGS[@]}")
+  [[ -n "$BUILDING_FILTER" ]] && JOB_ARGS+=(--building "$BUILDING_FILTER")
+  [[ -n "$LOCATION_FILTER" ]] && JOB_ARGS+=(--location "$LOCATION_FILTER")
+  [[ -n "$TAG_FILTER" ]] && JOB_ARGS+=(--tag "$TAG_FILTER")
+  "$JOBS_SCRIPT" "${JOB_ARGS[@]}"
+  exit 0
+fi
+
 if [[ -n "$SESSION_ID" && -n "$IMAGES_DIR" ]]; then
   die "Use either --session or --images, not both."
 fi
 
-if [[ -z "$SESSION_ID" && -z "$IMAGES_DIR" ]]; then
-  AUTO_MODE=1
-  [[ -x "$COLLECTOR_SCRIPT" ]] || die "Collector script not found or not executable: $COLLECTOR_SCRIPT"
-  AUTO_SET_NAME="latest-auto"
-  log "No session or image directory given. Collecting the latest contiguous capture run first."
-  GAP_ARGS=()
-  if [[ -n "$MAX_GAP_SEC" ]]; then
-    GAP_ARGS=("--max-gap-sec" "$MAX_GAP_SEC")
-  fi
-  "$COLLECTOR_SCRIPT" --name "$AUTO_SET_NAME" --force "${GAP_ARGS[@]}"
-  IMAGES_DIR="$MAP3D_DIR/data/derived/reconstruction_sets/$AUTO_SET_NAME/images"
-  [[ -n "$RUN_NAME" ]] || RUN_NAME="$AUTO_SET_NAME"
-  if [[ "$FORCE" -eq 0 ]]; then
-    FORCE=1
-  fi
-fi
+reconstruct_one_session() {
+  local local_session_id="$1"
+  local local_run_name="session_$(printf '%04d' "$local_session_id")"
+  local prepare_args=(--session "$local_session_id")
+  [[ "$FORCE" -eq 1 ]] && prepare_args+=(--force)
+  [[ -n "$ENV_NAME" ]] && prepare_args=(--environment "$ENV_NAME" "${prepare_args[@]}")
+  "$PREPARE_SCRIPT" "${prepare_args[@]}" >/dev/null
+  IMAGES_DIR="$DATA_DIR/derived/reconstruction_sets/$local_run_name/images"
+  RUN_NAME="$local_run_name"
+}
 
 if [[ -n "$SESSION_ID" ]]; then
   SESSION_NUM="$(printf '%04d' "$SESSION_ID" 2>/dev/null || true)"
   [[ -n "$SESSION_NUM" ]] || die "Invalid session id: $SESSION_ID"
-  IMAGES_DIR="$DEFAULT_ORIGINALS_DIR/session_${SESSION_NUM}"
-  [[ -n "$RUN_NAME" ]] || RUN_NAME="session_${SESSION_NUM}"
+  reconstruct_one_session "$SESSION_ID"
+elif [[ -z "$IMAGES_DIR" ]]; then
+  JOB_ARGS=(--need reconstruct --ids-only)
+  [[ -n "$ENV_NAME" ]] && JOB_ARGS=(--environment "$ENV_NAME" "${JOB_ARGS[@]}")
+  [[ -n "$BUILDING_FILTER" ]] && JOB_ARGS+=(--building "$BUILDING_FILTER")
+  [[ -n "$LOCATION_FILTER" ]] && JOB_ARGS+=(--location "$LOCATION_FILTER")
+  [[ -n "$TAG_FILTER" ]] && JOB_ARGS+=(--tag "$TAG_FILTER")
+  mapfile -t SESSION_IDS < <("$JOBS_SCRIPT" "${JOB_ARGS[@]}")
+  if [[ "${#SESSION_IDS[@]}" -eq 0 ]]; then
+    log "No matching unreconstructed jobs."
+    exit 0
+  fi
+  for sid in "${SESSION_IDS[@]}"; do
+    log "Reconstructing job session $sid"
+    child_args=()
+    [[ -n "$ENV_NAME" ]] && child_args+=(--environment "$ENV_NAME")
+    child_args+=(--session "$sid")
+    [[ "$FORCE" -eq 1 ]] && child_args+=(--force)
+    [[ "$CPU_ONLY" -eq 1 ]] && child_args+=(--cpu-only)
+    [[ "$SINGLE_CAMERA" -eq 0 ]] && child_args+=(--multi-camera)
+    [[ -n "$CAMERA_MODEL" ]] && child_args+=(--camera-model "$CAMERA_MODEL")
+    "$0" "${child_args[@]}"
+  done
+  exit 0
 fi
 
 IMAGES_DIR="$(realpath -m "$IMAGES_DIR")"
@@ -159,6 +226,7 @@ IMAGES_DIR="$(realpath -m "$IMAGES_DIR")"
 if [[ -z "$RUN_NAME" ]]; then
   RUN_NAME="$(basename "$IMAGES_DIR")"
 fi
+RUN_NAME="$(basename "$RUN_NAME")"
 
 OUTPUT_BASE="$(realpath -m "$OUTPUT_BASE")"
 WORKSPACE_DIR="$OUTPUT_BASE/$RUN_NAME"
@@ -182,6 +250,25 @@ else
   USE_GPU=0
 fi
 
+FEATURE_HELP="$("$COLMAP_BIN" feature_extractor -h 2>&1 || true)"
+MATCHER_HELP="$("$COLMAP_BIN" exhaustive_matcher -h 2>&1 || true)"
+if printf '%s' "$FEATURE_HELP" | grep -q -- '--FeatureExtraction.use_gpu'; then
+  FEATURE_USE_GPU_OPT="--FeatureExtraction.use_gpu"
+else
+  FEATURE_USE_GPU_OPT="--SiftExtraction.use_gpu"
+fi
+if printf '%s' "$MATCHER_HELP" | grep -q -- '--FeatureMatching.use_gpu'; then
+  MATCH_USE_GPU_OPT="--FeatureMatching.use_gpu"
+  MATCH_MAX_OPT="--FeatureMatching.max_num_matches"
+  MATCH_GUIDED_OPT="--FeatureMatching.guided_matching"
+  MATCH_THREADS_OPT="--FeatureMatching.num_threads"
+else
+  MATCH_USE_GPU_OPT="--SiftMatching.use_gpu"
+  MATCH_MAX_OPT="--SiftMatching.max_num_matches"
+  MATCH_GUIDED_OPT="--SiftMatching.guided_matching"
+  MATCH_THREADS_OPT="--SiftMatching.num_threads"
+fi
+
 IMAGE_COUNT="$(find -L "$IMAGES_DIR" -maxdepth 1 \( -type f -o -type l \) \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | wc -l | tr -d ' ')"
 [[ "$IMAGE_COUNT" -gt 0 ]] || die "No JPG/JPEG/PNG files found in $IMAGES_DIR"
 
@@ -191,11 +278,7 @@ fi
 
 if [[ -e "$WORKSPACE_DIR" ]]; then
   if [[ "$FORCE" -eq 1 ]]; then
-    if [[ "$AUTO_MODE" -eq 1 ]]; then
-      log "Refreshing default auto workspace: $WORKSPACE_DIR"
-    else
-      log "Removing existing workspace: $WORKSPACE_DIR"
-    fi
+    log "Removing existing workspace: $WORKSPACE_DIR"
     rm -rf "$WORKSPACE_DIR"
   else
     die "Workspace already exists: $WORKSPACE_DIR (use --force to replace it)"
@@ -229,7 +312,6 @@ fi
 
 log "Step 1/3: feature extraction"
 # Notes on extraction tuning:
-#   - FeatureExtraction.use_gpu is the v4.x option name (was SiftExtraction.use_gpu).
 #   - max_num_features 16384 gives more to work with on busy outdoor scenes; the
 #     matcher may clamp per pair but that's fine.
 #   - We deliberately do NOT enable estimate_affine_shape or domain_size_pooling:
@@ -242,22 +324,21 @@ log "Step 1/3: feature extraction"
   --image_path "$IMAGES_DIR" \
   --ImageReader.camera_model "$CAMERA_MODEL" \
   --ImageReader.single_camera "$SINGLE_CAMERA" \
-  --FeatureExtraction.use_gpu "$USE_GPU" \
+  "$FEATURE_USE_GPU_OPT" "$USE_GPU" \
   --SiftExtraction.max_num_features 16384
 
 log "Step 2/3: exhaustive matching"
 # Notes on matching tuning:
-#   - FeatureMatching.use_gpu is the v4.x option name (was SiftMatching.use_gpu).
 #   - max_num_matches 16384 keeps us under the GTX 1660's 6 GB limit for images
 #     that produced >20k features; otherwise the GPU matcher OOMs.
 #   - num_threads 1 serializes GPU workers so they don't both fight for VRAM.
 #   - guided_matching recovers more inliers on textured outdoor scenes.
 "$COLMAP_BIN" exhaustive_matcher \
   --database_path "$DATABASE_PATH" \
-  --FeatureMatching.use_gpu "$USE_GPU" \
-  --FeatureMatching.max_num_matches 16384 \
-  --FeatureMatching.num_threads 1 \
-  --FeatureMatching.guided_matching 1
+  "$MATCH_USE_GPU_OPT" "$USE_GPU" \
+  "$MATCH_MAX_OPT" 16384 \
+  "$MATCH_THREADS_OPT" 1 \
+  "$MATCH_GUIDED_OPT" 1
 
 log "Step 3/3: sparse mapping"
 # Notes on mapper tuning:

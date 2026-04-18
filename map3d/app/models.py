@@ -92,6 +92,7 @@ class Asset(db.Model):
     mime_type = db.Column(db.String(100), default="")
     created_at = db.Column(db.DateTime, default=utcnow)
     import_source = db.Column(db.String(50), default="upload")  # upload, clipboard, burst, extracted_from_video
+    metadata_json = db.Column(db.Text, default="{}")
 
     frames = db.relationship("Frame", backref="asset", lazy="dynamic")
 

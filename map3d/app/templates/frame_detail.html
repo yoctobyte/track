@@ -9,7 +9,7 @@
       <img src="/data/{{ frame.preview_path }}" style="width:100%; border-radius:6px;">
     {% endif %}
     <p class="muted" style="margin-top:0.5em;">
-      <a href="/data/{{ frame.asset.storage_path }}">View original</a>
+      <a href="/data/{{ original_path }}">View original</a>
     </p>
   </div>
   <div>
@@ -55,7 +55,7 @@
         <tr><td>Imported</td><td>{{ frame.timestamp_imported.strftime('%Y-%m-%d %H:%M:%S') if frame.timestamp_imported }}</td></tr>
         <tr><td>Original date</td><td>{{ frame.timestamp_original.strftime('%Y-%m-%d %H:%M:%S') if frame.timestamp_original else '—' }}</td></tr>
         <tr><td>Status</td><td class="status-{{ frame.processing_status }}">{{ frame.processing_status }}</td></tr>
-        <tr><td>Session</td><td>{{ frame.asset.session.label }}</td></tr>
+        <tr><td>Session</td><td><a href="/session/{{ frame.asset.session.id }}">{{ frame.asset.session.label }}</a></td></tr>
       </table>
     </div>
 

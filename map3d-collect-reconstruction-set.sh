@@ -2,10 +2,13 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DB_PATH="$ROOT_DIR/map3d/data/database.sqlite"
-OUTPUT_BASE="$ROOT_DIR/map3d/data/derived/reconstruction_sets"
+MAP3D_DIR="$ROOT_DIR/map3d"
+DATA_DIR="${MAP3D_DATA_DIR:-$MAP3D_DIR/data}"
+DB_PATH="$DATA_DIR/database.sqlite"
+OUTPUT_BASE="$DATA_DIR/derived/reconstruction_sets"
 MODE="latest-run"
 NAME=""
+ENV_NAME=""
 BUILDING_ID=""
 FROM_SESSION=""
 TO_SESSION=""
@@ -17,10 +20,12 @@ usage() {
   cat <<'EOF'
 Usage:
   ./map3d-collect-reconstruction-set.sh
+  ./map3d-collect-reconstruction-set.sh --environment museum
   ./map3d-collect-reconstruction-set.sh --name home-burst-a
   ./map3d-collect-reconstruction-set.sh --from-session 0092 --to-session 0121 --name home-pass
 
 Options:
+  --environment NAME  Use map3d/data/environments/NAME as the data dir.
   --name NAME          Output set name.
   --building-id ID     Limit selection to one building id.
   --from-session ID    Start at this session id.
@@ -58,6 +63,10 @@ while [[ $# -gt 0 ]]; do
       NAME="${2:-}"
       shift 2
       ;;
+    --environment|--env)
+      ENV_NAME="${2:-}"
+      shift 2
+      ;;
     --building-id)
       BUILDING_ID="${2:-}"
       shift 2
@@ -91,6 +100,13 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -n "$ENV_NAME" ]]; then
+  DATA_DIR="$MAP3D_DIR/data/environments/$ENV_NAME"
+  export MAP3D_DATA_DIR="$DATA_DIR"
+  DB_PATH="$DATA_DIR/database.sqlite"
+  OUTPUT_BASE="$DATA_DIR/derived/reconstruction_sets"
+fi
 
 [[ -f "$DB_PATH" ]] || die "Database not found: $DB_PATH"
 mkdir -p "$OUTPUT_BASE"
