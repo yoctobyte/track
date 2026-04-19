@@ -373,6 +373,9 @@
   <body>
     <div class="topbar">
       <a class="track-link" href="{{ track_base }}">← TRACK</a>
+      <span style="margin: 0 0.5rem; color: var(--line);">|</span>
+      <a class="track-link" href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}style="color: var(--accent)"{% endif %}>Racks</a>
+      <a class="track-link" href="{{ url_for('hosts_overview') }}" {% if request.endpoint == 'hosts_overview' %}style="color: var(--accent)"{% endif %} style="margin-left: 0.5rem;">Hosts</a>
     </div>
     <main class="shell">
       {% block body %}{% endblock %}

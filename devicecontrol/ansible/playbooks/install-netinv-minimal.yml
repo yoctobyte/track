@@ -1,0 +1,43 @@
+---
+- name: Install NetInventory Minimal Client
+  hosts: all
+  become: true
+  vars:
+    # Use the environment variable if present, falling back to a sensible default if it is unset empty
+    netinv_base_url: "{{ lookup('env', 'TRACK_BASE_URL') | default('https://track.praktijkpioniers.com', true) }}"
+    netinv_url: "{{ netinv_base_url }}/netinventory/api/simple-ingest"
+    netinv_script_src: "../../../../netinventory-minimal/netinventory-minimal.sh"
+    netinv_script_dest: "/usr/local/bin/netinventory-minimal.sh"
+    netinv_conf_dest: "/etc/netinventory-minimal.conf"
+    netinv_cron_minute: "*/15"
+
+  tasks:
+    - name: Generate static Client ID if missing locally
+      ansible.builtin.set_fact:
+        netinv_client_id: "client-{{ inventory_hostname | hash('md5') }}"
+
+    - name: Ensure minimal script is installed
+      ansible.builtin.copy:
+        src: "{{ netinv_script_src }}"
+        dest: "{{ netinv_script_dest }}"
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Configure tracking URL and Client ID
+      ansible.builtin.template:
+        dest: "{{ netinv_conf_dest }}"
+        mode: '0600'
+        owner: root
+        group: root
+        content: |
+          TRACK_SIMPLE_URL="{{ netinv_url }}"
+          TRACK_CLIENT_ID="{{ netinv_client_id }}"
+
+    - name: Setup Cron job for NetInventory Minimal
+      ansible.builtin.cron:
+        name: "Run netinventory-minimal telemetry"
+        minute: "{{ netinv_cron_minute }}"
+        job: "{{ netinv_script_dest }} > /dev/null 2>&1"
+        user: root
+        state: present

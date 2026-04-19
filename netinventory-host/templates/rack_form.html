@@ -136,6 +136,25 @@
           </div>
         </div>
 
+        <section class="quick-capture" style="margin-top: 1rem; border-color: rgba(15, 108, 92, 0.4); background: rgba(15, 108, 92, 0.05);">
+          <h4>Central/Local Hardware Scan</h4>
+          <p class="muted">Uses your locally running <code>netinventory-client</code> (if running) to instantly capture ARP/Interfaces securely.</p>
+          <div class="split">
+            <div>
+               <label for="local_auth_token">Local Secret Token</label>
+               <input id="local_auth_token" type="password" placeholder="xyz-123 (Saved locally)">
+            </div>
+            <div>
+               <label for="local_api_port">Local API Port</label>
+               <input id="local_api_port" value="8889" placeholder="8889">
+            </div>
+          </div>
+          <div class="rack-hero-actions" style="margin-top: 0.5rem">
+            <button type="button" class="download" id="trigger-local-scan">Scan Now</button>
+            <span class="badge" id="scan-status" style="display: none; align-items: center; justify-content: center;">Ready</span>
+          </div>
+        </section>
+
         <div>
           <label for="description">Rack description</label>
           <textarea id="description" name="description" placeholder="What this rack is for, what room it serves, what users should know">{{ rack.description }}</textarea>
@@ -261,6 +280,70 @@
     };
     autoSubmitOnPhoto("photos");
     autoSubmitOnPhoto("photos-capture");
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const localTokenInput = document.getElementById("local_auth_token");
+      const localPortInput = document.getElementById("local_api_port");
+      const scanBtn = document.getElementById("trigger-local-scan");
+      const statusSpan = document.getElementById("scan-status");
+
+      if (localTokenInput && localStorage.getItem("netinv_local_token")) {
+        localTokenInput.value = localStorage.getItem("netinv_local_token");
+      }
+      if (localPortInput && localStorage.getItem("netinv_local_port")) {
+        localPortInput.value = localStorage.getItem("netinv_local_port");
+      }
+
+      if (!scanBtn) return;
+
+      scanBtn.addEventListener("click", async () => {
+        const token = localTokenInput.value.trim();
+        const port = localPortInput.value.trim() || "8889";
+        
+        localStorage.setItem("netinv_local_token", token);
+        localStorage.setItem("netinv_local_port", port);
+
+        if (!token) {
+          alert("Please enter your local Secret Token to authorize the scan.");
+          return;
+        }
+
+        const site = document.getElementById("site").value;
+        const location = document.getElementById("location").value;
+        const rackName = document.getElementById("name").value;
+        const contextStr = `Site: ${site}, Loc: ${location}, Rack: ${rackName}`;
+
+        statusSpan.style.display = "inline-flex";
+        statusSpan.textContent = "Scanning...";
+        scanBtn.disabled = true;
+
+        try {
+          const response = await fetch(`http://127.0.0.1:${port}/api/v1/trigger-scan`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-NetInv-Token": token
+            },
+            body: JSON.stringify({ context: contextStr })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Local daemon responded with HTTP ${response.status}`);
+          }
+          const result = await response.json();
+          statusSpan.textContent = `Success! Queued locally.`;
+          statusSpan.style.borderColor = "var(--accent)";
+          statusSpan.style.color = "var(--accent)";
+          statusSpan.style.background = "rgba(15, 108, 92, 0.1)";
+        } catch (err) {
+          statusSpan.textContent = "Failed. Daemon offline/blocked?";
+          statusSpan.style.borderColor = "rgba(170, 44, 44, 0.4)";
+          statusSpan.style.color = "#7b1c1c";
+        } finally {
+          scanBtn.disabled = false;
+        }
+      });
+    });
   </script>
   <style>
     @media (max-width: 820px) {

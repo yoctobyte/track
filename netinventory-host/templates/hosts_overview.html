@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">TRACK / {{ instance_name }}</p>
+    <h1>{{ title }}</h1>
+    <p class="subtitle">{{ subtitle }}</p>
+    <div class="meta">
+      <span>Host <code>{{ current_host }}</code></span>
+      <span>Repo <a href="{{ github_repo }}">{{ github_repo }}</a></span>
+    </div>
+  </section>
+
+  <section class="layout">
+    <div class="panel">
+      <h2>Active Discovered Hosts ({{ active_hosts|length }})</h2>
+      <p class="muted">Aggregated telemetry matched by unique client identity across the infrastructure.</p>
+      
+      {% if active_hosts %}
+        <div class="cards tight" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1rem;">
+          {% for host in active_hosts %}
+            <article class="card">
+              <h4>{{ host.hostname or host.id }}</h4>
+              <div style="font-size: 0.85em; margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.2rem;">
+                <span class="muted"><strong>ID:</strong> <code>{{ host.id }}</code></span>
+                <span class="muted"><strong>Last Seen:</strong> {{ host.last_seen }} ({{ host.submission_count }} reports)</span>
+                {% if host.hardware.get('cpu_model') %}
+                  <span class="muted"><strong>Arch:</strong> {{ host.hardware.get('cpu_model') }}</span>
+                {% endif %}
+              </div>
+              
+              {% if host.network.get('external_ip') %}
+                <div class="badge" style="margin-bottom: 0.5rem;">Ext IP: {{ host.network.get('external_ip') }}</div>
+              {% endif %}
+              
+              <div style="margin-top: 0.5rem;">
+                {% if host.network.get('interface_addresses') %}
+                  <strong>Network Interfaces:</strong>
+                  <ul class="muted" style="margin-top: 0; padding-left: 1.2rem; font-size: 0.85em;">
+                    {% for addr in host.network.interface_addresses %}
+                      <li>{{ addr }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+              
+              <div style="margin-top: 0.5rem;">
+                {% if host.network.get('routes') %}
+                  <strong>Routing:</strong>
+                  <ul class="muted" style="margin-top: 0; padding-left: 1.2rem; font-size: 0.85em; max-height: 100px; overflow-y: auto;">
+                    {% for route in host.network.routes %}
+                      <li>{{ route }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No hosts discovered yet.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

@@ -28,6 +28,61 @@ def _build_handler():
     class RequestHandler(BaseHTTPRequestHandler):
         server_version = "NetInventoryAgent/0.1"
 
+        def _add_cors_headers(self) -> None:
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-NetInv-Token")
+
+        def do_OPTIONS(self) -> None:
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self._add_cors_headers()
+            self.end_headers()
+
+        def do_POST(self) -> None:
+            paths = get_app_paths()
+            db = Database(paths)
+            shared_secret = load_or_create_shared_secret(paths)
+
+            if not self._is_authorized(shared_secret):
+                self._send_json(
+                    HTTPStatus.UNAUTHORIZED,
+                    {"error": "unauthorized", "detail": "missing or invalid shared secret"},
+                )
+                return
+
+            if self.path == "/api/v1/trigger-scan":
+                content_length = int(self.headers.get("Content-Length", 0))
+                payload_data = {}
+                if content_length > 0:
+                    try:
+                        body = self.rfile.read(content_length).decode("utf-8")
+                        payload_data = json.loads(body)
+                    except Exception:
+                        pass
+                
+                context_str = payload_data.get("context", "").strip()
+                if context_str:
+                    from netinventory.context import add_user_context
+                    add_user_context(db, entity_kind="network_scan", entity_id="manual", field="rack_location", value=context_str)
+
+                from netinventory.tasks import run_task_once
+                from netinventory.core.tasks import TaskTrigger
+                run_task_once(db, "current_network_probe", TaskTrigger.MANUAL)
+
+                current = db.get_current_network()
+                observation = None if current is None else db.get_latest_observation(current.network_id)
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "ok": True,
+                        "current_network": None if current is None else current.to_dict(),
+                        "latest_observation": observation,
+                    },
+                )
+                return
+
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+
         def do_GET(self) -> None:
             paths = get_app_paths()
             db = Database(paths)
@@ -86,6 +141,7 @@ def _build_handler():
                 self.send_header("Content-Type", "application/gzip")
                 self.send_header("Content-Disposition", 'attachment; filename="netinventory-export.tar.gz"')
                 self.send_header("Content-Length", str(len(payload)))
+                self._add_cors_headers()
                 self.end_headers()
                 self.wfile.write(payload)
                 return
@@ -104,6 +160,7 @@ def _build_handler():
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            self._add_cors_headers()
             self.end_headers()
             self.wfile.write(body)
 

@@ -119,6 +119,71 @@ def append_simple_registration(payload: dict[str, Any]) -> None:
         handle.write(json.dumps(payload, ensure_ascii=True) + "\n")
 
 
+def synthesize_hosts(registrations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    hosts = {}
+    for entry in registrations:
+        if entry.get("kind") == "malformed-ingest":
+            continue
+        
+        payload = entry.get("payload")
+        if not isinstance(payload, dict):
+            continue
+            
+        host_info = payload.get("host", {})
+        client_id_header = entry.get("client_id")
+        machine_id = host_info.get("machine_id")
+        hostname = host_info.get("hostname")
+        
+        # Priority for stable identity
+        identity = client_id_header or machine_id or hostname
+        if not identity:
+            # Fallback for browser registration
+            identity = entry.get("client", {}).get("remote_addr", "unknown")
+            
+        if identity not in hosts:
+            hosts[identity] = {
+                "id": identity,
+                "first_seen": entry.get("timestamp"),
+                "last_seen": entry.get("timestamp"),
+                "hostname": hostname,
+                "kinds": {entry.get("kind")},
+                "network": payload.get("network", {}),
+                "hardware": payload.get("hardware", {}),
+                "browser": payload.get("browser", {}),
+                "submission_count": 1,
+                "client_ips": {entry.get("client", {}).get("remote_addr")}
+            }
+        else:
+            if str(entry.get("timestamp", "")) > str(hosts[identity]["last_seen"] or ""):
+                hosts[identity]["last_seen"] = entry.get("timestamp")
+            if not hosts[identity]["first_seen"] or str(entry.get("timestamp", "")) < str(hosts[identity]["first_seen"]):
+                hosts[identity]["first_seen"] = entry.get("timestamp")
+            
+            # Merge fields properly
+            for k, v in payload.get("network", {}).items():
+                if v:
+                    hosts[identity]["network"][k] = v
+            for k, v in payload.get("hardware", {}).items():
+                if v:
+                    hosts[identity]["hardware"][k] = v
+            if payload.get("browser"):
+                hosts[identity]["browser"].update(payload.get("browser"))
+            if hostname:
+                hosts[identity]["hostname"] = hostname
+            hosts[identity]["kinds"].add(entry.get("kind"))
+            if entry.get("client", {}).get("remote_addr"):
+                hosts[identity]["client_ips"].add(entry.get("client", {}).get("remote_addr"))
+            hosts[identity]["submission_count"] += 1
+
+    for h in hosts.values():
+        h["kinds"] = sorted(list(h["kinds"]))
+        h["client_ips"] = sorted(list(h["client_ips"] - {None}))
+        
+    result = list(hosts.values())
+    result.sort(key=lambda x: x["last_seen"] or "", reverse=True)
+    return result
+
+
 def slugify(value: str) -> str:
     cleaned = "".join(char.lower() if char.isalnum() else "-" for char in value.strip())
     collapsed = "-".join(part for part in cleaned.split("-") if part)
@@ -432,8 +497,8 @@ def create_app() -> Flask:
             },
             {
                 "label": "Registered Hosts",
-                "value": str(len(registered_hosts)),
-                "hint": "Remote devices that can later report passive statistics.",
+                "value": str(len(synthesize_hosts(read_simple_registrations(limit=100000)))),
+                "hint": "Unique active nodes mapped via simple registration and telemetry scripts.",
             },
             {
                 "label": "Recent Ingest Events",
@@ -457,6 +522,21 @@ def create_app() -> Flask:
             registered_hosts=registered_hosts,
             recent_ingest=recent_ingest,
             simple_recent=simple_recent,
+            paths={key: str(value) for key, value in paths.items()},
+            current_host=platform.node(),
+        )
+
+    @app.get("/hosts")
+    def hosts_overview():
+        paths = runtime_paths()
+        registrations = read_simple_registrations(limit=100000)
+        active_hosts = synthesize_hosts(registrations)
+        return render_template(
+            "hosts_overview.html",
+            title="Discovered Hosts",
+            subtitle="Topology aggregated dynamically from all ingested client metrics",
+            active_hosts=active_hosts,
+            manifest=load_manifest(paths),
             paths={key: str(value) for key, value in paths.items()},
             current_host=platform.node(),
         )
@@ -613,16 +693,38 @@ cd "$WORKDIR/netinventory-client"
     @app.post("/api/simple-ingest")
     def simple_ingest():
         token = request.headers.get("X-NetInventory-Simple-Token", "").strip()
-        if token != load_or_create_simple_upload_token():
-            return jsonify({"ok": False, "error": "invalid token"}), 403
-        payload = request.get_json(silent=True) or {}
+        client_id = request.headers.get("X-Track-Client-Id", "").strip()
+        if not client_id and token != load_or_create_simple_upload_token():
+            return jsonify({"ok": False, "error": "invalid token or missing client id"}), 403
+
+        payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
-            return jsonify({"ok": False, "error": "invalid payload"}), 400
+            raw_data = request.get_data(as_text=True)
+            original_len = len(raw_data)
+            if len(raw_data) > 10000:
+                raw_data = raw_data[:10000] + "... [truncated]"
+                
+            entry = {
+                "kind": "malformed-ingest",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "instance": app.config["NETINV_HOST_INSTANCE"],
+                "description": f"Malformed payload ({original_len} bytes)",
+                "client_id": client_id,
+                "raw_data": raw_data,
+                "client": {
+                    "remote_addr": request.headers.get("X-Forwarded-For", request.remote_addr or ""),
+                    "user_agent": request.headers.get("User-Agent", ""),
+                },
+            }
+            append_simple_registration(entry)
+            return jsonify({"ok": True, "stored": entry["timestamp"], "warning": "malformed payload logged"})
+
         entry = {
             "kind": str(payload.get("kind", "script")).strip() or "script",
             "timestamp": datetime.now(UTC).isoformat(),
             "instance": app.config["NETINV_HOST_INSTANCE"],
             "description": str(payload.get("description", "")).strip(),
+            "client_id": client_id,
             "payload": payload,
             "client": {
                 "remote_addr": request.headers.get("X-Forwarded-For", request.remote_addr or ""),
