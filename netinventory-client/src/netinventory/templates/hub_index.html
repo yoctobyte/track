@@ -147,6 +147,22 @@
       color: var(--muted);
       line-height: 1.65;
     }
+    .annotate-box {
+      background: rgba(255, 255, 255, 0.4);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.6rem 0.8rem;
+      width: 100%;
+      max-width: 400px;
+      font-family: monospace;
+      margin-top: 5px;
+      transition: all 0.2s ease;
+    }
+    .annotate-box:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: white;
+    }
   </style>
 </head>
 <body>
@@ -177,6 +193,12 @@
           <tr><th>Device ID</th><td><code>{{ status.device_id }}</code></td></tr>
           <tr><th>Database</th><td><code>{{ status.db_path }}</code></td></tr>
         </table>
+        {% if status.active_network_id %}
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--line);">
+          <strong>Where are you right now?</strong> <span id="save-status" class="muted" style="float: right; opacity: 0; transition: opacity 0.3s;">Saved ✓</span>
+          <input type="text" id="annotate-input" class="annotate-box" placeholder="e.g. Building A, Cabinet B, Switch C..." autocomplete="off">
+        </div>
+        {% endif %}
       </section>
 
       <section class="card stack">
@@ -307,5 +329,41 @@
       </section>
     </div>
   </div>
+  <script>
+    const annotateInput = document.getElementById('annotate-input');
+    const saveStatus = document.getElementById('save-status');
+    if (annotateInput) {
+      annotateInput.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const val = annotateInput.value.trim();
+          if (!val) return;
+          
+          annotateInput.disabled = true;
+          try {
+            const resp = await fetch('/annotate_current', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rack_location: val })
+            });
+            if (resp.ok) {
+              annotateInput.value = '';
+              saveStatus.style.opacity = '1';
+              setTimeout(() => {
+                saveStatus.style.opacity = '0';
+                window.location.reload(); 
+              }, 1000);
+            } else {
+              alert('Failed to save context');
+            }
+          } catch (err) {
+            alert('Error: ' + err);
+          }
+          annotateInput.disabled = false;
+          annotateInput.focus();
+        }
+      });
+    }
+  </script>
 </body>
 </html>

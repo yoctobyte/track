@@ -74,6 +74,7 @@ Current remote-agent surface:
 - `GET /api/v1/networks`
 - `GET /api/v1/tasks`
 - `GET /api/v1/export`
+- `POST /api/v1/trigger-scan` (CORS-enabled for central UI triggering)
 
 CLI additions:
 
@@ -124,10 +125,10 @@ Current sync-transport progress:
 Current status of the rewrite:
 
 - new Python path is now the active development path
-- legacy Go/Flask code remains only as reference material
 - storage has moved from raw-file-only ideas to a real local SQLite model
 - remote-agent extraction now exists in Python via HTTP + export bundles
 - the collector is only at first-probe stage and still needs real sensing logic
+- **Hybrid Bridge:** The `serve` API now fully exposes CORS rules natively. This allows the cloud `netinventory-host` to execute network probes offline safely via cross-origin web requests without losing physical context.
 
 What is not ported and should be rebuilt rather than translated:
 
@@ -144,5 +145,4 @@ Immediate next backend targets:
 
 ## Legacy Status
 
-The current Go collector and Flask UI remain in the repository only as temporary
-reference material during the rewrite. They should not drive new architecture.
+**Update:** The legacy Go codebase and tracking scripts were fully deleted. `netinventory-client` is officially a Python CLI domain exclusively.

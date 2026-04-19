@@ -5,7 +5,9 @@ import os
 import platform
 import secrets
 import uuid
-from datetime import UTC, datetime
+import threading
+from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +17,34 @@ from werkzeug.utils import secure_filename
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SIMPLE_DIR = BASE_DIR.parent / "netinventory-simple"
+
+MAX_BYTES_PER_HOUR = 1 * 1024 * 1024 * 1024  # 1 GB
+_rate_limits: dict[str, list[tuple[datetime, int]]] = defaultdict(list)
+_rate_limits_lock = threading.Lock()
+
+
+def check_rate_limit(ip: str, payload_size: int) -> bool:
+    now = datetime.now(UTC)
+    cutoff = now - timedelta(hours=1)
+    
+    with _rate_limits_lock:
+        active_records = [x for x in _rate_limits[ip] if x[0] > cutoff]
+        _rate_limits[ip] = active_records
+        
+        total_bytes = sum(x[1] for x in active_records)
+        if total_bytes + payload_size > MAX_BYTES_PER_HOUR:
+            return False
+            
+        _rate_limits[ip].append((now, payload_size))
+        
+        # Optional GC constraint: prevent infinite IP buildup memory leak
+        if len(_rate_limits) > 10000:
+            for k in list(_rate_limits.keys()):
+                _rate_limits[k] = [x for x in _rate_limits[k] if x[0] > cutoff]
+                if not _rate_limits[k]:
+                    del _rate_limits[k]
+                    
+    return True
 
 
 def load_secret_key() -> str:
@@ -697,12 +727,22 @@ cd "$WORKDIR/netinventory-client"
         if not client_id and token != load_or_create_simple_upload_token():
             return jsonify({"ok": False, "error": "invalid token or missing client id"}), 403
 
+        # Sliding window DDoS protection
+        client_ip = request.headers.get("CF-Connecting-IP", request.headers.get("X-Forwarded-For", request.remote_addr or ""))
+        payload_size = request.content_length or 0
+        
+        if payload_size > MAX_BYTES_PER_HOUR:
+            return jsonify({"ok": False, "error": "payload exceeds maximum hourly allowance"}), 413
+            
+        if not check_rate_limit(client_ip, payload_size):
+            return jsonify({"ok": False, "error": "rate limit exceeded"}), 429
+
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
             raw_data = request.get_data(as_text=True)
             original_len = len(raw_data)
-            if len(raw_data) > 10000:
-                raw_data = raw_data[:10000] + "... [truncated]"
+            
+            # The truncation limit has been purposefully removed to allow full legacy or malformed forensic retention
                 
             entry = {
                 "kind": "malformed-ingest",

@@ -198,7 +198,7 @@ class Database:
             ).fetchall()
             return [_row_to_summary(row) for row in rows if row is not None]
 
-    def export_bundle_data(self) -> dict[str, object]:
+    def export_bundle_data(self, since_iso: str | None = None) -> dict[str, object]:
         self.initialize()
         with self.connect() as conn:
             source_device_id = _scalar(conn, "SELECT value FROM app_meta WHERE key = 'device_id'") or "unknown"
@@ -206,7 +206,7 @@ class Database:
                 row["key"]: row["value"]
                 for row in conn.execute("SELECT key, value FROM app_meta ORDER BY key ASC").fetchall()
             }
-            records = self._export_replication_records(conn)
+            records = self._export_replication_records(conn, since_iso=since_iso)
 
         return {
             "format": "netinventory-sync-export",
@@ -468,6 +468,22 @@ class Database:
             rows = conn.execute(query, tuple(params)).fetchall()
             return [dict(row) for row in rows]
 
+    def get_last_sync_time(self) -> str | None:
+        self.initialize()
+        with self.connect() as conn:
+            return _scalar(conn, "SELECT value FROM app_state WHERE key = 'last_sync_time'")
+
+    def set_last_sync_time(self, iso_string: str) -> None:
+        self.initialize()
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO app_state(key, value) VALUES('last_sync_time', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (iso_string,),
+            )
+
     def import_bundle_data(self, bundle: dict[str, object]) -> dict[str, int]:
         self.initialize()
         records = bundle.get("records")
@@ -475,16 +491,27 @@ class Database:
             return self._import_replication_records(records)
         return self._import_legacy_bundle(bundle)
 
-    def _export_replication_records(self, conn: sqlite3.Connection) -> list[dict[str, object]]:
+    def _export_replication_records(self, conn: sqlite3.Connection, since_iso: str | None = None) -> list[dict[str, object]]:
         records: list[dict[str, object]] = []
 
-        observation_rows = conn.execute(
-            """
-            SELECT observation_id, observed_at, device_id, network_id, kind, material_fingerprint, facts_json, summary, evidence_path
-            FROM observations
-            ORDER BY observed_at ASC, observation_id ASC
-            """
-        ).fetchall()
+        if since_iso:
+            observation_rows = conn.execute(
+                """
+                SELECT observation_id, observed_at, device_id, network_id, kind, material_fingerprint, facts_json, summary, evidence_path
+                FROM observations
+                WHERE observed_at > ?
+                ORDER BY observed_at ASC, observation_id ASC
+                """,
+                (since_iso,)
+            ).fetchall()
+        else:
+            observation_rows = conn.execute(
+                """
+                SELECT observation_id, observed_at, device_id, network_id, kind, material_fingerprint, facts_json, summary, evidence_path
+                FROM observations
+                ORDER BY observed_at ASC, observation_id ASC
+                """
+            ).fetchall()
         for row in observation_rows:
             item = dict(row)
             facts = _json_loads(item["facts_json"]) if item.get("facts_json") else {}
@@ -504,13 +531,24 @@ class Database:
                 }
             )
 
-        task_rows = conn.execute(
-            """
-            SELECT run_id, source_device_id, task_id, trigger, state, started_at, finished_at, detail
-            FROM task_runs
-            ORDER BY started_at ASC, run_id ASC
-            """
-        ).fetchall()
+        if since_iso:
+            task_rows = conn.execute(
+                """
+                SELECT run_id, source_device_id, task_id, trigger, state, started_at, finished_at, detail
+                FROM task_runs
+                WHERE started_at > ?
+                ORDER BY started_at ASC, run_id ASC
+                """,
+                (since_iso,)
+            ).fetchall()
+        else:
+            task_rows = conn.execute(
+                """
+                SELECT run_id, source_device_id, task_id, trigger, state, started_at, finished_at, detail
+                FROM task_runs
+                ORDER BY started_at ASC, run_id ASC
+                """
+            ).fetchall()
         for row in task_rows:
             item = dict(row)
             records.append(
@@ -525,13 +563,24 @@ class Database:
                 }
             )
 
-        context_rows = conn.execute(
-            """
-            SELECT context_id, created_at, source_device_id, entity_kind, entity_id, field, value, source
-            FROM user_context
-            ORDER BY created_at ASC, context_id ASC
-            """
-        ).fetchall()
+        if since_iso:
+            context_rows = conn.execute(
+                """
+                SELECT context_id, created_at, source_device_id, entity_kind, entity_id, field, value, source
+                FROM user_context
+                WHERE created_at > ?
+                ORDER BY created_at ASC, context_id ASC
+                """,
+                (since_iso,)
+            ).fetchall()
+        else:
+            context_rows = conn.execute(
+                """
+                SELECT context_id, created_at, source_device_id, entity_kind, entity_id, field, value, source
+                FROM user_context
+                ORDER BY created_at ASC, context_id ASC
+                """
+            ).fetchall()
         for row in context_rows:
             item = dict(row)
             records.append(

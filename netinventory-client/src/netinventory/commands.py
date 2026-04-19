@@ -9,6 +9,8 @@ from netinventory.service import run_service
 from netinventory.storage.db import Database
 from netinventory.tasks import list_task_definitions, run_task_once
 from netinventory.core.tasks import TaskTrigger
+from netinventory.sync import start_sync_worker
+from netinventory.monitor import start_monitor_worker
 
 
 def handle_status() -> int:
@@ -85,6 +87,8 @@ def handle_networks() -> int:
 def handle_serve(bind: str) -> int:
     db = Database(get_app_paths())
     db.upsert_task_definitions(list_task_definitions())
+    start_sync_worker()
+    start_monitor_worker()
     return run_service(bind)
 
 
@@ -92,6 +96,8 @@ def handle_hub_web(bind: str | None = None) -> int:
     db = Database(get_app_paths())
     db.upsert_task_definitions(list_task_definitions())
     settings = get_hub_settings()
+    start_sync_worker()
+    start_monitor_worker()
     return run_hub_web(bind or settings.ui_bind)
 
 

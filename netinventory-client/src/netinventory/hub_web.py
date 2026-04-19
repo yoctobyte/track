@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from flask import Flask, Response, render_template
+from flask import Flask, Response, render_template, request, jsonify
 
 from netinventory.auth import load_or_create_shared_secret
 from netinventory.config import get_app_paths, get_hub_settings
 from netinventory.storage.db import Database
+from netinventory.context import add_user_context
 
 
 def create_hub_web() -> Flask:
@@ -57,6 +58,31 @@ def create_hub_web() -> Flask:
             service_bind=settings.ui_bind,
             github_repo=settings.github_repo,
         )
+
+    @app.post("/annotate_current")
+    def annotate_current():
+        data = request.get_json(silent=True) or {}
+        location = str(data.get("rack_location", "")).strip()
+        
+        if not location:
+            return jsonify({"ok": False, "error": "missing location"}), 400
+            
+        paths = app.config["NETINV_PATHS"]
+        db = Database(paths)
+        status = db.get_status()
+        active = status.active_network_id
+        
+        if not active:
+            return jsonify({"ok": False, "error": "no active network to annotate"}), 400
+            
+        add_user_context(
+            db,
+            entity_kind="network_summary",
+            entity_id=active,
+            field="rack_location",
+            value=location
+        )
+        return jsonify({"ok": True, "network_id": active, "rack_location": location})
 
     @app.get("/agents/bootstrap.sh")
     def bootstrap_script():
