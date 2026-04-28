@@ -10,6 +10,7 @@ build/
 venv/
 .venv/
 env/
+venv-agent/
 
 # Data directories (large files, generated content)
 */data/originals/
@@ -18,6 +19,8 @@ env/
 */data/derived/
 */data/*.sqlite
 map3d/data/environments/
+external-models/
+*.onnx
 
 # IDE
 .idea/
@@ -48,6 +51,7 @@ tmp-colmap-build/
 # Local runtime scratch
 map3d/.map3d.pid
 map3d/.map3d-*.pid
+map3d/model-backends.env
 devicecontrol/.devicecontrol-*.pid
 devicecontrol/data/.devicecontrol-secret-key
 devicecontrol/data/bootstrap-passwords.json

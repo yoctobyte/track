@@ -7,6 +7,14 @@
   <form id="upload-form" method="post" enctype="multipart/form-data">
     <input type="hidden" name="building_id" id="building-id-hidden">
     <input type="hidden" name="location_id" id="location-id-hidden">
+    <input type="hidden" name="session_id" id="session-id-hidden" value="{{ append_session.id if append_session else '' }}">
+
+    {% if append_session %}
+      <p class="muted">
+        Appending to session <strong>{{ append_session.id }}</strong>:
+        {{ append_session.label or ("Session " ~ append_session.id) }}
+      </p>
+    {% endif %}
 
     <label>Building
       <input type="text" id="building-input" list="building-list"
@@ -63,6 +71,13 @@ const progressText = document.getElementById('upload-progress-text');
 {% if request.args.get('building_id') %}
   const preselect = buildings.find(b => b.id === {{ request.args.get('building_id', 0) | int }});
   if (preselect) { buildingInput.value = preselect.name; resolvedBuildingId = preselect.id; }
+{% endif %}
+{% if append_session %}
+  const appendSessionBuilding = buildings.find(b => b.id === {{ append_session.building_id }});
+  if (appendSessionBuilding) {
+    buildingInput.value = appendSessionBuilding.name;
+    resolvedBuildingId = appendSessionBuilding.id;
+  }
 {% endif %}
 
 function findBuildingByName(name) {
@@ -125,6 +140,7 @@ function resetUploadProgress() {
 }
 
 async function startChunkedVideoUpload(file, buildingId, locationId) {
+  const sessionId = document.getElementById('session-id-hidden').value || null;
   const startResp = await fetch('./api/uploads/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -133,6 +149,7 @@ async function startChunkedVideoUpload(file, buildingId, locationId) {
       file_size: file.size,
       content_type: file.type,
       building_id: buildingId,
+      session_id: sessionId,
       location_id: locationId || null,
     }),
   });

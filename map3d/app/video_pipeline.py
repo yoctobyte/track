@@ -615,33 +615,19 @@ def build_session_reconstruction_set(
     set_dir = data_dir / "derived" / "reconstruction_sets" / set_name
     images_dir = set_dir / "images"
     if set_dir.exists():
-        if not force:
-            selection_path = set_dir / "selection.json"
-            selection = {}
-            if selection_path.exists():
-                try:
-                    selection = json.loads(selection_path.read_text(encoding="utf-8"))
-                except Exception:
-                    selection = {}
-            return {
-                "set_dir": set_dir,
-                "images_dir": images_dir,
-                "selection": selection or {
-                    "name": set_name,
-                    "session_id": session.id,
-                    "building_id": session.building_id,
-                    "building_name": session.building.name if session.building else "",
-                    "source_type": session.source_type,
-                    "count": len(list(images_dir.iterdir())) if images_dir.exists() else 0,
-                    "first_session": session.id,
-                    "last_session": session.id,
-                    "first_time": session.start_time.isoformat() if session.start_time else "",
-                    "last_time": session.end_time.isoformat() if session.end_time else "",
-                    "video_prepare": [],
-                },
-            }
-        shutil.rmtree(set_dir, ignore_errors=True)
+        if force:
+            shutil.rmtree(set_dir, ignore_errors=True)
+        elif progress:
+            progress(
+                stage="resume",
+                current=0,
+                total=0,
+                message=f"refreshing existing reconstruction set {set_name}",
+            )
     images_dir.mkdir(parents=True, exist_ok=True)
+    for existing in images_dir.iterdir():
+        if existing.is_symlink() or existing.is_file():
+            existing.unlink()
 
     video_assets = Asset.query.filter_by(session_id=session_id, type="video").order_by(Asset.id.asc()).all()
     video_prepare = []
@@ -673,7 +659,10 @@ def build_session_reconstruction_set(
         source_path = get_absolute_path(asset.storage_path)
         if target_path.exists() or target_path.is_symlink():
             target_path.unlink()
-        target_path.symlink_to(source_path)
+        try:
+            os.link(source_path, target_path)
+        except OSError:
+            shutil.copy2(source_path, target_path)
         metadata = parse_asset_metadata(asset)
         manifest_lines.append(
             f"{target_name}\t{asset.id}\t{asset.type}\t{asset.import_source}\t{asset.storage_path}\t{metadata.get('video_seconds', '')}\n"

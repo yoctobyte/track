@@ -30,6 +30,18 @@
     cursor: grab;
     background: transparent;
   }
+  #viewerWebgl {
+    width: 100%;
+    height: 72vh;
+    display: none;
+    cursor: grab;
+    background: transparent;
+  }
+  #viewerWebgl canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
   #viewerCanvas.dragging { cursor: grabbing; }
   .viewer-legend {
     position: absolute;
@@ -87,6 +99,30 @@
   .viewer-kv .k {
     color: var(--text-dim);
   }
+  .viewer-camera-card {
+    margin-top: 1em;
+    padding-top: 0.9em;
+    border-top: 1px solid rgba(95, 71, 47, 0.24);
+  }
+  .viewer-camera-preview {
+    width: 100%;
+    border-radius: 8px;
+    display: block;
+    margin: 0.55em 0;
+    border: 1px solid rgba(95, 71, 47, 0.18);
+    background: rgba(255, 248, 231, 0.56);
+  }
+  .viewer-camera-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45em;
+    margin-top: 0.55em;
+  }
+  .viewer-camera-actions .btn,
+  .viewer-camera-actions button {
+    padding: 0.35em 0.7em;
+    font-size: 0.9em;
+  }
   @media (max-width: 900px) {
     .viewer-layout {
       grid-template-columns: 1fr;
@@ -135,8 +171,31 @@
         <div class="k">Registered</div><div>{{ active_model.registered_images }}</div>
         <div class="k">Points</div><div>{{ active_model.points }}</div>
         <div class="k">Error</div><div>{{ "%.3f"|format(active_model.mean_error_px) }} px</div>
+        {% if payload_json and active_geometry == 'mesh' %}
+          <div class="k">Mesh Asset</div><div id="meshSourceLabel">—</div>
+          <div class="k">Mesh Faces</div><div id="meshFaceCount">—</div>
+          <div class="k">Mesh Vertices</div><div id="meshVertexCount">—</div>
+        {% endif %}
       </div>
     {% endif %}
+
+    <div class="viewer-camera-card">
+      <h3>Selected Camera</h3>
+      <div id="cameraSelectionEmpty" class="muted">Click a camera cross in the viewer to inspect that source frame.</div>
+      <div id="cameraSelectionBody" style="display:none;">
+        <div class="viewer-kv">
+          <div class="k">Name</div><div id="cameraSelectionName">—</div>
+          <div class="k">Frame</div><div id="cameraSelectionPath">—</div>
+        </div>
+        <img id="cameraSelectionPreview" class="viewer-camera-preview" alt="" style="display:none;">
+        <div class="viewer-camera-actions">
+          <button type="button" id="btnCameraPrev">Prev</button>
+          <button type="button" id="btnCameraNext">Next</button>
+          <a class="btn" id="cameraSelectionImageLink" href="#" target="_blank" rel="noopener">Open Image</a>
+          <a class="btn" id="cameraSelectionFrameLink" href="#" style="display:none;">Open Frame</a>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="viewer-panel">
@@ -150,9 +209,17 @@
       <button type="button" id="btnFront">Front</button>
       <button type="button" id="btnSide">Side</button>
       <button type="button" id="btnTop">Top</button>
-      <a class="btn {% if active_geometry == 'sparse' %}viewer-mode-active{% endif %}" href="{{ url_for('viewer.viewer_detail', name=workspace_name, model=active_model.id if active_model else None, geometry='sparse') }}">Sparse</a>
-      {% if dense_available %}
-        <a class="btn {% if active_geometry == 'dense' %}viewer-mode-active{% endif %}" href="{{ url_for('viewer.viewer_detail', name=workspace_name, model=active_model.id if active_model else None, geometry='dense') }}">Dense</a>
+      <button type="button" id="btnPivotScene">Scene</button>
+      <button type="button" id="btnPivotInside">Inside</button>
+      <button type="button" id="btnRendererGpu">GPU</button>
+      <button type="button" id="btnRendererSoftware">Software</button>
+      {% for link in geometry_links or [] %}
+        <a class="btn {% if link.active %}viewer-mode-active{% endif %}" href="{{ link.url }}">{{ link.label }}</a>
+      {% endfor %}
+      {% if active_geometry == 'mesh' %}
+        {% for link in mesh_variant_links or [] %}
+          <a class="btn {% if link.active %}viewer-mode-active{% endif %}" href="{{ link.url }}">{{ link.label }}</a>
+        {% endfor %}
       {% endif %}
       <button type="button" id="btnModePoints" class="viewer-mode-active">Points</button>
       <button type="button" id="btnModePhotos">Photos</button>
@@ -160,8 +227,9 @@
     </div>
     <div class="viewer-canvas-wrap">
       <canvas id="viewerCanvas"></canvas>
+      <div id="viewerWebgl"></div>
       <div class="viewer-legend">
-        drag orbit · shift/right-drag pan · wheel zoom · keys: arrows orbit, wasd pan, r reset · modes: points, photos, hybrid
+        drag orbit · shift/right-drag pan · wheel zoom · keys: arrows orbit, wasd pan, r reset · modes: points, photos, hybrid · renderers: gpu, software
       </div>
     </div>
     <div class="viewer-status" id="viewerStatus">Preparing viewer…</div>
@@ -179,10 +247,27 @@ const btnReset = document.getElementById('btnReset');
 const btnFront = document.getElementById('btnFront');
 const btnSide = document.getElementById('btnSide');
 const btnTop = document.getElementById('btnTop');
+const btnPivotScene = document.getElementById('btnPivotScene');
+const btnPivotInside = document.getElementById('btnPivotInside');
+const btnRendererGpu = document.getElementById('btnRendererGpu');
+const btnRendererSoftware = document.getElementById('btnRendererSoftware');
 const btnModePoints = document.getElementById('btnModePoints');
 const btnModePhotos = document.getElementById('btnModePhotos');
 const btnModeHybrid = document.getElementById('btnModeHybrid');
 const viewerStatus = document.getElementById('viewerStatus');
+const cameraSelectionEmpty = document.getElementById('cameraSelectionEmpty');
+const cameraSelectionBody = document.getElementById('cameraSelectionBody');
+const cameraSelectionName = document.getElementById('cameraSelectionName');
+const cameraSelectionPath = document.getElementById('cameraSelectionPath');
+const cameraSelectionPreview = document.getElementById('cameraSelectionPreview');
+const cameraSelectionImageLink = document.getElementById('cameraSelectionImageLink');
+const cameraSelectionFrameLink = document.getElementById('cameraSelectionFrameLink');
+const btnCameraPrev = document.getElementById('btnCameraPrev');
+const btnCameraNext = document.getElementById('btnCameraNext');
+const meshSourceLabel = document.getElementById('meshSourceLabel');
+const meshFaceCount = document.getElementById('meshFaceCount');
+const meshVertexCount = document.getElementById('meshVertexCount');
+const webglMount = document.getElementById('viewerWebgl');
 
 let yaw = -0.45;
 let pitch = 0.3;
@@ -195,7 +280,24 @@ let lastY = 0;
 let dragMode = 'orbit';
 let currentPointerMode = 'orbit';
 let renderMode = 'points';
+let pivotMode = 'scene';
+let rendererMode = 'software';
 const imageCache = new Map();
+let selectedCameraIndex = -1;
+let lastDrawnCameras = [];
+window.__viewerPayload = payload;
+
+if (payload.geometry === 'mesh') {
+  if (meshSourceLabel) {
+    meshSourceLabel.textContent = payload.mesh_source ? `${payload.mesh_source} (${payload.mesh_filename || 'mesh'})` : (payload.mesh_filename || 'mesh');
+  }
+  if (meshFaceCount) {
+    meshFaceCount.textContent = String(payload.mesh_face_count || 0);
+  }
+  if (meshVertexCount) {
+    meshVertexCount.textContent = String(payload.mesh_vertex_count || 0);
+  }
+}
 
 function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
@@ -203,7 +305,10 @@ function resizeCanvas() {
   canvas.height = Math.max(1, Math.floor(rect.height * window.devicePixelRatio));
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-  draw();
+  if (rendererMode === 'software') {
+    draw();
+  }
+  window.__map3dGpuRenderer?.resize();
 }
 
 function centerFromBounds(bounds) {
@@ -219,6 +324,31 @@ function radiusFromBounds(bounds) {
   const dy = bounds.max[1] - bounds.min[1];
   const dz = bounds.max[2] - bounds.min[2];
   return Math.max(1, Math.sqrt(dx * dx + dy * dy + dz * dz));
+}
+
+function centerFromPoints(points) {
+  if (!points.length) return null;
+  let sx = 0;
+  let sy = 0;
+  let sz = 0;
+  for (const point of points) {
+    sx += point[0];
+    sy += point[1];
+    sz += point[2];
+  }
+  return [sx / points.length, sy / points.length, sz / points.length];
+}
+
+function activeCenter(bounds) {
+  if (pivotMode === 'inside') {
+    if (selectedCameraIndex >= 0 && selectedCameraIndex < (payload.cameras || []).length) {
+      return payload.cameras[selectedCameraIndex].center;
+    }
+    const cameraCenters = (payload.cameras || []).map(camera => camera.center).filter(Boolean);
+    const cameraCenter = centerFromPoints(cameraCenters);
+    if (cameraCenter) return cameraCenter;
+  }
+  return centerFromBounds(bounds);
 }
 
 function rotatePoint(point, center) {
@@ -266,7 +396,7 @@ function setView(nextYaw, nextPitch) {
 function resetView() {
   yaw = -0.45;
   pitch = 0.3;
-  zoom = 1.0;
+  zoom = pivotMode === 'inside' ? 2.1 : 1.0;
   panX = 0;
   panY = 0;
   draw();
@@ -276,14 +406,71 @@ function setDragMode(mode) {
   dragMode = mode;
   btnOrbit.classList.toggle('viewer-mode-active', mode === 'orbit');
   btnPan.classList.toggle('viewer-mode-active', mode === 'pan');
+  window.__map3dGpuRenderer?.setDragMode(mode);
 }
 
 function setRenderMode(mode) {
+  if (rendererMode === 'gpu' && mode !== 'points') {
+    setRendererMode('software');
+  }
   renderMode = mode;
   btnModePoints.classList.toggle('viewer-mode-active', mode === 'points');
   btnModePhotos.classList.toggle('viewer-mode-active', mode === 'photos');
   btnModeHybrid.classList.toggle('viewer-mode-active', mode === 'hybrid');
-  draw();
+  if (rendererMode === 'software') {
+    draw();
+  }
+}
+
+function setPivotMode(mode) {
+  pivotMode = mode;
+  btnPivotScene.classList.toggle('viewer-mode-active', mode === 'scene');
+  btnPivotInside.classList.toggle('viewer-mode-active', mode === 'inside');
+  resetView();
+}
+
+function setRendererMode(mode) {
+  if (mode === 'gpu' && !window.__map3dGpuRenderer?.available) {
+    mode = 'software';
+  }
+  rendererMode = mode;
+  btnRendererGpu.classList.toggle('viewer-mode-active', mode === 'gpu');
+  btnRendererSoftware.classList.toggle('viewer-mode-active', mode === 'software');
+  canvas.style.display = mode === 'software' ? 'block' : 'none';
+  webglMount.style.display = mode === 'gpu' ? 'block' : 'none';
+  if (mode === 'gpu') {
+    if (renderMode !== 'points') {
+      renderMode = 'points';
+      btnModePoints.classList.add('viewer-mode-active');
+      btnModePhotos.classList.remove('viewer-mode-active');
+      btnModeHybrid.classList.remove('viewer-mode-active');
+    }
+    window.__map3dGpuRenderer?.show();
+    window.__map3dGpuRenderer?.syncFromState?.(currentGpuState());
+  } else {
+    window.__map3dGpuRenderer?.hide();
+    draw();
+  }
+}
+window.__map3dSetRendererMode = setRendererMode;
+
+function gpuVisible() {
+  return webglMount && webglMount.style.display !== 'none';
+}
+
+function currentGpuState() {
+  const selectedCamera = (selectedCameraIndex >= 0 && selectedCameraIndex < (payload.cameras || []).length)
+    ? payload.cameras[selectedCameraIndex]
+    : null;
+  return {
+    yaw,
+    pitch,
+    zoom,
+    panX,
+    panY,
+    pivotMode,
+    selectedCameraCenter: selectedCamera ? selectedCamera.center : null,
+  };
 }
 
 function getCachedImage(url) {
@@ -302,6 +489,10 @@ function getCachedImage(url) {
 }
 
 function draw() {
+  if (rendererMode !== 'software') {
+    window.__map3dGpuRenderer?.syncFromState?.(currentGpuState());
+    return;
+  }
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   ctx.clearRect(0, 0, width, height);
@@ -312,13 +503,14 @@ function draw() {
     return;
   }
 
-  const center = centerFromBounds(payload.bounds);
+  const center = activeCenter(payload.bounds);
   const radius = radiusFromBounds(payload.bounds);
 
   const points = (payload.points || []).map(point => {
     const projected = project(point, center, radius, width, height);
     return { point, projected };
   });
+  const faces = payload.faces || [];
   const cameras = (payload.cameras || []).map(camera => ({
     camera,
     projected: project(camera.center, center, radius, width, height),
@@ -352,7 +544,42 @@ function draw() {
     };
   }
 
-  if (renderMode === 'points' || renderMode === 'hybrid') {
+  if (payload.geometry === 'mesh' && faces.length) {
+    const projectedPoints = points.map(item => toScreen(item.projected));
+    const faceItems = [];
+    for (const face of faces) {
+      if (face.length !== 3) continue;
+      const a = projectedPoints[face[0]];
+      const b = projectedPoints[face[1]];
+      const c = projectedPoints[face[2]];
+      const va = points[face[0]]?.point;
+      const vb = points[face[1]]?.point;
+      const vc = points[face[2]]?.point;
+      if (!a || !b || !c || !va || !vb || !vc) continue;
+      const avgDepth = (a.depth + b.depth + c.depth) / 3;
+      const r = Math.round((va[3] + vb[3] + vc[3]) / 3);
+      const g = Math.round((va[4] + vb[4] + vc[4]) / 3);
+      const bl = Math.round((va[5] + vb[5] + vc[5]) / 3);
+      faceItems.push({ a, b, c, avgDepth, color: [r, g, bl] });
+    }
+    faceItems.sort((left, right) => left.avgDepth - right.avgDepth);
+    for (const face of faceItems) {
+      const depthNorm = (face.avgDepth - minDepth) / Math.max(1e-6, (maxDepth - minDepth));
+      const alpha = 0.22 + (1 - depthNorm) * 0.28;
+      ctx.beginPath();
+      ctx.moveTo(face.a.x, face.a.y);
+      ctx.lineTo(face.b.x, face.b.y);
+      ctx.lineTo(face.c.x, face.c.y);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${face.color[0]}, ${face.color[1]}, ${face.color[2]}, ${alpha})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(${face.color[0]}, ${face.color[1]}, ${face.color[2]}, ${Math.min(0.35, alpha + 0.06)})`;
+      ctx.lineWidth = 0.35;
+      ctx.stroke();
+    }
+  }
+
+  if ((renderMode === 'points' || renderMode === 'hybrid') && payload.geometry !== 'mesh') {
     for (const item of points) {
       const [ , , , r, g, b ] = item.point;
       const screen = toScreen(item.projected);
@@ -366,6 +593,7 @@ function draw() {
   }
 
   const sortedCameras = [...cameras].sort((a, b) => a.projected.depth - b.projected.depth);
+  lastDrawnCameras = [];
   let loadedPhotos = 0;
   let failedPhotos = 0;
   let pendingPhotos = 0;
@@ -413,24 +641,96 @@ function draw() {
       ctx.lineTo(projected.x, projected.y + 4);
       ctx.stroke();
     }
+    lastDrawnCameras.push({ camera: item.camera, projected });
+  }
+
+  if (selectedCameraIndex >= 0 && selectedCameraIndex < (payload.cameras || []).length) {
+    const selectedCamera = payload.cameras[selectedCameraIndex];
+    const screenCamera = lastDrawnCameras.find(item => item.camera.id === selectedCamera.id);
+    if (screenCamera) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 209, 102, 0.95)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(screenCamera.projected.x, screenCamera.projected.y, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   if (!payload.points?.length && !payload.cameras?.length) {
     viewerStatus.textContent = 'No visible geometry in this model.';
+  } else if (payload.geometry === 'mesh') {
+    viewerStatus.textContent = `${pivotMode} pivot · ${payload.mesh_source || 'mesh'} · ${payload.mesh_face_count || 0} sampled faces · ${payload.mesh_vertex_count || 0} vertices · ${payload.cameras.length} cameras`;
   } else if (renderMode === 'points') {
-    viewerStatus.textContent = `${payload.points.length} sampled points · ${payload.cameras.length} cameras`;
+    viewerStatus.textContent = `${pivotMode} pivot · ${payload.points.length} sampled points · ${payload.cameras.length} cameras`;
   } else {
-    viewerStatus.textContent = `${payload.cameras.length} cameras · photos ${loadedPhotos} loaded, ${pendingPhotos} pending, ${failedPhotos} failed`;
+    viewerStatus.textContent = `${pivotMode} pivot · ${payload.cameras.length} cameras · photos ${loadedPhotos} loaded, ${pendingPhotos} pending, ${failedPhotos} failed`;
   }
 }
 
-canvas.addEventListener('pointerdown', (event) => {
+function updateSelectedCamera() {
+  const cameras = payload.cameras || [];
+  if (selectedCameraIndex < 0 || selectedCameraIndex >= cameras.length) {
+    cameraSelectionEmpty.style.display = '';
+    cameraSelectionBody.style.display = 'none';
+    return;
+  }
+  const camera = cameras[selectedCameraIndex];
+  cameraSelectionEmpty.style.display = 'none';
+  cameraSelectionBody.style.display = '';
+  cameraSelectionName.textContent = camera.name || `Camera ${selectedCameraIndex + 1}`;
+  cameraSelectionPath.textContent = camera.storage_path || camera.path || '—';
+  cameraSelectionImageLink.href = camera.image_url || '#';
+  cameraSelectionImageLink.style.pointerEvents = camera.image_url ? '' : 'none';
+  cameraSelectionFrameLink.href = camera.frame_url || '#';
+  cameraSelectionFrameLink.style.display = camera.frame_url ? '' : 'none';
+  if (camera.preview_url) {
+    cameraSelectionPreview.src = camera.preview_url;
+    cameraSelectionPreview.style.display = '';
+  } else {
+    cameraSelectionPreview.removeAttribute('src');
+    cameraSelectionPreview.style.display = 'none';
+  }
+}
+
+function selectNearestCamera(clientX, clientY) {
+  if (!lastDrawnCameras.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  let best = null;
+  let bestDist = Infinity;
+  for (const item of lastDrawnCameras) {
+    const dx = item.projected.x - x;
+    const dy = item.projected.y - y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = item.camera;
+    }
+  }
+  if (!best || bestDist > 28) return;
+  selectedCameraIndex = (payload.cameras || []).findIndex(camera => camera.id === best.id);
+  updateSelectedCamera();
+  draw();
+}
+
+function handleViewerPointerDown(event, target) {
   dragging = true;
   lastX = event.clientX;
   lastY = event.clientY;
   currentPointerMode = (event.button === 2 || event.shiftKey) ? 'pan' : dragMode;
-  canvas.classList.add('dragging');
-  canvas.setPointerCapture?.(event.pointerId);
+  target.classList.add('dragging');
+  target.setPointerCapture?.(event.pointerId);
+}
+
+canvas.addEventListener('pointerdown', (event) => {
+  handleViewerPointerDown(event, canvas);
+});
+
+webglMount.addEventListener('pointerdown', (event) => {
+  handleViewerPointerDown(event, webglMount);
 });
 
 window.addEventListener('pointermove', (event) => {
@@ -453,13 +753,30 @@ window.addEventListener('pointermove', (event) => {
 window.addEventListener('pointerup', () => {
   dragging = false;
   canvas.classList.remove('dragging');
+  webglMount.classList.remove('dragging');
+});
+
+canvas.addEventListener('click', (event) => {
+  if (dragging) return;
+  selectNearestCamera(event.clientX, event.clientY);
 });
 
 canvas.addEventListener('contextmenu', (event) => {
   event.preventDefault();
 });
 
+webglMount.addEventListener('contextmenu', (event) => {
+  event.preventDefault();
+});
+
 canvas.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  zoom *= event.deltaY > 0 ? 0.92 : 1.08;
+  zoom = Math.max(0.05, zoom);
+  draw();
+}, { passive: false });
+
+webglMount.addEventListener('wheel', (event) => {
   event.preventDefault();
   zoom *= event.deltaY > 0 ? 0.92 : 1.08;
   zoom = Math.max(0.05, zoom);
@@ -497,11 +814,276 @@ btnReset.addEventListener('click', () => resetView());
 btnFront.addEventListener('click', () => setView(0.0, 0.0));
 btnSide.addEventListener('click', () => setView(Math.PI / 2, 0.0));
 btnTop.addEventListener('click', () => setView(0.0, -Math.PI / 2));
+btnPivotScene.addEventListener('click', () => setPivotMode('scene'));
+btnPivotInside.addEventListener('click', () => setPivotMode('inside'));
+btnRendererGpu.addEventListener('click', () => setRendererMode('gpu'));
+btnRendererSoftware.addEventListener('click', () => setRendererMode('software'));
 btnModePoints.addEventListener('click', () => setRenderMode('points'));
 btnModePhotos.addEventListener('click', () => setRenderMode('photos'));
 btnModeHybrid.addEventListener('click', () => setRenderMode('hybrid'));
+btnCameraPrev.addEventListener('click', () => {
+  const cameras = payload.cameras || [];
+  if (!cameras.length) return;
+  selectedCameraIndex = selectedCameraIndex <= 0 ? cameras.length - 1 : selectedCameraIndex - 1;
+  updateSelectedCamera();
+  draw();
+});
+btnCameraNext.addEventListener('click', () => {
+  const cameras = payload.cameras || [];
+  if (!cameras.length) return;
+  selectedCameraIndex = selectedCameraIndex >= cameras.length - 1 ? 0 : selectedCameraIndex + 1;
+  updateSelectedCamera();
+  draw();
+});
 
 window.addEventListener('resize', resizeCanvas);
+updateSelectedCamera();
+setPivotMode(payload.geometry === 'mesh' ? 'inside' : 'scene');
+window.__map3dPreferredRenderer = (payload.geometry === 'dense' || payload.geometry === 'mesh') ? 'gpu' : 'software';
+setRendererMode('software');
 resizeCanvas();
+</script>
+<script type="module">
+import * as THREE from '{{ url_for("static", filename="vendor/three.module.js") }}';
+
+const payload = window.__viewerPayload;
+const mount = document.getElementById('viewerWebgl');
+const statusEl = document.getElementById('viewerStatus');
+
+function computeCenter(bounds) {
+  return new THREE.Vector3(
+    (bounds.min[0] + bounds.max[0]) / 2,
+    (bounds.min[1] + bounds.max[1]) / 2,
+    (bounds.min[2] + bounds.max[2]) / 2,
+  );
+}
+
+function computeRadius(bounds) {
+  const dx = bounds.max[0] - bounds.min[0];
+  const dy = bounds.max[1] - bounds.min[1];
+  const dz = bounds.max[2] - bounds.min[2];
+  return Math.max(1, Math.sqrt(dx * dx + dy * dy + dz * dz));
+}
+
+function averageCameraCenter(cameras) {
+  if (!cameras?.length) return null;
+  const center = new THREE.Vector3();
+  for (const camera of cameras) {
+    center.x += camera.center[0];
+    center.y += camera.center[1];
+    center.z += camera.center[2];
+  }
+  center.multiplyScalar(1 / cameras.length);
+  return center;
+}
+
+function createGpuRenderer() {
+  if (!mount || !payload?.bounds) {
+    return { available: false, show() {}, hide() {}, resize() {}, syncFromState() {} };
+  }
+
+  let available = true;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(0x000000, 0);
+  mount.replaceChildren(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(52, 1, 0.01, 10000);
+  let animationActive = false;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+  dirLight.position.set(1, 2, 3);
+  scene.add(dirLight);
+
+  let currentPivotMode = payload.geometry === 'mesh' ? 'inside' : 'scene';
+  const sceneCenter = computeCenter(payload.bounds);
+  const sceneRadius = computeRadius(payload.bounds);
+  const insideCenter = averageCameraCenter(payload.cameras) || sceneCenter.clone();
+  let currentState = {
+    yaw: -0.45,
+    pitch: 0.3,
+    zoom: currentPivotMode === 'inside' ? 2.1 : 1.0,
+    panX: 0,
+    panY: 0,
+    selectedCameraCenter: null,
+  };
+
+  function activeTarget() {
+    if (currentPivotMode === 'inside' && Array.isArray(currentState.selectedCameraCenter)) {
+      return new THREE.Vector3(
+        currentState.selectedCameraCenter[0],
+        currentState.selectedCameraCenter[1],
+        currentState.selectedCameraCenter[2],
+      );
+    }
+    return currentPivotMode === 'inside' ? insideCenter.clone() : sceneCenter.clone();
+  }
+
+  function updateStatus() {
+    if (document.getElementById('viewerCanvas').style.display === 'none') {
+      if (payload.geometry === 'mesh') {
+        const textureMode = payload.texture_url ? 'textured' : 'flat';
+        statusEl.textContent = `gpu · ${currentPivotMode} pivot · ${payload.mesh_source || 'mesh'} · ${textureMode} · ${payload.mesh_face_count || 0} sampled faces · ${payload.mesh_vertex_count || 0} vertices · ${(payload.cameras || []).length} cameras`;
+      } else {
+        statusEl.textContent = `gpu · ${currentPivotMode} pivot · ${(payload.points || []).length} sampled points · ${(payload.cameras || []).length} cameras`;
+      }
+    }
+  }
+
+  if (payload.geometry === 'mesh' && payload.faces?.length) {
+    const positions = [];
+    const colors = [];
+    const uvs = [];
+    const indices = [];
+    for (const vertex of payload.points || []) {
+      positions.push(vertex[0], vertex[1], vertex[2]);
+      colors.push((vertex[3] || 255) / 255, (vertex[4] || 180) / 255, (vertex[5] || 150) / 255);
+    }
+    for (const uv of payload.uvs || []) {
+      uvs.push(uv[0] || 0, uv[1] || 0);
+    }
+    for (const face of payload.faces || []) {
+      if (face.length === 3) {
+        indices.push(face[0], face[1], face[2]);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    if (uvs.length && uvs.length / 2 === positions.length / 3) {
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    }
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    let material;
+    if (payload.texture_url && geometry.getAttribute('uv')) {
+      const texture = new THREE.TextureLoader().load(payload.texture_url);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      material = new THREE.MeshStandardMaterial({
+        map: texture,
+        side: THREE.DoubleSide,
+        roughness: 0.92,
+        metalness: 0.01,
+      });
+    } else {
+      material = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        side: THREE.DoubleSide,
+        roughness: 0.88,
+        metalness: 0.02,
+      });
+    }
+    scene.add(new THREE.Mesh(geometry, material));
+  } else if (payload.points?.length) {
+    const positions = [];
+    const colors = [];
+    for (const point of payload.points || []) {
+      positions.push(point[0], point[1], point[2]);
+      colors.push((point[3] || 255) / 255, (point[4] || 180) / 255, (point[5] || 150) / 255);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    const material = new THREE.PointsMaterial({ size: Math.max(sceneRadius * 0.0009, 0.008), vertexColors: true, sizeAttenuation: true });
+    scene.add(new THREE.Points(geometry, material));
+  }
+
+  if (payload.cameras?.length) {
+    const camPositions = [];
+    for (const cameraItem of payload.cameras) {
+      camPositions.push(cameraItem.center[0], cameraItem.center[1], cameraItem.center[2]);
+    }
+    const camGeometry = new THREE.BufferGeometry();
+    camGeometry.setAttribute('position', new THREE.Float32BufferAttribute(camPositions, 3));
+    const camMaterial = new THREE.PointsMaterial({ color: 0x18d3d7, size: Math.max(sceneRadius * 0.004, 0.03), sizeAttenuation: true });
+    scene.add(new THREE.Points(camGeometry, camMaterial));
+  }
+
+  function applyViewState() {
+    const target = activeTarget();
+    const yaw = currentState.yaw ?? -0.45;
+    const pitch = currentState.pitch ?? 0.3;
+    const zoom = Math.max(0.05, currentState.zoom ?? 1.0);
+    const distance = (currentPivotMode === 'inside' ? sceneRadius * 0.62 : sceneRadius * 1.35) / zoom;
+    const direction = new THREE.Vector3(
+      Math.sin(yaw) * Math.cos(pitch),
+      Math.sin(-pitch),
+      Math.cos(yaw) * Math.cos(pitch),
+    ).normalize();
+    const position = target.clone().add(direction.multiplyScalar(distance));
+    const forward = target.clone().sub(position).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+    const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+    const worldPerPixel = (sceneRadius * 1.6) / Math.max(200, Math.min(mount.clientWidth || 1, mount.clientHeight || 1));
+    const panOffset = right.multiplyScalar(-(currentState.panX || 0) * worldPerPixel)
+      .add(up.multiplyScalar((currentState.panY || 0) * worldPerPixel));
+    const finalTarget = target.clone().add(panOffset);
+    camera.position.copy(position.clone().add(panOffset));
+    camera.up.set(0, 1, 0);
+    camera.lookAt(finalTarget);
+  }
+
+  function resize() {
+    const width = mount.clientWidth || 1;
+    const height = mount.clientHeight || 1;
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    render();
+  }
+
+  function render() {
+    renderer.render(scene, camera);
+    updateStatus();
+  }
+
+  function ensureAnimationLoop(active) {
+    if (active === animationActive) {
+      return;
+    }
+    animationActive = active;
+    renderer.setAnimationLoop(active ? render : null);
+  }
+
+  return {
+    available,
+    show() {
+      mount.style.display = 'block';
+      ensureAnimationLoop(true);
+      resize();
+      render();
+    },
+    hide() {
+      mount.style.display = 'none';
+      ensureAnimationLoop(false);
+    },
+    resize,
+    syncFromState(nextState = {}) {
+      currentState = {
+        ...currentState,
+        ...nextState,
+      };
+      currentPivotMode = nextState.pivotMode || currentPivotMode;
+      applyViewState();
+      render();
+    },
+  };
+}
+
+try {
+  window.__map3dGpuRenderer = createGpuRenderer();
+  window.__map3dSetRendererMode?.(window.__map3dPreferredRenderer || 'software');
+} catch (error) {
+  console.error('GPU viewer failed to initialize', error);
+  window.__map3dGpuRenderer = { available: false, show() {}, hide() {}, resize() {}, syncFromState() {} };
+  if (window.__map3dPreferredRenderer === 'gpu') {
+    window.__map3dSetRendererMode?.('software');
+    if (statusEl) {
+      statusEl.textContent = 'gpu unavailable; using software renderer';
+    }
+  }
+}
 </script>
 {% endblock %}

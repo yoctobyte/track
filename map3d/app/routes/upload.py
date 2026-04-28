@@ -5,7 +5,7 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, render_template, request, redirect, url_for, flash
 from .. import db
-from ..models import Building, Location
+from ..models import Building, Location, Session
 from ..ingest import ingest_image, ingest_video, ingest_video_file, get_or_create_session, upload_source_type
 
 bp = Blueprint("upload", __name__)
@@ -49,13 +49,31 @@ def save_upload_meta(upload_id: str, meta: dict) -> None:
     upload_meta_path(upload_id).write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
+def resolve_target_session(building_id: int, session_id: int | None, source_type: str):
+    if session_id:
+        session = db.session.get(Session, int(session_id))
+        if session is None:
+            raise ValueError("session not found")
+        if session.building_id != int(building_id):
+            raise ValueError("session belongs to a different building")
+        if session.source_type != source_type:
+            session.source_type = "mixed_upload"
+        return session
+    return get_or_create_session(building_id, source_type=source_type)
+
+
 @bp.route("/upload", methods=["GET", "POST"])
 def upload():
     buildings = Building.query.order_by(Building.name).all()
+    append_session = None
+    append_session_id = request.args.get("session_id", type=int)
+    if append_session_id:
+        append_session = db.session.get(Session, append_session_id)
 
     if request.method == "POST":
         building_id = request.form.get("building_id", type=int)
         location_id = request.form.get("location_id", type=int) or None
+        session_id = request.form.get("session_id", type=int) or None
         photo_files = [f for f in request.files.getlist("photos") if f.filename]
         video_files = [f for f in request.files.getlist("videos") if f.filename]
 
@@ -67,10 +85,15 @@ def upload():
             flash("No files selected. Add photos or videos.")
             return redirect(url_for("upload.upload"))
 
-        session = get_or_create_session(
-            building_id,
-            source_type=upload_source_type(len(photo_files), len(video_files)),
-        )
+        try:
+            session = resolve_target_session(
+                building_id,
+                session_id,
+                upload_source_type(len(photo_files), len(video_files)),
+            )
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(url_for("upload.upload"))
         image_count = 0
         video_count = 0
         for f in photo_files:
@@ -118,6 +141,7 @@ def upload():
 
     return render_template("upload.html",
                            buildings=buildings,
+                           append_session=append_session,
                            buildings_json=json.dumps(buildings_json),
                            locations_by_building_json=json.dumps(locs_json),
                            video_chunk_size=VIDEO_CHUNK_SIZE)
@@ -131,6 +155,7 @@ def start_chunked_upload():
     location_id = data.get("location_id") or None
     file_size = int(data.get("file_size") or 0)
     content_type = (data.get("content_type") or "").strip()
+    session_id = data.get("session_id")
 
     if not building_id:
         return jsonify({"error": "building_id required"}), 400
@@ -151,6 +176,7 @@ def start_chunked_upload():
         "upload_id": upload_id,
         "filename": filename,
         "building_id": int(building_id),
+        "session_id": int(session_id) if session_id else None,
         "location_id": int(location_id) if location_id else None,
         "file_size": file_size,
         "content_type": content_type,
@@ -208,10 +234,15 @@ def finish_chunked_upload(upload_id: str):
             with chunk_path.open("rb") as src:
                 shutil.copyfileobj(src, assembled)
 
-    session = get_or_create_session(
-        int(meta["building_id"]),
-        source_type="video_import",
-    )
+    try:
+        session = resolve_target_session(
+            int(meta["building_id"]),
+            meta.get("session_id"),
+            "video_import",
+        )
+    except ValueError as exc:
+        shutil.rmtree(upload_dir, ignore_errors=True)
+        return jsonify({"error": str(exc)}), 400
     asset = ingest_video_file(
         assembled_path,
         meta["filename"],

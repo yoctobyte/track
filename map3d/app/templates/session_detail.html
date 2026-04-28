@@ -12,6 +12,9 @@
     <div><strong>Assets:</strong> {{ assets|length }} total · {{ image_assets|length }} image assets · {{ video_assets|length }} video assets</div>
     <div><strong>Prepared frames:</strong> {{ image_frames|length }}</div>
   </div>
+  <div style="margin-top:0.85rem;">
+    <a class="btn" href="/upload?session_id={{ capture_session.id }}&building_id={{ capture_session.building_id }}">Add More Media To This Session</a>
+  </div>
 </div>
 
 {% if video_assets %}
@@ -26,6 +29,50 @@
   {% endif %}
 </div>
 {% endif %}
+
+<div class="card mb">
+  <h2>Experimental Model Reconstruction</h2>
+  <p class="muted">These are representation layers, not source truth. Originals remain the reference.</p>
+  <p><strong>Install HY-World backend:</strong> <code>{{ model_install_hyworld_command }}</code></p>
+  <p><strong>Install Lyra backend:</strong> <code>{{ model_install_lyra_command }}</code></p>
+  <p><strong>Run HY-World:</strong> <code>{{ model_hyworld_command }}</code></p>
+  <p><strong>Run Lyra package:</strong> <code>{{ model_lyra_command }}</code></p>
+  {% if model_runs %}
+    <div style="display:grid; gap:0.75rem; margin-top:0.85rem;">
+      {% for run in model_runs %}
+        <div style="padding:0.75rem; border:1px solid var(--border); border-radius:6px; background:rgba(255,248,231,0.55);">
+          <div><strong>{{ run.backend }}</strong> · {{ run.status }}{% if run.input_kind %} · input {{ run.input_kind }}{% endif %}</div>
+          <div class="muted" style="margin-top:0.35rem;">
+            {% if run.points_exists %}points.ply ready{% endif %}
+            {% if run.gaussians_exists %} · gaussians.ply ready{% endif %}
+            {% if run.camera_exists %} · camera params ready{% endif %}
+            {% if run.colmap_exists %} · sparse ready{% endif %}
+            {% if run.rendered_exists %} · rendered video ready{% endif %}
+            {% if run.mesh_exists %} · mesh ready{% endif %}
+          </div>
+          {% if run.run_script %}
+            <div class="muted" style="margin-top:0.35rem;"><code>{{ run.run_script }}</code></div>
+          {% endif %}
+          {% if run.viewer_url or run.points_url or run.gaussians_url or run.camera_url %}
+            <div style="display:flex; flex-wrap:wrap; gap:0.45rem; margin-top:0.6rem;">
+              {% if run.viewer_url %}<a class="btn" href="{{ run.viewer_url }}">Open Viewer</a>{% endif %}
+              {% if run.points_url %}<a class="btn" href="{{ run.points_url }}">points.ply</a>{% endif %}
+              {% if run.gaussians_url %}<a class="btn" href="{{ run.gaussians_url }}">gaussians.ply</a>{% endif %}
+              {% if run.camera_url %}<a class="btn" href="{{ run.camera_url }}">camera params</a>{% endif %}
+            </div>
+          {% endif %}
+          {% if run.timing %}
+            <div class="muted" style="margin-top:0.45rem;">
+              total {{ "%.1f"|format(run.timing.get('case_total_s', 0)) }}s
+              {% if run.timing.get('inference_s') %} · inference {{ "%.1f"|format(run.timing.get('inference_s')) }}s{% endif %}
+              {% if run.timing.get('data_loading_s') %} · data {{ "%.1f"|format(run.timing.get('data_loading_s')) }}s{% endif %}
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
 
 {% if video_assets %}
   <h2>Video Assets</h2>

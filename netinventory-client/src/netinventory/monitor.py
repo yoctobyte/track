@@ -18,12 +18,12 @@ def run_monitor_worker() -> None:
     while True:
         try:
             db.upsert_task_definitions(list_task_definitions())
-            run = run_task_once(db, "current_network_probe", TaskTrigger.SCHEDULED)
+            run = run_task_once(db, "current_network_probe", TaskTrigger.TIMER)
             logger.info(f"Background network monitor probe completed: {run.state.value}")
         except Exception as e:
             logger.warning(f"Background auto-monitor failed: {e}")
             
-        time.sleep(300)
+        time.sleep(10)
 
 
 def start_monitor_worker() -> None:

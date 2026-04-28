@@ -2,6 +2,7 @@ import json
 
 from flask import Blueprint, render_template, request, redirect, url_for, send_from_directory, session as flask_session
 from .. import db
+from ..model_tools import session_model_runs
 from ..models import Asset, Building, Location, Frame, Observation, Session
 from ..storage import get_absolute_path
 from ..video_pipeline import ffmpeg_available, parse_asset_metadata
@@ -62,6 +63,32 @@ def session_detail(session_id):
     env_args = f" --environment {environment}" if environment else ""
     prepare_command = f"./map3d-prepare-session.sh{env_args} --session {session_id:04d}"
     reconstruct_command = f"./map3d-reconstruct.sh{env_args} --session {session_id:04d}"
+    model_hyworld_command = f"./map3d-model.sh all{env_args} --backend hyworld --session {session_id:04d}"
+    model_lyra_command = f"./map3d-model.sh all{env_args} --backend lyra --session {session_id:04d}"
+    model_install_hyworld_command = "./map3d-model.sh install --backend hyworld"
+    model_install_lyra_command = "./map3d-model.sh install --backend lyra"
+    model_runs = session_model_runs(get_absolute_path(""), session_id)
+
+    data_root = get_absolute_path("")
+    for run in model_runs:
+        run.viewer_url = None
+        run.points_url = None
+        run.gaussians_url = None
+        run.camera_url = None
+        run.timing = None
+        if run.points_path:
+            run.viewer_url = url_for("viewer.model_viewer_detail", session_id=session_id, backend=run.backend, geometry="points")
+            run.points_url = url_for("gallery.serve_data", filepath=str(run.points_path.relative_to(data_root)))
+        if run.gaussians_path:
+            if run.viewer_url is None:
+                run.viewer_url = url_for("viewer.model_viewer_detail", session_id=session_id, backend=run.backend, geometry="gaussians")
+            run.gaussians_url = url_for("gallery.serve_data", filepath=str(run.gaussians_path.relative_to(data_root)))
+        if run.camera_path:
+            run.camera_url = url_for("gallery.serve_data", filepath=str(run.camera_path.relative_to(data_root)))
+            try:
+                run.timing = json.loads(run.timing_path.read_text()) if run.timing_path and run.timing_path.exists() else None
+            except Exception:
+                run.timing = None
 
     return render_template(
         "session_detail.html",
@@ -74,6 +101,11 @@ def session_detail(session_id):
         ffmpeg_ready=ffmpeg_available(),
         prepare_command=prepare_command,
         reconstruct_command=reconstruct_command,
+        model_hyworld_command=model_hyworld_command,
+        model_lyra_command=model_lyra_command,
+        model_install_hyworld_command=model_install_hyworld_command,
+        model_install_lyra_command=model_install_lyra_command,
+        model_runs=model_runs,
     )
 
 

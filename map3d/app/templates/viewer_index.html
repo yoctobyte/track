@@ -17,6 +17,7 @@
       {% if item.selection.count %} · {{ item.selection.count }} source images{% endif %}
       {% if item.selection.first_session %} · sessions {{ item.selection.first_session }}..{{ item.selection.last_session }}{% endif %}
       {% if item.dense_exists %} · dense ready{% endif %}
+      {% if item.mesh_exists %} · mesh ready{% endif %}
     </p>
 
     {% if item.best_model %}
