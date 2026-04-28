@@ -60,7 +60,8 @@
             "NETINV_PUBLIC_PATH": "/netinventory-client/"
           },
           "autostart": false,
-          "visible": false
+          "visible": false,
+          "local_shortcut": true
         },
         {
           "id": "devicecontrol",

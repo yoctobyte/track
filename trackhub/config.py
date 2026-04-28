@@ -77,6 +77,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                     },
                     "autostart": True,
                     "visible": True,
+                    "local_shortcut": True,
                     "status": "imported",
                 },
                 {

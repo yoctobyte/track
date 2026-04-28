@@ -42,6 +42,15 @@ def create_app() -> Flask:
     def refresh_config() -> None:
         app.config["TRACKHUB"] = load_config()
 
+    def is_loopback_request() -> bool:
+        host = request.host.split(":", 1)[0].strip("[]").lower()
+        return host in {"localhost", "127.0.0.1", "::1"}
+
+    def app_is_visible(app_item) -> bool:
+        if app_item.get("visible", True):
+            return True
+        return bool(app_item.get("local_shortcut")) and is_loopback_request()
+
     def hydrate_environment(env):
         hydrated = dict(env)
         apps = []
@@ -60,7 +69,7 @@ def create_app() -> Flask:
             else:
                 app_item["open_url"] = local_url or app_item["public_url"]
             apps.append(app_item)
-        hydrated["apps"] = [app_item for app_item in apps if app_item.get("visible", True)]
+        hydrated["apps"] = [app_item for app_item in apps if app_is_visible(app_item)]
         hydrated["_all_apps"] = apps
         hydrated["enabled"] = bool(hydrated.get("enabled", True))
         hydrated["has_password"] = bool(str(hydrated.get("password", "")).strip())
@@ -118,7 +127,7 @@ def create_app() -> Flask:
         matches = []
         for env in environments():
             for item in env.get("_all_apps", env["apps"]):
-                if not item.get("visible", True):
+                if not app_is_visible(item):
                     continue
                 public_path = str(item.get("public_path", "")).rstrip("/")
                 if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
@@ -131,7 +140,7 @@ def create_app() -> Flask:
 
         if selected_env is not None and selected_env.get("enabled", True):
             for item in selected_env.get("_all_apps", selected_env["apps"]):
-                if not item.get("visible", True):
+                if not app_is_visible(item):
                     continue
                 public_path = str(item.get("public_path", "")).rstrip("/")
                 if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):

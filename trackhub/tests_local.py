@@ -30,9 +30,9 @@ class FakeResponse:
             self.headers = {"Content-Type": "text/plain"}
 
 
-def authenticated_client(app, env_id: str = "testing"):
+def authenticated_client(app, env_id: str = "testing", base_url: str = "http://localhost"):
     client = app.test_client()
-    with client.session_transaction() as session:
+    with client.session_transaction(base_url=base_url) as session:
         session["trackhub_environment"] = env_id
         session["trackhub_authenticated"] = [env_id]
     return client
@@ -44,17 +44,52 @@ def testing_apps(app):
     )["apps"]
 
 
-def test_hidden_netinventory_client_not_listed_or_proxied() -> None:
+def test_hidden_netinventory_client_not_listed_or_proxied_on_public_host() -> None:
     app = trackhub_app.create_app()
-    client = authenticated_client(app)
+    base_url = "https://track.example.test"
+    client = authenticated_client(app, base_url=base_url)
 
-    response = client.get("/env/testing")
+    response = client.get("/env/testing", base_url=base_url)
     assert_true(response.status_code == 200, "testing environment page should render")
     assert_true(b"NetInventory Host" in response.data, "host app should remain visible")
-    assert_true(b"NetInventory Client" not in response.data, "hidden client app should not be listed")
+    assert_true(
+        b"NetInventory Client" not in response.data,
+        "hidden client app should not be listed on public host",
+    )
 
-    response = client.get("/netinventory-client/")
-    assert_true(response.status_code == 404, "hidden client app should not be proxied")
+    response = client.get("/netinventory-client/", base_url=base_url)
+    assert_true(response.status_code == 404, "hidden client app should not proxy on public host")
+
+
+def test_hidden_netinventory_client_localhost_shortcut_can_proxy() -> None:
+    app = trackhub_app.create_app()
+
+    original_request = trackhub_app.requests.request
+    seen: dict[str, str] = {}
+
+    def fake_request(**kwargs):
+        seen["url"] = kwargs["url"]
+        return FakeResponse()
+
+    trackhub_app.requests.request = fake_request
+    try:
+        base_url = "http://127.0.0.1"
+        client = authenticated_client(app, base_url=base_url)
+        overview = client.get("/env/testing", base_url=base_url)
+        response = client.get("/netinventory-client/", base_url=base_url)
+    finally:
+        trackhub_app.requests.request = original_request
+
+    assert_true(overview.status_code == 200, "localhost environment page should render")
+    assert_true(
+        b"NetInventory Client" in overview.data,
+        "localhost shortcut should show hidden client app",
+    )
+    assert_true(response.status_code == 200, "localhost shortcut should proxy hidden client app")
+    assert_true(
+        seen.get("url", "").startswith("http://127.0.0.1:8889/"),
+        "localhost shortcut should target the configured local client URL",
+    )
 
 
 def test_visible_netinventory_client_can_proxy_for_local_hosts() -> None:
@@ -73,20 +108,22 @@ def test_visible_netinventory_client_can_proxy_for_local_hosts() -> None:
 
     trackhub_app.requests.request = fake_request
     try:
-        client = authenticated_client(app)
-        response = client.get("/netinventory-client/")
+        base_url = "https://track.example.test"
+        client = authenticated_client(app, base_url=base_url)
+        response = client.get("/netinventory-client/", base_url=base_url)
     finally:
         trackhub_app.requests.request = original_request
 
-    assert_true(response.status_code == 200, "visible client app should proxy")
+    assert_true(response.status_code == 200, "explicitly visible client app should proxy")
     assert_true(
         seen.get("url", "").startswith("http://127.0.0.1:8889/"),
-        "visible client app should target the configured local client URL",
+        "explicitly visible client app should target the configured local client URL",
     )
 
 
 def main() -> None:
-    test_hidden_netinventory_client_not_listed_or_proxied()
+    test_hidden_netinventory_client_not_listed_or_proxied_on_public_host()
+    test_hidden_netinventory_client_localhost_shortcut_can_proxy()
     test_visible_netinventory_client_can_proxy_for_local_hosts()
     print("trackhub local tests passed")
 
