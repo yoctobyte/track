@@ -8,10 +8,21 @@ TRACK should support multiple independently running hosts, for example:
 - development server
 - backup server
 - site-local server
+- intermittent laptop or workstation
 
-The operator should be able to add another server URL, provide a shared secret,
-and run sync. SQLite databases may remain local to each host. Sync must happen
-at the record/file level, not by copying SQLite files.
+The operator should be able to add another node URL, provide or approve pairing
+credentials, and run sync. SQLite databases may remain local to each host. Sync
+must happen at the record/file level, not by copying SQLite files.
+
+The model is not "all data lives on one central server". The model is:
+
+- each approved laptop, workstation, server, or backup box is a trusted node
+- trust is global to TRACK, not owned by a single subproject
+- subprojects publish append-only records and immutable artifacts into the
+  global sync layer
+- nodes may be offline most of the time and sync when reachable
+- stable servers are useful relays and public surfaces, but they are not the
+  only source of truth
 
 ## Boundary Rule
 
@@ -26,6 +37,8 @@ Recommended shape:
 - A subproject that does not implement an adapter remains unaffected.
 - Local IDs stay local implementation details.
 - Sync IDs become the cross-host identity.
+- Pairing, trust, peer credentials, and sync policy live in `tracksync`, not in
+  `netinventory`, `map3d`, or another subproject.
 
 ## Identity Model
 
@@ -157,10 +170,48 @@ Minimum fields:
 Conflict policy for phase 1:
 
 - Append-only facts never conflict.
+- New facts and file revisions are preferred over in-place mutation.
 - Mutable records use latest `updated_at` as the default winner.
 - Manual conflict UI can be added later for high-value records.
 - Derived data should usually not sync by default, but it may sync when marked
   as an exportable artifact.
+
+Deletion policy:
+
+- Physical deletion is not part of normal sync.
+- If something must disappear from active views, export a tombstone or
+  superseding record with `deleted: true`.
+- Peers should preserve historical records and artifacts unless an operator
+  explicitly runs a local retention cleanup outside the sync protocol.
+
+This gives intermittent laptops a safe operating mode: they can append data
+while offline, reconnect later, and merge without needing central locks.
+
+## Trust Model
+
+Pairing is global. A trusted node may contribute data for any subproject whose
+adapter and policy allow it.
+
+Initial trust levels:
+
+- `pending`: node has requested pairing but cannot sync protected data yet.
+- `trusted`: node may exchange manifests, records, and allowed artifacts.
+- `disabled`: node remains known but all signed sync requests are rejected.
+
+Phase 1 can still use mutual shared secrets for signed HTTP requests. The
+important boundary is that the secret identifies a TRACK node, not a
+NetInventory client or one-off upload token. Later, the same trust table can
+grow into per-node keypairs or certificate-style approval without changing the
+subproject record envelope.
+
+Expected laptop flow:
+
+1. Laptop installs TRACK and creates a local host identity.
+2. Laptop either creates a local environment or requests pairing with an
+   existing trusted host.
+3. Remote admin approves the laptop as a trusted node.
+4. Laptop syncs append-only records and allowed artifacts when online.
+5. Other trusted nodes pull from it directly or through an always-on relay.
 
 ## Artifact Policy
 

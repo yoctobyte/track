@@ -10,6 +10,11 @@ It is intentionally standalone:
 - it does not import subproject internals by default
 - subproject-specific adapters can be added later
 
+The scope is global TRACK trust and data sync. NetInventory, Map3D,
+DeviceControl, and other subprojects are adapters under this layer; they do not
+own pairing. A laptop with approved TrackSync credentials is a trusted TRACK
+node, even if it is offline most of the time.
+
 ## Peer Setup
 
 For the first practical setup, a peer is:
@@ -22,6 +27,10 @@ For the first practical setup, a peer is:
 The username/password fields stay in local `tracksync/data/config.json`. They
 are not exported in manifests. The sync secret is used only for HMAC request
 signing.
+
+This is mutual node trust, not a central-server-only credential. An always-on
+server can act as a relay or public surface, but append-only data may originate
+from any trusted laptop, workstation, backup server, or site-local host.
 
 ## Run
 
@@ -49,6 +58,21 @@ This first slice supports:
 - manual peer sync handshake
 
 Record and file adapters will be added per subproject.
+
+## Trusted Nodes
+
+The intended production flow is:
+
+1. A clean laptop creates a local TrackSync host identity.
+2. The operator either creates a local environment or requests pairing with an
+   existing trusted host.
+3. A remote admin approves that laptop as a trusted node.
+4. The laptop syncs when online and keeps local records while offline.
+
+Normal sync should be append-only. If data is no longer active, adapters should
+publish tombstones or superseding records instead of physically deleting remote
+history. Local retention cleanup can exist later, but it is outside the sync
+protocol.
 
 ## Environments
 
