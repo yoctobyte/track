@@ -71,7 +71,8 @@ Remote host URL: optional
 Remote pairing credential: optional
 ```
 
-For known deployments, most of this should be preseeded:
+For known deployments, most of this can be suggested but should still be
+visible to the user:
 
 ```text
 Profile: client
@@ -80,8 +81,20 @@ Suggested location slug: museum
 Public base URL: https://track.example.org
 ```
 
-The user should normally only confirm the location, enter local credentials, and
-request or complete pairing.
+The common user flow should be:
+
+1. User enters the public TRACK host, for example
+   `https://track.praktijkpioniers.com`.
+2. Installer derives the TrackSync URL as
+   `https://track.praktijkpioniers.com/tracksync`.
+3. Installer asks that remote host for public realms/environments.
+4. User chooses a realm/location from the returned list.
+5. User enters the realm password or pairing password.
+6. Local node stores the remote as a pending/trusted peer depending on the
+   response.
+
+The user should not need to know subproject-specific URLs. They provide the
+TRACK host and credentials; TrackSync handles the global pairing.
 
 ## Preseeded Install
 
@@ -93,8 +106,8 @@ Example:
 ```json
 {
   "profile": "client",
-  "trackhub_public_base_url": "https://track.example.org",
-  "tracksync_remote_url": "https://track.example.org/tracksync",
+  "trackhub_public_base_url": "https://track.praktijkpioniers.com",
+  "tracksync_remote_url": "https://track.praktijkpioniers.com/tracksync",
   "suggested_location_slug": "museum",
   "suggested_location_name": "Museum",
   "netinventory_client_visible_localhost": true
@@ -105,8 +118,8 @@ Equivalent environment variables:
 
 ```bash
 TRACK_PROFILE=client
-TRACK_PUBLIC_BASE_URL=https://track.example.org
-TRACKSYNC_REMOTE_URL=https://track.example.org/tracksync
+TRACK_PUBLIC_BASE_URL=https://track.praktijkpioniers.com
+TRACKSYNC_REMOTE_URL=https://track.praktijkpioniers.com/tracksync
 TRACK_LOCATION_SLUG=museum
 TRACK_LOCATION_NAME=Museum
 ```
@@ -130,11 +143,24 @@ The node can be paired later without losing local data.
 
 ### Pair With Remote
 
-The operator enters or accepts a remote TrackSync URL.
+The operator enters a public TRACK host such as:
+
+```text
+https://track.praktijkpioniers.com
+```
+
+The installer normalizes that to the remote TrackSync endpoint:
+
+```text
+https://track.praktijkpioniers.com/tracksync
+```
 
 The installer should:
 
 - create local TrackSync identity
+- fetch the remote public realm/environment list
+- let the user choose the intended realm/location
+- ask for the realm password or pairing password
 - store the remote URL as a peer candidate
 - submit or prepare a pairing request
 - show pending/approved state
