@@ -67,4 +67,6 @@ tracksync/data/config.json
 tracksync/data/*.sqlite
 tracksync/.tracksync.pid
 tracksync/venv/
+quicktrack/data/
+quicktrack/venv/
 danceable/inventory.json

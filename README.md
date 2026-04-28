@@ -97,6 +97,17 @@ Current focus:
 - approved maintenance playbooks
 - web-triggered runs with logs and fetched screenshots
 
+### `quicktrack/`
+
+Fast photo observation capture.
+
+Current focus:
+
+- timestamped photo submissions
+- optional description and sender ID
+- explicit GPS capture only after pressing the location button
+- local JSON/photo storage ready for later TrackSync artifact handling
+
 ## Project Structure
 
 This repository is now the canonical `track` repo.

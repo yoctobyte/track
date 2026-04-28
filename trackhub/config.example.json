@@ -76,6 +76,20 @@
           },
           "autostart": true,
           "status": "active"
+        },
+        {
+          "id": "quicktrack",
+          "name": "QuickTrack",
+          "summary": "Capture timestamped photo observations with optional notes, sender ID, and explicit GPS attachment.",
+          "local_url": "http://127.0.0.1:5107/",
+          "public_path": "/quicktrack/",
+          "launch_script": "./quicktrack/run.sh",
+          "launch_env": {
+            "QUICKTRACK_PORT": "5107",
+            "QUICKTRACK_DATA_DIR": "./quicktrack/data/environments/testing"
+          },
+          "autostart": false,
+          "status": "experimental"
         }
       ]
     }

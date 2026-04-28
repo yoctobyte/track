@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ app_title }}</title>
+  <style>
+    :root {
+      --paper: #f5efe2;
+      --panel: #fffaf0;
+      --ink: #1e1a14;
+      --muted: #6d6254;
+      --line: rgba(66, 49, 27, 0.17);
+      --accent: #1e684f;
+      --accent-strong: #0f3e30;
+      --warn: #a2551d;
+      --shadow: 0 20px 45px rgba(36, 27, 16, 0.11);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(30, 104, 79, 0.16), transparent 28%),
+        radial-gradient(circle at 95% 12%, rgba(162, 85, 29, 0.13), transparent 24%),
+        linear-gradient(160deg, #fbf6eb 0%, var(--paper) 48%, #e8dcc7 100%);
+      min-height: 100vh;
+    }
+
+    .shell {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .hero,
+    .card {
+      background: rgba(255, 250, 240, 0.94);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: clamp(1rem, 4vw, 2rem);
+      margin: 0.7rem 0 1rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.4rem, 12vw, 5.2rem);
+      line-height: 0.9;
+      letter-spacing: -0.05em;
+    }
+
+    .kicker {
+      margin: 0 0 0.55rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 800;
+    }
+
+    .lede {
+      color: var(--muted);
+      max-width: 44rem;
+      font-size: 1.05rem;
+      line-height: 1.55;
+    }
+
+    form,
+    .stack {
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .card {
+      padding: 1rem;
+    }
+
+    label {
+      display: grid;
+      gap: 0.35rem;
+      font-weight: 800;
+    }
+
+    input,
+    textarea,
+    button {
+      font: inherit;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 0.85rem 0.95rem;
+      background: white;
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 7rem;
+      resize: vertical;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      align-items: center;
+    }
+
+    .btn {
+      min-height: 2.9rem;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.75rem 1.05rem;
+      background: var(--accent);
+      color: white;
+      font-weight: 900;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .btn.secondary {
+      background: #efe5d2;
+      color: var(--accent-strong);
+      border: 1px solid var(--line);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .error {
+      border-radius: 16px;
+      padding: 0.85rem 1rem;
+      background: rgba(162, 85, 29, 0.13);
+      color: #743510;
+      font-weight: 800;
+    }
+
+    .saved {
+      border-radius: 16px;
+      padding: 0.85rem 1rem;
+      background: rgba(30, 104, 79, 0.13);
+      color: var(--accent-strong);
+      font-weight: 800;
+    }
+
+    .preview {
+      display: none;
+      width: 100%;
+      max-height: 55vh;
+      object-fit: contain;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: #111;
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .record {
+      border-top: 1px solid var(--line);
+      padding-top: 0.9rem;
+    }
+
+    .record:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .thumb {
+      width: 100%;
+      max-height: 16rem;
+      object-fit: cover;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #111;
+    }
+
+    @media (max-width: 640px) {
+      .shell { padding: 0.65rem; }
+      .hero, .card { border-radius: 18px; }
+      .actions .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="kicker">Fast field note</p>
+      <h1>QuickTrack</h1>
+      <p class="lede">
+        Take a photo, keep the timestamp automatically, optionally add context and GPS.
+        Location permission is only requested when you press the location button.
+      </p>
+    </section>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    {% if request.args.get("saved") %}
+      <div class="saved">Saved observation {{ request.args.get("saved") }}.</div>
+    {% endif %}
+
+    <form class="card" method="post" action="{{ public_prefix }}/submit" enctype="multipart/form-data">
+      <div class="actions">
+        <button class="btn" type="submit">Submit Observation</button>
+        <button class="btn secondary" type="button" id="gpsButton">Add GPS Location</button>
+        <span class="muted" id="gpsStatus">No location attached.</span>
+      </div>
+
+      <label>
+        Photo
+        <input id="photoInput" name="photo" type="file" accept="image/*" capture="environment" required>
+      </label>
+      <img id="preview" class="preview" alt="Selected photo preview">
+
+      <div class="actions">
+        <button class="btn" type="submit">Submit Observation</button>
+      </div>
+
+      <label>
+        Description
+        <textarea name="description" placeholder="Optional note, object, room, issue, or context."></textarea>
+      </label>
+
+      <div class="meta-grid">
+        <label>
+          Sender ID
+          <input name="sender_id" value="{{ sender_id }}" autocomplete="nickname" placeholder="Optional, saved in this browser">
+        </label>
+        <label>
+          Local browser time
+          <input id="browserTime" type="text" value="" readonly>
+        </label>
+      </div>
+
+      <input type="hidden" name="latitude" id="latitude">
+      <input type="hidden" name="longitude" id="longitude">
+      <input type="hidden" name="accuracy_m" id="accuracy">
+      <input type="hidden" name="location_captured_at" id="locationCapturedAt">
+
+      <div class="actions">
+        <button class="btn" type="submit">Submit Observation</button>
+        <span class="muted">Timestamp is assigned by the server when submitted.</span>
+      </div>
+    </form>
+
+    <section class="card stack" style="margin-top:1rem;">
+      <h2 style="margin:0; font-family:Georgia, 'Times New Roman', serif;">Recent observations</h2>
+      {% if records %}
+        {% for record in records %}
+          <article class="record stack">
+            {% if record.photo %}
+              <img class="thumb" src="{{ public_prefix }}/{{ record.photo.relative_path }}" alt="Observation photo">
+            {% endif %}
+            <strong>{{ record.created_at }}</strong>
+            {% if record.sender_id %}
+              <span class="muted">Sender: {{ record.sender_id }}</span>
+            {% endif %}
+            {% if record.description %}
+              <div>{{ record.description }}</div>
+            {% endif %}
+            {% if record.location %}
+              <span class="muted">
+                GPS: {{ record.location.latitude }}, {{ record.location.longitude }}
+                {% if record.location.accuracy_m %}± {{ record.location.accuracy_m|round(1) }} m{% endif %}
+              </span>
+            {% endif %}
+            <code>{{ record.id }}</code>
+          </article>
+        {% endfor %}
+      {% else %}
+        <p class="muted" style="margin:0;">No observations yet.</p>
+      {% endif %}
+    </section>
+  </main>
+
+  <script>
+    const photoInput = document.getElementById("photoInput");
+    const preview = document.getElementById("preview");
+    const browserTime = document.getElementById("browserTime");
+    const gpsButton = document.getElementById("gpsButton");
+    const gpsStatus = document.getElementById("gpsStatus");
+    const latitude = document.getElementById("latitude");
+    const longitude = document.getElementById("longitude");
+    const accuracy = document.getElementById("accuracy");
+    const locationCapturedAt = document.getElementById("locationCapturedAt");
+
+    browserTime.value = new Date().toLocaleString();
+
+    photoInput.addEventListener("change", () => {
+      const file = photoInput.files && photoInput.files[0];
+      if (!file) {
+        preview.removeAttribute("src");
+        preview.style.display = "none";
+        return;
+      }
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+    });
+
+    gpsButton.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        gpsStatus.textContent = "This browser has no GPS support.";
+        return;
+      }
+      gpsStatus.textContent = "Requesting location...";
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          latitude.value = position.coords.latitude;
+          longitude.value = position.coords.longitude;
+          accuracy.value = position.coords.accuracy || "";
+          locationCapturedAt.value = new Date().toISOString();
+          gpsStatus.textContent = `GPS attached (${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)})`;
+        },
+        (error) => {
+          gpsStatus.textContent = `GPS not attached: ${error.message}`;
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    });
+  </script>
+</body>
+</html>

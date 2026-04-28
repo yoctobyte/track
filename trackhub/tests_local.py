@@ -121,10 +121,39 @@ def test_visible_netinventory_client_can_proxy_for_local_hosts() -> None:
     )
 
 
+def test_quicktrack_is_listed_and_proxyable() -> None:
+    app = trackhub_app.create_app()
+
+    original_request = trackhub_app.requests.request
+    seen: dict[str, str] = {}
+
+    def fake_request(**kwargs):
+        seen["url"] = kwargs["url"]
+        return FakeResponse(content=b"quicktrack")
+
+    trackhub_app.requests.request = fake_request
+    try:
+        base_url = "https://track.example.test"
+        client = authenticated_client(app, base_url=base_url)
+        overview = client.get("/env/testing", base_url=base_url)
+        response = client.get("/quicktrack/", base_url=base_url)
+    finally:
+        trackhub_app.requests.request = original_request
+
+    assert_true(overview.status_code == 200, "testing environment page should render")
+    assert_true(b"QuickTrack" in overview.data, "QuickTrack should be listed for testing")
+    assert_true(response.status_code == 200, "QuickTrack should proxy through TrackHub")
+    assert_true(
+        seen.get("url", "").startswith("http://127.0.0.1:5107/"),
+        "QuickTrack proxy should target the configured local app URL",
+    )
+
+
 def main() -> None:
     test_hidden_netinventory_client_not_listed_or_proxied_on_public_host()
     test_hidden_netinventory_client_localhost_shortcut_can_proxy()
     test_visible_netinventory_client_can_proxy_for_local_hosts()
+    test_quicktrack_is_listed_and_proxyable()
     print("trackhub local tests passed")
 
 
