@@ -76,6 +76,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                         "NETINV_PUBLIC_PATH": "/netinventory-client/",
                     },
                     "autostart": True,
+                    "visible": True,
                     "status": "imported",
                 },
                 {

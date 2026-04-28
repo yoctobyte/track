@@ -60,7 +60,8 @@ def create_app() -> Flask:
             else:
                 app_item["open_url"] = local_url or app_item["public_url"]
             apps.append(app_item)
-        hydrated["apps"] = apps
+        hydrated["apps"] = [app_item for app_item in apps if app_item.get("visible", True)]
+        hydrated["_all_apps"] = apps
         hydrated["enabled"] = bool(hydrated.get("enabled", True))
         hydrated["has_password"] = bool(str(hydrated.get("password", "")).strip())
         return hydrated
@@ -116,7 +117,9 @@ def create_app() -> Flask:
         normalized = "/" + path.lstrip("/")
         matches = []
         for env in environments():
-            for item in env["apps"]:
+            for item in env.get("_all_apps", env["apps"]):
+                if not item.get("visible", True):
+                    continue
                 public_path = str(item.get("public_path", "")).rstrip("/")
                 if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
                     matches.append((env, item))
@@ -127,7 +130,9 @@ def create_app() -> Flask:
         normalized = "/" + path.lstrip("/")
 
         if selected_env is not None and selected_env.get("enabled", True):
-            for item in selected_env["apps"]:
+            for item in selected_env.get("_all_apps", selected_env["apps"]):
+                if not item.get("visible", True):
+                    continue
                 public_path = str(item.get("public_path", "")).rstrip("/")
                 if public_path and (normalized == public_path or normalized.startswith(public_path + "/")):
                     return selected_env, item
@@ -251,6 +256,7 @@ def create_app() -> Flask:
                 app_clean = dict(app_item)
                 app_clean.pop("public_url", None)
                 app_clean.pop("open_url", None)
+                app_clean.pop("_all_apps", None)
                 clean_apps.append(app_clean)
             item["apps"] = clean_apps
             clean_envs.append(item)

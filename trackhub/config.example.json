@@ -57,7 +57,8 @@
             "NETINVENTORY_UI_PORT": "8889",
             "NETINV_PUBLIC_PATH": "/netinventory-client/"
           },
-          "autostart": true
+          "autostart": true,
+          "visible": true
         },
         {
           "id": "devicecontrol",
