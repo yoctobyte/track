@@ -63,4 +63,8 @@ trackhub/.trackhub-secret-key
 trackhub/passwords.json
 museumcontrol/.museumcontrol.pid
 netinventory/.netinventory-ui.pid
+tracksync/data/config.json
+tracksync/data/*.sqlite
+tracksync/.tracksync.pid
+tracksync/venv/
 danceable/inventory.json

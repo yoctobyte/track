@@ -94,6 +94,20 @@ DEFAULT_CONFIG: dict[str, object] = {
                     "autostart": True,
                     "status": "active",
                 },
+                {
+                    "id": "tracksync",
+                    "name": "TrackSync",
+                    "summary": "Coordinate multi-host TRACK sync between stable, development, and backup servers.",
+                    "local_url": "http://127.0.0.1:5099/",
+                    "public_path": "/tracksync/",
+                    "launch_script": "./tracksync/run.sh",
+                    "launch_env": {
+                        "TRACKSYNC_PORT": "5099",
+                        "TRACKSYNC_DATA_DIR": "./tracksync/data",
+                    },
+                    "autostart": False,
+                    "status": "experimental",
+                },
             ],
         },
         {

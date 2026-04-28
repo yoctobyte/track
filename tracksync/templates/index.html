@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRACK Sync</title>
+  <style>
+    :root { --ink: #182018; --muted: #66705f; --paper: #fffaf0; --line: #cbd2c5; --accent: #254731; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; background: linear-gradient(135deg, #e5eadf, #f8f1df); color: var(--ink); }
+    main { max-width: 980px; margin: 40px auto; padding: 0 20px; }
+    header, section { background: rgba(255, 250, 240, 0.92); border: 1px solid var(--line); border-radius: 18px; padding: 24px; margin-bottom: 18px; }
+    h1, h2 { margin: 0 0 12px; }
+    .meta { color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+    button { padding: 10px 14px; background: var(--accent); color: white; border: 0; border-radius: 9px; cursor: pointer; }
+    form.grid { display: grid; grid-template-columns: 1fr 2fr 1.4fr auto; gap: 10px; align-items: end; }
+    .error { color: #9b271f; }
+    code { background: #edf0e8; padding: 2px 5px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>TRACK Sync</h1>
+      <p class="meta">Local host: <code>{{ config.host_id }}</code></p>
+      <p class="meta">Protocol: <code>track-sync-v1</code>. Record adapters are not enabled yet.</p>
+    </header>
+
+    <section>
+      <h2>Peers</h2>
+      {% if error %}<p class="error">{{ error }}</p>{% endif %}
+      <table>
+        <thead>
+          <tr><th>Name</th><th>URL</th><th>Last status</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          {% for peer in config.peers %}
+          <tr>
+            <td>{{ peer.name }}<br><span class="meta">{{ peer.id }}</span></td>
+            <td>{{ peer.base_url }}</td>
+            <td>{{ peer.last_status or "never" }}<br><span class="meta">{{ peer.last_sync_at }}</span></td>
+            <td>
+              <form method="post" action="{{ url_for('sync_peer', peer_id=peer.id) }}">
+                <button type="submit">Sync</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="meta">No peers configured.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Add Peer</h2>
+      <form class="grid" method="post" action="{{ url_for('add_peer') }}">
+        <label>Name<input name="name" placeholder="stable-server" required></label>
+        <label>URL<input name="base_url" placeholder="https://track.example.com/tracksync" required></label>
+        <label>Secret<input name="secret" type="password" required></label>
+        <button type="submit">Add</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
+
