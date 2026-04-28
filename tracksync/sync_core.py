@@ -8,9 +8,10 @@ import secrets
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 
 def utcnow_iso() -> str:
@@ -70,6 +71,7 @@ class SyncConfig:
     host_id: str
     secret: str
     peers: list[dict[str, Any]]
+    artifact_roots: list[dict[str, Any]]
 
 
 class ConfigStore:
@@ -84,6 +86,7 @@ class ConfigStore:
                 "host_id": default_host_id(),
                 "secret": os.environ.get("TRACKSYNC_SECRET", "").strip() or secrets.token_urlsafe(32),
                 "peers": [],
+                "artifact_roots": [],
             }
             self.save_dict(config)
         data = json.loads(self.path.read_text(encoding="utf-8"))
@@ -93,6 +96,7 @@ class ConfigStore:
             host_id=safe_host_id(str(data.get("host_id") or default_host_id())),
             secret=env_secret or str(data.get("secret", "")),
             peers=list(data.get("peers", [])),
+            artifact_roots=list(data.get("artifact_roots", [])),
         )
 
     def save_dict(self, data: dict[str, Any]) -> None:
@@ -121,6 +125,7 @@ class ConfigStore:
             "host_id": config.host_id,
             "secret": config.secret,
             "peers": peers,
+            "artifact_roots": config.artifact_roots,
         })
         return peer
 
@@ -134,5 +139,89 @@ class ConfigStore:
             "host_id": config.host_id,
             "secret": config.secret,
             "peers": config.peers,
+            "artifact_roots": config.artifact_roots,
         })
 
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def matches_any(value: str, patterns: list[str]) -> bool:
+    return any(fnmatch(value, pattern) for pattern in patterns)
+
+
+def scan_artifact_roots(config: SyncConfig) -> list[dict[str, Any]]:
+    files: list[dict[str, Any]] = []
+    for root_config in config.artifact_roots:
+        if not root_config.get("enabled", True):
+            continue
+        root_id = safe_host_id(str(root_config.get("id") or root_config.get("name") or "artifact-root"))
+        raw_path = str(root_config.get("path") or "").strip()
+        if not raw_path:
+            continue
+        root_path = Path(raw_path).expanduser()
+        if not root_path.is_absolute():
+            root_path = config.data_dir / root_path
+        root_path = root_path.resolve()
+        if not root_path.exists() or not root_path.is_dir():
+            continue
+
+        include_patterns = [str(item) for item in root_config.get("include", ["*", "**/*"])]
+        exclude_patterns = [str(item) for item in root_config.get("exclude", [])]
+        tier = str(root_config.get("tier") or "artifact")
+        record_type = str(root_config.get("record_type") or f"artifact.{root_id}")
+
+        for path in sorted(root_path.rglob("*")):
+            if not path.is_file():
+                continue
+            rel_path = path.relative_to(root_path).as_posix()
+            if not matches_any(rel_path, include_patterns):
+                continue
+            if matches_any(rel_path, exclude_patterns):
+                continue
+            stat_result = path.stat()
+            sha256 = file_sha256(path)
+            files.append({
+                "artifact_id": f"{root_id}:{sha256}:{rel_path}",
+                "root_id": root_id,
+                "record_type": record_type,
+                "tier": tier,
+                "relative_path": rel_path,
+                "size": stat_result.st_size,
+                "sha256": sha256,
+                "modified_at": datetime.fromtimestamp(stat_result.st_mtime, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+                "download_path": f"/api/v1/files/{root_id}/{quote(rel_path)}",
+            })
+    return files
+
+
+def resolve_artifact_file(config: SyncConfig, root_id: str, relative_path: str) -> Path | None:
+    normalized_root_id = safe_host_id(root_id)
+    for root_config in config.artifact_roots:
+        if not root_config.get("enabled", True):
+            continue
+        current_root_id = safe_host_id(str(root_config.get("id") or root_config.get("name") or "artifact-root"))
+        if current_root_id != normalized_root_id:
+            continue
+        raw_path = str(root_config.get("path") or "").strip()
+        if not raw_path:
+            return None
+        root_path = Path(raw_path).expanduser()
+        if not root_path.is_absolute():
+            root_path = config.data_dir / root_path
+        root_path = root_path.resolve()
+        candidate = (root_path / relative_path).resolve()
+        if not candidate.is_file() or root_path not in candidate.parents:
+            return None
+        rel_path = candidate.relative_to(root_path).as_posix()
+        include_patterns = [str(item) for item in root_config.get("include", ["*", "**/*"])]
+        exclude_patterns = [str(item) for item in root_config.get("exclude", [])]
+        if not matches_any(rel_path, include_patterns) or matches_any(rel_path, exclude_patterns):
+            return None
+        return candidate
+    return None

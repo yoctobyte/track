@@ -111,7 +111,59 @@ Conflict policy for phase 1:
 - Append-only facts never conflict.
 - Mutable records use latest `updated_at` as the default winner.
 - Manual conflict UI can be added later for high-value records.
-- Derived data should usually not sync unless explicitly marked exportable.
+- Derived data should usually not sync by default, but it may sync when marked
+  as an exportable artifact.
+
+## Artifact Policy
+
+Small durable documentation has priority over huge data, but the system should
+be able to sync any file when the operator intentionally enables it.
+
+Artifact tiers:
+
+- `core`: small metadata needed for the application to understand records.
+- `evidence`: original observations such as uploaded photos, videos, JSONL
+  event logs, inventory files, rack photos, and screenshots.
+- `derived-small`: previews, manifests, selections, summaries, and compact
+  exports.
+- `derived-large`: GPU or CPU generated outputs such as meshes, Gaussian
+  splats, dense reconstructions, rendered videos, and texture atlases.
+- `archive`: cold backup material that is useful to preserve but not needed
+  during normal browsing.
+
+Default sync behavior:
+
+- Sync `core`, `evidence`, and `derived-small` first.
+- Advertise `derived-large` and `archive` in manifests, but download them only
+  when explicitly requested or when a peer policy says it wants them.
+- Never include secrets, local tokens, PID files, virtualenvs, model checkouts,
+  package caches, or full SQLite database files.
+
+This supports asymmetric hosts. A GPU workstation can produce large `map3d`
+artifacts and advertise them. A stable server can pull those artifacts later
+and serve them without ever running the GPU pipeline.
+
+Configured artifact roots are represented in `tracksync/data/config.json`:
+
+```json
+{
+  "artifact_roots": [
+    {
+      "id": "map3d-model-results",
+      "path": "/srv/track/map3d/data/derived/model_reconstructions",
+      "tier": "derived-large",
+      "record_type": "map3d.model_artifact",
+      "include": ["**/*.ply", "**/*.glb", "**/*.mp4", "**/*.json"],
+      "exclude": ["**/logs/**", "**/.cache/**"],
+      "enabled": true
+    }
+  ]
+}
+```
+
+The first implementation advertises artifact manifests with size, SHA-256,
+relative path, record type, tier, and a signed download path. Automated pull
+policy comes after this manifest and download endpoint are stable.
 
 ## Transport
 
@@ -141,13 +193,15 @@ Implemented first:
 - peer URL/secret configuration
 - signed `/api/v1/hello`
 - signed `/api/v1/manifest`
+- signed `/api/v1/files/<root>/<path>`
+- configurable artifact root manifests
 - manual sync action that checks remote availability
 
 Not yet implemented:
 
 - per-subproject record adapters
-- file transfer
+- artifact pull policy
+- imported file placement policy
 - conflict UI
 - automatic scheduled sync
 - public/private key trust
-

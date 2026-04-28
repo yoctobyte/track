@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.request import urlopen
 
 from app import create_app
-from sync_core import ConfigStore, sign_request, verify_signature
+from sync_core import ConfigStore, resolve_artifact_file, scan_artifact_roots, sign_request, verify_signature
 
 
 PAIR_SECRET = "pair-secret-for-local-test"
@@ -29,7 +29,13 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def write_config(data_dir: Path, host_id: str, local_secret: str, peers: list[dict]) -> None:
+def write_config(
+    data_dir: Path,
+    host_id: str,
+    local_secret: str,
+    peers: list[dict],
+    artifact_roots: list[dict] | None = None,
+) -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     path = data_dir / "config.json"
     path.write_text(
@@ -38,6 +44,7 @@ def write_config(data_dir: Path, host_id: str, local_secret: str, peers: list[di
                 "host_id": host_id,
                 "secret": local_secret,
                 "peers": peers,
+                "artifact_roots": artifact_roots or [],
             },
             indent=2,
             sort_keys=True,
@@ -103,6 +110,81 @@ def test_config_store_permissions(tmpdir: Path) -> None:
     updated = store.load().peers[0]
     assert_true(updated["last_status"] == "ok", "peer status should persist")
     assert_true(updated["last_sync_at"], "peer sync timestamp should persist")
+
+
+def test_artifact_manifest(tmpdir: Path) -> None:
+    root = tmpdir / "artifacts"
+    root.mkdir()
+    (root / "small.txt").write_text("small documentation\n", encoding="utf-8")
+    (root / "space name.txt").write_text("space path\n", encoding="utf-8")
+    (root / "large.bin").write_bytes(b"x" * 1024)
+    (root / "secret.key").write_text("do-not-sync\n", encoding="utf-8")
+    nested = root / "derived"
+    nested.mkdir()
+    (nested / "mesh.glb").write_bytes(b"glb")
+
+    data_dir = tmpdir / "artifact-config"
+    write_config(
+        data_dir,
+        "host-a",
+        "host-a-local",
+        [],
+        [
+            {
+                "id": "docs",
+                "path": str(root),
+                "tier": "small",
+                "record_type": "test.docs",
+                "include": ["*.txt", "derived/*.glb", "*.bin"],
+                "exclude": ["*.key"],
+            }
+        ],
+    )
+    cfg = ConfigStore(data_dir).load()
+    files = scan_artifact_roots(cfg)
+    rel_paths = {item["relative_path"] for item in files}
+    assert_true(rel_paths == {"small.txt", "space name.txt", "large.bin", "derived/mesh.glb"}, str(rel_paths))
+    by_path = {item["relative_path"]: item for item in files}
+    assert_true(by_path["small.txt"]["tier"] == "small", "tier should propagate")
+    assert_true(by_path["small.txt"]["record_type"] == "test.docs", "record_type should propagate")
+    assert_true(by_path["small.txt"]["sha256"], "sha256 should be present")
+    assert_true(by_path["large.bin"]["size"] == 1024, "size should be present")
+    assert_true(by_path["derived/mesh.glb"]["download_path"] == "/api/v1/files/docs/derived/mesh.glb", "download path should be present")
+    assert_true(by_path["space name.txt"]["download_path"] == "/api/v1/files/docs/space%20name.txt", "encoded download path should be present")
+    assert_true(resolve_artifact_file(cfg, "docs", "small.txt") == root / "small.txt", "configured file should resolve")
+    assert_true(resolve_artifact_file(cfg, "docs", "../secret.key") is None, "path traversal should fail")
+    assert_true(resolve_artifact_file(cfg, "docs", "secret.key") is None, "excluded file should not resolve")
+
+    old_env = os.environ.copy()
+    os.environ["TRACKSYNC_DATA_DIR"] = str(data_dir)
+    try:
+        app = create_app()
+    finally:
+        os.environ.clear()
+        os.environ.update(old_env)
+    client = app.test_client()
+    timestamp = str(int(time.time()))
+    path = "/api/v1/files/docs/small.txt"
+    headers = {
+        "X-Track-Sync-Host": "host-a",
+        "X-Track-Sync-Timestamp": timestamp,
+        "X-Track-Sync-Signature": sign_request("host-a-local", "GET", path, timestamp, b""),
+    }
+    response = client.get(path, headers=headers)
+    assert_true(response.status_code == 200, f"signed artifact download should pass, got {response.status_code}")
+    assert_true(response.data == b"small documentation\n", "downloaded artifact content should match")
+    assert_true(client.get(path).status_code == 401, "unsigned artifact download should fail")
+
+    encoded_path = "/api/v1/files/docs/space%20name.txt"
+    timestamp = str(int(time.time()))
+    encoded_headers = {
+        "X-Track-Sync-Host": "host-a",
+        "X-Track-Sync-Timestamp": timestamp,
+        "X-Track-Sync-Signature": sign_request("host-a-local", "GET", encoded_path, timestamp, b""),
+    }
+    encoded_response = client.get(encoded_path, headers=encoded_headers)
+    assert_true(encoded_response.status_code == 200, f"encoded artifact download should pass, got {encoded_response.status_code}")
+    assert_true(encoded_response.data == b"space path\n", "encoded downloaded artifact content should match")
 
 
 def test_api_auth(tmpdir: Path) -> None:
@@ -202,7 +284,7 @@ def test_localhost_peer_handshake(tmpdir: Path) -> None:
 
         config_after = json.loads((data_a / "config.json").read_text(encoding="utf-8"))
         peer_after = config_after["peers"][0]
-        assert_true(peer_after["last_status"].startswith("ok: host-b / 0 records"), peer_after["last_status"])
+        assert_true(peer_after["last_status"].startswith("ok: host-b / 0 records / 0 files"), peer_after["last_status"])
         assert_true(peer_after["last_sync_at"], "successful sync should write last_sync_at")
     finally:
         process.terminate()
@@ -221,6 +303,7 @@ def main() -> None:
         tmpdir = Path(tmp)
         test_signature_protocol()
         test_config_store_permissions(tmpdir)
+        test_artifact_manifest(tmpdir)
         test_api_auth(tmpdir)
         test_localhost_peer_handshake(tmpdir)
 

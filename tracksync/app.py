@@ -7,9 +7,9 @@ import time
 from pathlib import Path
 
 import requests
-from flask import Flask, abort, redirect, render_template, request, session, url_for
+from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
 
-from sync_core import ConfigStore, sign_request, utcnow_iso, verify_signature
+from sync_core import ConfigStore, resolve_artifact_file, scan_artifact_roots, sign_request, utcnow_iso, verify_signature
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -33,6 +33,10 @@ def create_app() -> Flask:
     def admin_password() -> str:
         return os.environ.get("TRACKSYNC_ADMIN_PASSWORD", "tracksync-admin")
 
+    def signature_path() -> str:
+        raw_uri = request.environ.get("RAW_URI") or request.environ.get("REQUEST_URI") or request.path
+        return str(raw_uri).split("?", 1)[0]
+
     def require_admin():
         if session.get("tracksync_admin"):
             return None
@@ -49,7 +53,7 @@ def create_app() -> Flask:
         else:
             peer = next((item for item in cfg.peers if item.get("id") == remote_host), None)
             secret = str(peer.get("secret", "")) if peer else ""
-        if not verify_signature(secret, request.method, request.path, timestamp, body, signature):
+        if not verify_signature(secret, request.method, signature_path(), timestamp, body, signature):
             abort(401)
 
     def signed_get(peer: dict, path: str):
@@ -66,7 +70,7 @@ def create_app() -> Flask:
 
     @app.before_request
     def gate_admin_pages():
-        if request.endpoint in {"login", "static", "api_hello", "api_manifest"}:
+        if request.endpoint in {"login", "static", "api_hello", "api_manifest", "api_file"}:
             return None
         if request.path.startswith("/api/"):
             require_signed_request()
@@ -115,7 +119,12 @@ def create_app() -> Flask:
             hello.raise_for_status()
             manifest = signed_get(peer, "/api/v1/manifest")
             manifest.raise_for_status()
-            status = f"ok: {hello.json().get('host_id', 'unknown')} / {len(manifest.json().get('records', []))} records"
+            manifest_data = manifest.json()
+            status = (
+                f"ok: {hello.json().get('host_id', 'unknown')} / "
+                f"{len(manifest_data.get('records', []))} records / "
+                f"{len(manifest_data.get('files', []))} files"
+            )
         except Exception as exc:
             status = f"failed: {exc}"
         app.config["TRACKSYNC_STORE"].update_peer_status(peer_id, status)
@@ -136,13 +145,36 @@ def create_app() -> Flask:
     def api_manifest():
         require_signed_request()
         cfg = current_config()
+        files = scan_artifact_roots(cfg)
         return {
             "host_id": cfg.host_id,
             "generated_at": utcnow_iso(),
             "records": [],
-            "files": [],
-            "adapters": [],
+            "files": files,
+            "adapters": [
+                {
+                    "id": "artifact_roots",
+                    "type": "file-manifest",
+                    "roots": [
+                        {
+                            "id": item.get("id") or item.get("name"),
+                            "tier": item.get("tier", "artifact"),
+                            "record_type": item.get("record_type"),
+                            "enabled": item.get("enabled", True),
+                        }
+                        for item in cfg.artifact_roots
+                    ],
+                }
+            ],
         }
+
+    @app.route("/api/v1/files/<root_id>/<path:relative_path>")
+    def api_file(root_id: str, relative_path: str):
+        require_signed_request()
+        path = resolve_artifact_file(current_config(), root_id, relative_path)
+        if path is None:
+            abort(404)
+        return send_file(path, as_attachment=True, download_name=path.name)
 
     return app
 
@@ -157,4 +189,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

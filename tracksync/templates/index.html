@@ -25,7 +25,7 @@
     <header>
       <h1>TRACK Sync</h1>
       <p class="meta">Local host: <code>{{ config.host_id }}</code></p>
-      <p class="meta">Protocol: <code>track-sync-v1</code>. Record adapters are not enabled yet.</p>
+      <p class="meta">Protocol: <code>track-sync-v1</code>. Artifact roots configured: {{ config.artifact_roots|length }}.</p>
     </header>
 
     <section>
@@ -63,7 +63,27 @@
         <button type="submit">Add</button>
       </form>
     </section>
+
+    <section>
+      <h2>Artifact Roots</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Path</th><th>Tier</th><th>State</th></tr>
+        </thead>
+        <tbody>
+          {% for root in config.artifact_roots %}
+          <tr>
+            <td>{{ root.id or root.name }}</td>
+            <td>{{ root.path }}</td>
+            <td>{{ root.tier or "artifact" }}</td>
+            <td>{{ "disabled" if root.enabled == false else "enabled" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="meta">No artifact roots configured. Add them in tracksync/data/config.json for now.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
   </main>
 </body>
 </html>
-
