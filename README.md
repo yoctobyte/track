@@ -149,6 +149,7 @@ Useful root tools:
 
 ## Important Root Documents
 
+- [INSTALL.md](./INSTALL.md)
 - [GOALS.md](./GOALS.md)
 - [PROGRESS.md](./PROGRESS.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
