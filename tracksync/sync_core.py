@@ -24,6 +24,12 @@ def safe_host_id(value: str) -> str:
     return cleaned or "track-host"
 
 
+def safe_slug(value: str) -> str:
+    cleaned = "".join(ch.lower() if ch.isalnum() else "-" for ch in value.strip())
+    cleaned = "-".join(part for part in cleaned.split("-") if part)
+    return cleaned or "default"
+
+
 def default_host_id() -> str:
     configured = os.environ.get("TRACKSYNC_HOST_ID", "").strip()
     if configured:
@@ -71,6 +77,7 @@ class SyncConfig:
     host_id: str
     secret: str
     peers: list[dict[str, Any]]
+    environments: list[dict[str, Any]]
     artifact_roots: list[dict[str, Any]]
 
 
@@ -86,6 +93,7 @@ class ConfigStore:
                 "host_id": default_host_id(),
                 "secret": os.environ.get("TRACKSYNC_SECRET", "").strip() or secrets.token_urlsafe(32),
                 "peers": [],
+                "environments": [],
                 "artifact_roots": [],
             }
             self.save_dict(config)
@@ -96,6 +104,7 @@ class ConfigStore:
             host_id=safe_host_id(str(data.get("host_id") or default_host_id())),
             secret=env_secret or str(data.get("secret", "")),
             peers=list(data.get("peers", [])),
+            environments=list(data.get("environments", [])),
             artifact_roots=list(data.get("artifact_roots", [])),
         )
 
@@ -104,7 +113,16 @@ class ConfigStore:
         self.path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         self.path.chmod(0o600)
 
-    def add_peer(self, name: str, base_url: str, secret: str) -> dict[str, Any]:
+    def add_peer(
+        self,
+        name: str,
+        base_url: str,
+        secret: str,
+        *,
+        location_slug: str = "",
+        username: str = "",
+        password: str = "",
+    ) -> dict[str, Any]:
         config = self.load()
         peer_id = safe_host_id(name)
         peer = {
@@ -112,6 +130,9 @@ class ConfigStore:
             "name": name.strip() or peer_id,
             "base_url": normalize_base_url(base_url),
             "secret": secret.strip(),
+            "location_slug": safe_slug(location_slug) if location_slug.strip() else "",
+            "username": username.strip(),
+            "password": password,
             "enabled": True,
             "created_at": utcnow_iso(),
             "last_sync_at": "",
@@ -125,9 +146,39 @@ class ConfigStore:
             "host_id": config.host_id,
             "secret": config.secret,
             "peers": peers,
+            "environments": config.environments,
             "artifact_roots": config.artifact_roots,
         })
         return peer
+
+    def add_environment(self, slug: str, name: str, username: str = "", password: str = "") -> dict[str, Any]:
+        config = self.load()
+        env_slug = safe_slug(slug)
+        now = utcnow_iso()
+        existing = next((item for item in config.environments if safe_slug(str(item.get("slug", ""))) == env_slug), None)
+        created_at = str(existing.get("created_at")) if existing else now
+        environment = {
+            "slug": env_slug,
+            "name": name.strip() or env_slug,
+            "username": username.strip(),
+            "password": password,
+            "enabled": True,
+            "created_at": created_at,
+            "updated_at": now,
+        }
+        environments = [
+            item for item in config.environments
+            if safe_slug(str(item.get("slug", ""))) != env_slug
+        ]
+        environments.append(environment)
+        self.save_dict({
+            "host_id": config.host_id,
+            "secret": config.secret,
+            "peers": config.peers,
+            "environments": environments,
+            "artifact_roots": config.artifact_roots,
+        })
+        return environment
 
     def update_peer_status(self, peer_id: str, status: str) -> None:
         config = self.load()
@@ -139,8 +190,24 @@ class ConfigStore:
             "host_id": config.host_id,
             "secret": config.secret,
             "peers": config.peers,
+            "environments": config.environments,
             "artifact_roots": config.artifact_roots,
         })
+
+
+def public_environments(config: SyncConfig) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for environment in config.environments:
+        slug = safe_slug(str(environment.get("slug", "")))
+        items.append({
+            "slug": slug,
+            "name": str(environment.get("name") or slug),
+            "origin_host_id": config.host_id,
+            "enabled": bool(environment.get("enabled", True)),
+            "created_at": str(environment.get("created_at") or ""),
+            "updated_at": str(environment.get("updated_at") or ""),
+        })
+    return sorted(items, key=lambda item: item["slug"])
 
 
 def file_sha256(path: Path) -> str:

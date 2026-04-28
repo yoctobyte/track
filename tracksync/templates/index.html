@@ -7,7 +7,7 @@
   <style>
     :root { --ink: #182018; --muted: #66705f; --paper: #fffaf0; --line: #cbd2c5; --accent: #254731; }
     body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; background: linear-gradient(135deg, #e5eadf, #f8f1df); color: var(--ink); }
-    main { max-width: 980px; margin: 40px auto; padding: 0 20px; }
+    main { max-width: 1100px; margin: 40px auto; padding: 0 20px; }
     header, section { background: rgba(255, 250, 240, 0.92); border: 1px solid var(--line); border-radius: 18px; padding: 24px; margin-bottom: 18px; }
     h1, h2 { margin: 0 0 12px; }
     .meta { color: var(--muted); }
@@ -15,7 +15,7 @@
     th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
     input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
     button { padding: 10px 14px; background: var(--accent); color: white; border: 0; border-radius: 9px; cursor: pointer; }
-    form.grid { display: grid; grid-template-columns: 1fr 2fr 1.4fr auto; gap: 10px; align-items: end; }
+    form.grid { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 10px; align-items: end; }
     .error { color: #9b271f; }
     code { background: #edf0e8; padding: 2px 5px; border-radius: 5px; }
   </style>
@@ -25,7 +25,7 @@
     <header>
       <h1>TRACK Sync</h1>
       <p class="meta">Local host: <code>{{ config.host_id }}</code></p>
-      <p class="meta">Protocol: <code>track-sync-v1</code>. Artifact roots configured: {{ config.artifact_roots|length }}.</p>
+      <p class="meta">Protocol: <code>track-sync-v1</code>. Environments: {{ config.environments|length }}. Artifact roots: {{ config.artifact_roots|length }}.</p>
     </header>
 
     <section>
@@ -33,13 +33,15 @@
       {% if error %}<p class="error">{{ error }}</p>{% endif %}
       <table>
         <thead>
-          <tr><th>Name</th><th>URL</th><th>Last status</th><th>Action</th></tr>
+          <tr><th>Name</th><th>URL</th><th>Location</th><th>Remote User</th><th>Last status</th><th>Action</th></tr>
         </thead>
         <tbody>
           {% for peer in config.peers %}
           <tr>
             <td>{{ peer.name }}<br><span class="meta">{{ peer.id }}</span></td>
             <td>{{ peer.base_url }}</td>
+            <td>{{ peer.location_slug or "" }}</td>
+            <td>{{ peer.username or "" }}</td>
             <td>{{ peer.last_status or "never" }}<br><span class="meta">{{ peer.last_sync_at }}</span></td>
             <td>
               <form method="post" action="{{ url_for('sync_peer', peer_id=peer.id) }}">
@@ -48,7 +50,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="4" class="meta">No peers configured.</td></tr>
+          <tr><td colspan="6" class="meta">No peers configured.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -59,9 +61,41 @@
       <form class="grid" method="post" action="{{ url_for('add_peer') }}">
         <label>Name<input name="name" placeholder="stable-server" required></label>
         <label>URL<input name="base_url" placeholder="https://track.example.com/tracksync" required></label>
-        <label>Secret<input name="secret" type="password" required></label>
+        <label>Location<input name="location_slug" placeholder="museum"></label>
+        <label>User<input name="username" placeholder="admin"></label>
+        <label>Password<input name="password" type="password"></label>
+        <label>Sync Secret<input name="secret" type="password" required></label>
         <button type="submit">Add</button>
       </form>
+    </section>
+
+    <section>
+      <h2>Local Environments</h2>
+      <table>
+        <thead>
+          <tr><th>Slug</th><th>Name</th><th>User</th><th>State</th></tr>
+        </thead>
+        <tbody>
+          {% for env in config.environments %}
+          <tr>
+            <td><code>{{ env.slug }}</code></td>
+            <td>{{ env.name }}</td>
+            <td>{{ env.username or "" }}</td>
+            <td>{{ "disabled" if env.enabled == false else "enabled" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="meta">No local environments configured in TrackSync yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <form class="grid" method="post" action="{{ url_for('add_environment') }}">
+        <label>Slug<input name="slug" placeholder="museum" required></label>
+        <label>Name<input name="name" placeholder="Museum"></label>
+        <label>User<input name="username" placeholder="admin"></label>
+        <label>Password<input name="password" type="password"></label>
+        <button type="submit">Add</button>
+      </form>
+      <p class="meta">Passwords stay local and are not exported in sync manifests.</p>
     </section>
 
     <section>

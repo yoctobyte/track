@@ -9,7 +9,7 @@ from pathlib import Path
 import requests
 from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
 
-from sync_core import ConfigStore, resolve_artifact_file, scan_artifact_roots, sign_request, utcnow_iso, verify_signature
+from sync_core import ConfigStore, public_environments, resolve_artifact_file, scan_artifact_roots, sign_request, utcnow_iso, verify_signature
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -103,9 +103,22 @@ def create_app() -> Flask:
                 request.form.get("name", ""),
                 request.form.get("base_url", ""),
                 request.form.get("secret", ""),
+                location_slug=request.form.get("location_slug", ""),
+                username=request.form.get("username", ""),
+                password=request.form.get("password", ""),
             )
         except ValueError as exc:
             return render_template("index.html", config=current_config(), error=str(exc)), 400
+        return redirect(url_for("index"))
+
+    @app.route("/environments", methods=["POST"])
+    def add_environment():
+        app.config["TRACKSYNC_STORE"].add_environment(
+            request.form.get("slug", ""),
+            request.form.get("name", ""),
+            request.form.get("username", ""),
+            request.form.get("password", ""),
+        )
         return redirect(url_for("index"))
 
     @app.route("/sync/<peer_id>", methods=["POST"])
@@ -149,6 +162,7 @@ def create_app() -> Flask:
         return {
             "host_id": cfg.host_id,
             "generated_at": utcnow_iso(),
+            "environments": public_environments(cfg),
             "records": [],
             "files": files,
             "adapters": [

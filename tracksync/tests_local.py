@@ -14,7 +14,7 @@ from urllib.request import urlopen
 import requests
 
 from app import create_app
-from sync_core import ConfigStore, resolve_artifact_file, scan_artifact_roots, sign_request, verify_signature
+from sync_core import ConfigStore, public_environments, resolve_artifact_file, scan_artifact_roots, sign_request, verify_signature
 
 
 PAIR_SECRET = "pair-secret-for-local-test"
@@ -37,6 +37,7 @@ def write_config(
     local_secret: str,
     peers: list[dict],
     artifact_roots: list[dict] | None = None,
+    environments: list[dict] | None = None,
 ) -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     path = data_dir / "config.json"
@@ -47,6 +48,7 @@ def write_config(
                 "secret": local_secret,
                 "peers": peers,
                 "artifact_roots": artifact_roots or [],
+                "environments": environments or [],
             },
             indent=2,
             sort_keys=True,
@@ -117,10 +119,28 @@ def test_config_store_permissions(tmpdir: Path) -> None:
     peer = store.add_peer("Stable Server", "http://127.0.0.1:9999/", "peer-secret")
     assert_true(peer["id"] == "stable-server", "peer id should be normalized")
     assert_true(peer["base_url"] == "http://127.0.0.1:9999", "peer URL should be normalized")
+    credentialed_peer = store.add_peer(
+        "Dev Host",
+        "http://127.0.0.1:9998/",
+        "dev-secret",
+        location_slug="Museum Main",
+        username="rene",
+        password="local-password",
+    )
+    assert_true(credentialed_peer["location_slug"] == "museum-main", "peer location should be slugged")
+    assert_true(credentialed_peer["username"] == "rene", "peer username should persist locally")
+    assert_true(credentialed_peer["password"] == "local-password", "peer password should persist locally")
     store.update_peer_status("stable-server", "ok")
-    updated = store.load().peers[0]
+    updated = next(peer for peer in store.load().peers if peer["id"] == "stable-server")
     assert_true(updated["last_status"] == "ok", "peer status should persist")
     assert_true(updated["last_sync_at"], "peer sync timestamp should persist")
+    environment = store.add_environment("Museum Main", "Museum Main", "admin", "env-password")
+    assert_true(environment["slug"] == "museum-main", "environment slug should be normalized")
+    assert_true(environment["password"] == "env-password", "environment password should persist locally")
+    public = public_environments(store.load())
+    assert_true(public[0]["slug"] == "museum-main", "public environment should include slug")
+    assert_true("password" not in public[0], "public environment must not export password")
+    assert_true("username" not in public[0], "public environment must not export username")
 
 
 def test_artifact_manifest(tmpdir: Path) -> None:
@@ -225,6 +245,22 @@ def test_api_auth(tmpdir: Path) -> None:
     bad_headers = dict(headers)
     bad_headers["X-Track-Sync-Signature"] = sign_request("bad", "GET", "/api/v1/hello", timestamp, b"")
     assert_true(client.get("/api/v1/hello", headers=bad_headers).status_code == 401, "bad signature should fail")
+
+    environment_store = ConfigStore(data_dir)
+    environment_store.add_environment("Museum", "Museum", "admin", "not-exported")
+    timestamp = str(int(time.time()))
+    manifest_path = "/api/v1/manifest"
+    manifest_headers = {
+        "X-Track-Sync-Host": "host-a",
+        "X-Track-Sync-Timestamp": timestamp,
+        "X-Track-Sync-Signature": sign_request("host-a-local", "GET", manifest_path, timestamp, b""),
+    }
+    manifest = client.get(manifest_path, headers=manifest_headers)
+    assert_true(manifest.status_code == 200, f"signed manifest should pass, got {manifest.status_code}")
+    exported_env = manifest.json["environments"][0]
+    assert_true(exported_env["slug"] == "museum", "manifest should export environment slug")
+    assert_true("password" not in exported_env, "manifest must not export environment password")
+    assert_true("username" not in exported_env, "manifest must not export environment username")
 
 
 def test_localhost_peer_handshake(tmpdir: Path) -> None:

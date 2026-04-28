@@ -10,6 +10,19 @@ It is intentionally standalone:
 - it does not import subproject internals by default
 - subproject-specific adapters can be added later
 
+## Peer Setup
+
+For the first practical setup, a peer is:
+
+- host URL
+- optional location slug
+- optional remote username/password for the admin's local use
+- sync secret for signed API requests
+
+The username/password fields stay in local `tracksync/data/config.json`. They
+are not exported in manifests. The sync secret is used only for HMAC request
+signing.
+
 ## Run
 
 ```bash
@@ -31,10 +44,24 @@ This first slice supports:
 - local host identity
 - adding peer URL and secret through the admin UI
 - signed hello/manifest API endpoints
+- local environment slugs in manifests
 - configurable artifact root manifests
 - manual peer sync handshake
 
 Record and file adapters will be added per subproject.
+
+## Environments
+
+Environment slugs are assumed unique for now:
+
+```text
+museum
+testing
+lab
+```
+
+A host may serve multiple slugs. Collision handling and slug migration are
+deferred until real deployments prove the edge cases.
 
 ## Artifact Roots
 

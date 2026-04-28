@@ -55,6 +55,54 @@ Rules:
   it before export.
 - Conflict handling uses sync IDs, not local integer IDs.
 
+## Environment Naming
+
+For the current implementation, environment slugs are assumed to be globally
+unique across the hosts that sync with each other.
+
+Examples:
+
+```text
+testing
+museum
+lab
+stable-demo
+```
+
+Rules for now:
+
+- Slugs are lowercase `a-z0-9-`.
+- Slugs are stable and safe to use in local paths.
+- Hosts may serve multiple distinct slugs.
+- Collision handling is intentionally deferred.
+- User-facing names may change; slugs should not casually change.
+
+TrackSync stores local environment connection metadata as:
+
+```json
+{
+  "slug": "museum",
+  "name": "Museum",
+  "username": "admin",
+  "password": "local-only"
+}
+```
+
+Only non-secret fields are exported in manifests:
+
+```json
+{
+  "slug": "museum",
+  "name": "Museum",
+  "origin_host_id": "stable01",
+  "enabled": true,
+  "updated_at": "2026-04-28T12:00:00Z"
+}
+```
+
+Passwords and usernames are local connection hints. They are not sync records
+and are not exported to peers.
+
 ## Filename Model
 
 Synced files need names that are unique, readable, and deterministic enough to
@@ -194,6 +242,7 @@ Implemented first:
 - signed `/api/v1/hello`
 - signed `/api/v1/manifest`
 - signed `/api/v1/files/<root>/<path>`
+- local environment slugs in manifests
 - configurable artifact root manifests
 - manual sync action that checks remote availability
 
