@@ -9,7 +9,7 @@ from pathlib import Path
 import requests
 from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
 
-from sync_core import ConfigStore, public_environments, resolve_artifact_file, scan_artifact_roots, sign_request, utcnow_iso, verify_signature
+from sync_core import ConfigStore, public_environments, pull_artifacts, resolve_artifact_file, scan_artifact_roots, sign_request, utcnow_iso, verify_signature
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -133,10 +133,19 @@ def create_app() -> Flask:
             manifest = signed_get(peer, "/api/v1/manifest")
             manifest.raise_for_status()
             manifest_data = manifest.json()
+            counts = pull_artifacts(
+                cfg,
+                peer,
+                manifest_data,
+                lambda path: signed_get(peer, path),
+            )
             status = (
                 f"ok: {hello.json().get('host_id', 'unknown')} / "
                 f"{len(manifest_data.get('records', []))} records / "
-                f"{len(manifest_data.get('files', []))} files"
+                f"{len(manifest_data.get('files', []))} files / "
+                f"pulled {counts['pulled']} / "
+                f"skipped {counts['skipped_policy']}p {counts['skipped_exists']}e / "
+                f"failed {counts['failed']}"
             )
         except Exception as exc:
             status = f"failed: {exc}"

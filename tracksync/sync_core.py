@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import quote, urlsplit
 
 
@@ -69,6 +69,25 @@ def normalize_base_url(value: str) -> str:
     if parts.scheme not in {"http", "https"} or not parts.netloc:
         raise ValueError("Peer URL must be an absolute http(s) URL")
     return value
+
+
+def default_pull_policy() -> dict[str, Any]:
+    return {"default": True, "subprojects": {"map3d": False}}
+
+
+def subproject_of(record_type: str) -> str:
+    text = str(record_type or "").strip()
+    if not text:
+        return ""
+    return text.split(".", 1)[0]
+
+
+def peer_allows_subproject(peer: dict[str, Any], subproject: str) -> bool:
+    policy = peer.get("pull_policy") or default_pull_policy()
+    subprojects = policy.get("subprojects") or {}
+    if subproject in subprojects:
+        return bool(subprojects[subproject])
+    return bool(policy.get("default", True))
 
 
 @dataclass
@@ -134,6 +153,7 @@ class ConfigStore:
             "username": username.strip(),
             "password": password,
             "enabled": True,
+            "pull_policy": default_pull_policy(),
             "created_at": utcnow_iso(),
             "last_sync_at": "",
             "last_status": "new",
@@ -265,6 +285,91 @@ def scan_artifact_roots(config: SyncConfig) -> list[dict[str, Any]]:
                 "download_path": f"/api/v1/files/{root_id}/{quote(rel_path)}",
             })
     return files
+
+
+def peer_artifacts_dir(config: SyncConfig, peer_id: str) -> Path:
+    return (config.data_dir / "peers" / safe_host_id(peer_id)).resolve()
+
+
+def pull_artifacts(
+    config: SyncConfig,
+    peer: dict[str, Any],
+    manifest: dict[str, Any],
+    getter: Callable[[str], Any],
+) -> dict[str, Any]:
+    peer_id = safe_host_id(str(peer.get("id") or ""))
+    root_dir = peer_artifacts_dir(config, peer_id)
+    pulled = 0
+    skipped_policy = 0
+    skipped_exists = 0
+    failed = 0
+    failures: list[dict[str, Any]] = []
+
+    for entry in manifest.get("files", []) or []:
+        record_type = str(entry.get("record_type") or "")
+        subproject = subproject_of(record_type)
+        if not peer_allows_subproject(peer, subproject):
+            skipped_policy += 1
+            continue
+
+        root_id = safe_host_id(str(entry.get("root_id") or "artifact-root"))
+        rel_path = str(entry.get("relative_path") or "").strip()
+        expected_sha = str(entry.get("sha256") or "")
+        expected_size = int(entry.get("size") or 0)
+        if not rel_path or not expected_sha:
+            failed += 1
+            failures.append({"reason": "manifest-incomplete", "rel_path": rel_path})
+            continue
+
+        target = (root_dir / root_id / rel_path).resolve()
+        try:
+            target.relative_to(root_dir)
+        except ValueError:
+            failed += 1
+            failures.append({"reason": "unsafe-path", "rel_path": rel_path})
+            continue
+
+        if target.is_file() and target.stat().st_size == expected_size and file_sha256(target) == expected_sha:
+            skipped_exists += 1
+            continue
+
+        download_path = str(entry.get("download_path") or "").strip()
+        if not download_path.startswith("/"):
+            failed += 1
+            failures.append({"reason": "bad-download-path", "rel_path": rel_path})
+            continue
+
+        response = getter(download_path)
+        status_code = int(getattr(response, "status_code", 0) or 0)
+        if status_code != 200:
+            failed += 1
+            failures.append({"reason": f"http-{status_code}", "rel_path": rel_path})
+            continue
+
+        body = getattr(response, "content", b"") or b""
+        if hashlib.sha256(body).hexdigest() != expected_sha:
+            quarantine_dir = root_dir / "_bad" / root_id
+            quarantine_dir.mkdir(parents=True, exist_ok=True)
+            stamp = str(int(time.time()))
+            quarantine_path = quarantine_dir / f"{Path(rel_path).name}.{stamp}"
+            quarantine_path.write_bytes(body)
+            failed += 1
+            failures.append({"reason": "sha256-mismatch", "rel_path": rel_path})
+            continue
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = target.with_name(f".{target.name}.partial")
+        tmp.write_bytes(body)
+        tmp.replace(target)
+        pulled += 1
+
+    return {
+        "pulled": pulled,
+        "skipped_policy": skipped_policy,
+        "skipped_exists": skipped_exists,
+        "failed": failed,
+        "failures": failures,
+    }
 
 
 def resolve_artifact_file(config: SyncConfig, root_id: str, relative_path: str) -> Path | None:

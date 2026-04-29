@@ -33,7 +33,7 @@
       {% if error %}<p class="error">{{ error }}</p>{% endif %}
       <table>
         <thead>
-          <tr><th>Name</th><th>URL</th><th>Location</th><th>Remote User</th><th>Last status</th><th>Action</th></tr>
+          <tr><th>Name</th><th>URL</th><th>Location</th><th>Pull policy</th><th>Last status</th><th>Action</th></tr>
         </thead>
         <tbody>
           {% for peer in config.peers %}
@@ -41,7 +41,13 @@
             <td>{{ peer.name }}<br><span class="meta">{{ peer.id }}</span></td>
             <td>{{ peer.base_url }}</td>
             <td>{{ peer.location_slug or "" }}</td>
-            <td>{{ peer.username or "" }}</td>
+            <td>
+              {% set policy = peer.pull_policy or {} %}
+              <span class="meta">default: {{ "on" if policy.get("default", True) else "off" }}</span>
+              {% for sub, allowed in (policy.get("subprojects") or {}).items() %}
+              <br><code>{{ sub }}</code>: {{ "on" if allowed else "off" }}
+              {% endfor %}
+            </td>
             <td>{{ peer.last_status or "never" }}<br><span class="meta">{{ peer.last_sync_at }}</span></td>
             <td>
               <form method="post" action="{{ url_for('sync_peer', peer_id=peer.id) }}">
@@ -96,6 +102,18 @@
         <button type="submit">Add</button>
       </form>
       <p class="meta">Passwords stay local and are not exported in sync manifests.</p>
+    </section>
+
+    <section>
+      <h2>Pull Policy</h2>
+      <p class="meta">
+        Per-peer policy keyed by subproject (the prefix of <code>record_type</code>,
+        e.g. <code>map3d</code>, <code>netinventory</code>, <code>quicktrack</code>).
+        New peers default to all subprojects enabled except <code>map3d</code>,
+        because map3d roots can hold large videos and dense reconstructions.
+        Edit <code>tracksync/data/config.json</code> to flip a subproject on or off
+        for a specific peer.
+      </p>
     </section>
 
     <section>

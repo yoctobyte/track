@@ -14,7 +14,19 @@ from urllib.request import urlopen
 import requests
 
 from app import create_app
-from sync_core import ConfigStore, public_environments, resolve_artifact_file, scan_artifact_roots, sign_request, verify_signature
+from sync_core import (
+    ConfigStore,
+    default_pull_policy,
+    peer_allows_subproject,
+    peer_artifacts_dir,
+    public_environments,
+    pull_artifacts,
+    resolve_artifact_file,
+    scan_artifact_roots,
+    sign_request,
+    subproject_of,
+    verify_signature,
+)
 
 
 PAIR_SECRET = "pair-secret-for-local-test"
@@ -263,6 +275,122 @@ def test_api_auth(tmpdir: Path) -> None:
     assert_true("username" not in exported_env, "manifest must not export environment username")
 
 
+class FakeResponse:
+    def __init__(self, status_code: int, content: bytes) -> None:
+        self.status_code = status_code
+        self.content = content
+
+
+def test_pull_artifacts_policy(tmpdir: Path) -> None:
+    assert_true(subproject_of("map3d.model_artifact") == "map3d", "subproject prefix should be parsed")
+    assert_true(subproject_of("netinventory.host") == "netinventory", "subproject prefix should be parsed")
+    assert_true(subproject_of("") == "", "empty record_type should give empty subproject")
+
+    default_peer = {"id": "peer", "pull_policy": default_pull_policy()}
+    assert_true(not peer_allows_subproject(default_peer, "map3d"), "default policy should disable map3d")
+    assert_true(peer_allows_subproject(default_peer, "netinventory"), "default policy should enable netinventory")
+    assert_true(peer_allows_subproject(default_peer, "quicktrack"), "default policy should enable unknown subprojects")
+
+    no_policy_peer = {"id": "peer"}
+    assert_true(not peer_allows_subproject(no_policy_peer, "map3d"), "peers with no pull_policy field should still get the canonical default (map3d off)")
+    assert_true(peer_allows_subproject(no_policy_peer, "netinventory"), "peers with no pull_policy field should pull other subprojects")
+
+    # Producer-side artifacts simulated as in-memory bytes; manifest mimics what /api/v1/manifest emits.
+    map3d_body = b"large-mesh-bytes"
+    netinv_body = b"host-record-json"
+    producer_files = {
+        "/api/v1/files/map3d-derived/scan.glb": FakeResponse(200, map3d_body),
+        "/api/v1/files/netinv-evidence/host.json": FakeResponse(200, netinv_body),
+    }
+    manifest = {
+        "files": [
+            {
+                "artifact_id": "map3d-derived:abc:scan.glb",
+                "root_id": "map3d-derived",
+                "record_type": "map3d.model_artifact",
+                "tier": "derived-large",
+                "relative_path": "scan.glb",
+                "size": len(map3d_body),
+                "sha256": __import__("hashlib").sha256(map3d_body).hexdigest(),
+                "download_path": "/api/v1/files/map3d-derived/scan.glb",
+            },
+            {
+                "artifact_id": "netinv-evidence:def:host.json",
+                "root_id": "netinv-evidence",
+                "record_type": "netinventory.host",
+                "tier": "evidence",
+                "relative_path": "host.json",
+                "size": len(netinv_body),
+                "sha256": __import__("hashlib").sha256(netinv_body).hexdigest(),
+                "download_path": "/api/v1/files/netinv-evidence/host.json",
+            },
+        ]
+    }
+
+    data_dir = tmpdir / "pull-policy"
+    write_config(data_dir, "host-a", "host-a-local", [])
+    cfg = ConfigStore(data_dir).load()
+    peer = {"id": "host-b", "pull_policy": default_pull_policy()}
+
+    def getter(path: str) -> FakeResponse:
+        if path not in producer_files:
+            return FakeResponse(404, b"")
+        return producer_files[path]
+
+    counts = pull_artifacts(cfg, peer, manifest, getter)
+    assert_true(counts["pulled"] == 1, f"netinv should be pulled, got {counts}")
+    assert_true(counts["skipped_policy"] == 1, f"map3d should be skipped by policy, got {counts}")
+    assert_true(counts["skipped_exists"] == 0, f"no existing files yet, got {counts}")
+    assert_true(counts["failed"] == 0, f"no failures expected, got {counts}")
+
+    landed = peer_artifacts_dir(cfg, "host-b") / "netinv-evidence" / "host.json"
+    assert_true(landed.is_file(), f"netinv artifact should land at {landed}")
+    assert_true(landed.read_bytes() == netinv_body, "landed bytes should match")
+    map3d_landed = peer_artifacts_dir(cfg, "host-b") / "map3d-derived" / "scan.glb"
+    assert_true(not map3d_landed.exists(), "map3d artifact must not be pulled under default policy")
+
+    # Re-running should skip the already-present netinv file via sha256 match.
+    counts_again = pull_artifacts(cfg, peer, manifest, getter)
+    assert_true(counts_again["pulled"] == 0, f"second pass should pull nothing, got {counts_again}")
+    assert_true(counts_again["skipped_exists"] == 1, f"netinv should be skip-exists, got {counts_again}")
+    assert_true(counts_again["skipped_policy"] == 1, f"map3d still skipped by policy, got {counts_again}")
+
+    # Enabling map3d on this peer should pull it on the next run.
+    enabled_peer = {"id": "host-b", "pull_policy": {"default": True, "subprojects": {}}}
+    counts_enabled = pull_artifacts(cfg, enabled_peer, manifest, getter)
+    assert_true(counts_enabled["pulled"] == 1, f"enabling map3d should pull it, got {counts_enabled}")
+    assert_true(counts_enabled["skipped_policy"] == 0, f"no policy skips when map3d enabled, got {counts_enabled}")
+    assert_true(counts_enabled["skipped_exists"] == 1, f"netinv still skip-exists, got {counts_enabled}")
+    assert_true(map3d_landed.is_file(), "map3d artifact should now land")
+    assert_true(map3d_landed.read_bytes() == map3d_body, "map3d landed bytes should match")
+
+    # sha256 mismatch should quarantine the body and not overwrite a verified target.
+    poisoned_manifest = {
+        "files": [
+            {
+                "artifact_id": "netinv-evidence:bad:host.json",
+                "root_id": "netinv-evidence",
+                "record_type": "netinventory.host",
+                "tier": "evidence",
+                "relative_path": "fresh.json",
+                "size": 4,
+                "sha256": "0" * 64,
+                "download_path": "/api/v1/files/netinv-evidence/fresh.json",
+            }
+        ]
+    }
+    poisoned_files = {"/api/v1/files/netinv-evidence/fresh.json": FakeResponse(200, b"junk")}
+    counts_poison = pull_artifacts(cfg, peer, poisoned_manifest, lambda path: poisoned_files.get(path, FakeResponse(404, b"")))
+    assert_true(counts_poison["failed"] == 1, f"sha256 mismatch should fail, got {counts_poison}")
+    assert_true(counts_poison["pulled"] == 0, f"poisoned download should not land, got {counts_poison}")
+    fresh_target = peer_artifacts_dir(cfg, "host-b") / "netinv-evidence" / "fresh.json"
+    assert_true(not fresh_target.exists(), "poisoned download must not appear at the target path")
+    quarantine_dir = peer_artifacts_dir(cfg, "host-b") / "_bad" / "netinv-evidence"
+    quarantined = list(quarantine_dir.glob("fresh.json.*")) if quarantine_dir.exists() else []
+    assert_true(len(quarantined) == 1, f"quarantine should hold the bad body, found {quarantined}")
+    assert_true(quarantined[0].read_bytes() == b"junk", "quarantined bytes should match what was downloaded")
+
+
 def test_localhost_peer_handshake(tmpdir: Path) -> None:
     port_b = free_port()
     data_a = tmpdir / "host-a"
@@ -458,7 +586,14 @@ def test_two_process_artifact_sync(tmpdir: Path) -> None:
         assert_true(sync_response.status_code in {302, 303}, f"sync should redirect, got {sync_response.status_code}")
         config_after = json.loads((data_a / "config.json").read_text(encoding="utf-8"))
         status = config_after["peers"][0]["last_status"]
-        assert_true(status.startswith("ok: host-b / 0 records / 1 files"), status)
+        # Default pull policy disables map3d; the producer's only artifact is map3d.model_artifact,
+        # so the integration should report it as policy-skipped, not pulled.
+        assert_true(
+            status == "ok: host-b / 0 records / 1 files / pulled 0 / skipped 1p 0e / failed 0",
+            status,
+        )
+        landed = data_a / "peers" / "host-b" / "map3d-derived-large" / "gpu mesh.glb"
+        assert_true(not landed.exists(), f"map3d artifact must not land under default policy, found {landed}")
     finally:
         for process in processes:
             process.terminate()
@@ -480,6 +615,7 @@ def main() -> None:
         test_config_store_permissions(tmpdir)
         test_artifact_manifest(tmpdir)
         test_api_auth(tmpdir)
+        test_pull_artifacts_policy(tmpdir)
         test_localhost_peer_handshake(tmpdir)
         test_two_process_artifact_sync(tmpdir)
 
