@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block body %}
+  <section class="hero">
+    <p class="eyebrow">TRACK / {{ instance_name }}</p>
+    <h1>{{ title }}</h1>
+    <p class="subtitle">{{ subtitle }}</p>
+    <div class="meta">
+      <span>Generated {{ topology.generated_at }}</span>
+      <span>Host <code>{{ current_host }}</code></span>
+      <span><a href="{{ url_for('topology_api') }}">JSON API</a></span>
+    </div>
+  </section>
+
+  <section class="layout">
+    <div class="panel">
+      <h2>Topology Summary</h2>
+      <div class="cards tight">
+        <article class="card">
+          <span class="muted">Hosts</span>
+          <span class="value">{{ topology.summary.hosts }}</span>
+        </article>
+        <article class="card">
+          <span class="muted">Nodes</span>
+          <span class="value">{{ topology.summary.nodes }}</span>
+        </article>
+        <article class="card">
+          <span class="muted">Edges</span>
+          <span class="value">{{ topology.summary.edges }}</span>
+        </article>
+        <article class="card">
+          <span class="muted">Subnets</span>
+          <span class="value">{{ topology.summary.subnets }}</span>
+        </article>
+      </div>
+    </div>
+
+    <div class="panel grid-6">
+      <h3>Node Types</h3>
+      {% if node_types %}
+        <table>
+          <tbody>
+            {% for kind, count in node_types %}
+              <tr><th>{{ kind }}</th><td>{{ count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No topology nodes derived yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel grid-6">
+      <h3>Edge Types</h3>
+      {% if relation_types %}
+        <table>
+          <tbody>
+            {% for relation, count in relation_types %}
+              <tr><th>{{ relation }}</th><td>{{ count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No topology edges derived yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2>Guessed Network Graph</h2>
+      <p class="muted">These relationships are derived evidence, not confirmed cabling. Confidence reflects source quality and inference strength.</p>
+      {% if topology.nodes %}
+        <div class="cards tight">
+          {% for node in topology.nodes %}
+            <article class="card">
+              <h4>{{ node.label }}</h4>
+              <div class="badge">{{ node.type }}</div>
+              <div class="badge">confidence {{ '%.2f'|format(node.confidence) }}</div>
+              <p class="muted">Last seen {{ node.last_seen or "unknown" }}</p>
+              {% if node.type == "host" and node.facts.kinds %}
+                <p class="muted">Sources: {{ node.facts.kinds|join(", ") }}</p>
+              {% endif %}
+              {% if node.type == "interface" and node.facts.addresses %}
+                <p class="muted">Addresses: {{ node.facts.addresses|join(", ") }}</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No collected network evidence yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2>Inferred Edges</h2>
+      {% if topology.edges %}
+        <table>
+          <thead>
+            <tr>
+              <th>Relation</th>
+              <th>Source</th>
+              <th>Target</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for edge in topology.edges %}
+              <tr>
+                <td>{{ edge.relation }}</td>
+                <td><code>{{ edge.source }}</code></td>
+                <td><code>{{ edge.target }}</code></td>
+                <td>{{ '%.2f'|format(edge.confidence) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No edges inferred yet.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

@@ -14,6 +14,8 @@ from typing import Any
 from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 
+from .topology import build_topology, write_topology
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SIMPLE_DIR = BASE_DIR.parent / "netinventory-simple"
@@ -85,6 +87,7 @@ def runtime_paths() -> dict[str, Path]:
         "rack_inventory": root / "rack-inventory",
         "rack_photos": root / "rack-photos",
         "rack_history": root / "rack-history",
+        "topology": root / "topology",
         "simple_registrations": root / "simple-registrations.jsonl",
         "simple_upload_token": root / ".simple-upload-token",
     }
@@ -147,6 +150,26 @@ def append_simple_registration(payload: dict[str, Any]) -> None:
     path = runtime_paths()["simple_registrations"]
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=True) + "\n")
+
+
+def refresh_topology() -> dict[str, Any]:
+    paths = runtime_paths()
+    topology = build_topology(read_simple_registrations(limit=100000))
+    write_topology(topology, paths["topology"])
+    return topology
+
+
+def load_or_refresh_topology() -> dict[str, Any]:
+    paths = runtime_paths()
+    summary_path = paths["topology"] / "summary.json"
+    if summary_path.exists():
+        try:
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                return loaded
+        except json.JSONDecodeError:
+            pass
+    return refresh_topology()
 
 
 def synthesize_hosts(registrations: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -571,6 +594,35 @@ def create_app() -> Flask:
             current_host=platform.node(),
         )
 
+    @app.get("/topology")
+    def topology_overview():
+        topology = load_or_refresh_topology()
+        node_types: dict[str, int] = defaultdict(int)
+        relation_types: dict[str, int] = defaultdict(int)
+        for node in topology.get("nodes", []):
+            if isinstance(node, dict):
+                node_types[str(node.get("type") or "unknown")] += 1
+        for edge in topology.get("edges", []):
+            if isinstance(edge, dict):
+                relation_types[str(edge.get("relation") or "unknown")] += 1
+        return render_template(
+            "topology.html",
+            title="Network Topology",
+            subtitle="Guessed topology derived from collected NetInventory evidence",
+            topology=topology,
+            node_types=sorted(node_types.items()),
+            relation_types=sorted(relation_types.items()),
+            current_host=platform.node(),
+        )
+
+    @app.get("/api/topology")
+    def topology_api():
+        return jsonify(load_or_refresh_topology())
+
+    @app.post("/api/topology/rebuild")
+    def topology_rebuild_api():
+        return jsonify(refresh_topology())
+
     @app.get("/racks/new")
     def rack_new():
         record = default_rack_record()
@@ -718,6 +770,7 @@ cd "$WORKDIR/netinventory-client"
             },
         }
         append_simple_registration(entry)
+        refresh_topology()
         return jsonify({"ok": True, "stored": entry["timestamp"]})
 
     @app.post("/api/simple-ingest")
@@ -757,6 +810,7 @@ cd "$WORKDIR/netinventory-client"
                 },
             }
             append_simple_registration(entry)
+            refresh_topology()
             return jsonify({"ok": True, "stored": entry["timestamp"], "warning": "malformed payload logged"})
 
         entry = {
@@ -772,6 +826,7 @@ cd "$WORKDIR/netinventory-client"
             },
         }
         append_simple_registration(entry)
+        refresh_topology()
         return jsonify({"ok": True, "stored": entry["timestamp"]})
 
     @app.get("/downloads/register-device-user.sh")

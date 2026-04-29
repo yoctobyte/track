@@ -376,6 +376,7 @@
       <span style="margin: 0 0.5rem; color: var(--line);">|</span>
       <a class="track-link" href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}style="color: var(--accent)"{% endif %}>Racks</a>
       <a class="track-link" href="{{ url_for('hosts_overview') }}" {% if request.endpoint == 'hosts_overview' %}style="color: var(--accent)"{% endif %} style="margin-left: 0.5rem;">Hosts</a>
+      <a class="track-link" href="{{ url_for('topology_overview') }}" {% if request.endpoint == 'topology_overview' %}style="color: var(--accent)"{% endif %} style="margin-left: 0.5rem;">Topology</a>
     </div>
     <main class="shell">
       {% block body %}{% endblock %}
