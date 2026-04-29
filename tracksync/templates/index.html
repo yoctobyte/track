@@ -18,6 +18,21 @@
     form.grid { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 10px; align-items: end; }
     .error { color: #9b271f; }
     code { background: #edf0e8; padding: 2px 5px; border-radius: 5px; }
+    select { padding: 6px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: white; }
+    details { margin-top: 4px; }
+    details > summary { cursor: pointer; list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary::after { content: " ▾"; color: var(--muted); }
+    details[open] > summary::after { content: " ▴"; }
+    .policy-form { margin-top: 10px; padding: 10px; background: rgba(255, 255, 255, 0.55); border: 1px dashed var(--line); border-radius: 10px; }
+    .policy-form fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 8px; padding: 8px 10px; }
+    .policy-form legend { color: var(--muted); padding: 0 6px; }
+    .policy-form label { display: flex; gap: 8px; align-items: center; margin: 4px 0; font-size: 0.92em; }
+    .policy-form label > span { min-width: 9rem; font-weight: 500; }
+    .policy-form .actions { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+    .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 0.8em; margin-right: 5px; }
+    .pill.on { background: #d8e9d8; color: #1f4a23; }
+    .pill.off { background: #f0d8d6; color: #803532; }
   </style>
 </head>
 <body>
@@ -42,11 +57,55 @@
             <td>{{ peer.base_url }}</td>
             <td>{{ peer.location_slug or "" }}</td>
             <td>
-              {% set policy = peer.pull_policy or {} %}
-              <span class="meta">default: {{ "on" if policy.get("default", True) else "off" }}</span>
-              {% for sub, allowed in (policy.get("subprojects") or {}).items() %}
-              <br><code>{{ sub }}</code>: {{ "on" if allowed else "off" }}
-              {% endfor %}
+              {% set entry = peer_policies.get(peer.id) %}
+              {% if entry %}
+              <details>
+                <summary>
+                  <span class="pill {{ 'on' if entry.default_on else 'off' }}">default {{ "pull" if entry.default_on else "skip" }}</span>
+                  {% for row in entry.rows if row.state != "default" %}
+                  <span class="pill {{ row.state }}"><code>{{ row.name }}</code> {{ row.state }}</span>
+                  {% endfor %}
+                </summary>
+                <form class="policy-form" method="post" action="{{ url_for('update_peer_policy', peer_id=peer.id) }}">
+                  <fieldset>
+                    <legend>Default behavior</legend>
+                    <label>
+                      <span>For new subprojects</span>
+                      <select name="default">
+                        <option value="on" {% if entry.default_on %}selected{% endif %}>pull artifacts</option>
+                        <option value="off" {% if not entry.default_on %}selected{% endif %}>skip artifacts</option>
+                      </select>
+                    </label>
+                  </fieldset>
+                  <fieldset>
+                    <legend>Per-subproject</legend>
+                    {% for row in entry.rows %}
+                    <label>
+                      <span><code>{{ row.name }}</code></span>
+                      <select name="sub_{{ row.name }}">
+                        <option value="default" {% if row.state == "default" %}selected{% endif %}>follow default</option>
+                        <option value="on" {% if row.state == "on" %}selected{% endif %}>always pull</option>
+                        <option value="off" {% if row.state == "off" %}selected{% endif %}>never pull</option>
+                      </select>
+                    </label>
+                    {% endfor %}
+                    <label>
+                      <span>Add subproject</span>
+                      <input name="new_subproject" placeholder="other-subproject">
+                      <select name="new_state">
+                        <option value="">—</option>
+                        <option value="on">always pull</option>
+                        <option value="off">never pull</option>
+                      </select>
+                    </label>
+                  </fieldset>
+                  <div class="actions">
+                    <button type="submit">Save policy</button>
+                    <span class="meta">Applies on the next sync. Existing files stay on disk.</span>
+                  </div>
+                </form>
+              </details>
+              {% endif %}
             </td>
             <td>{{ peer.last_status or "never" }}<br><span class="meta">{{ peer.last_sync_at }}</span></td>
             <td>
@@ -107,12 +166,13 @@
     <section>
       <h2>Pull Policy</h2>
       <p class="meta">
-        Per-peer policy keyed by subproject (the prefix of <code>record_type</code>,
-        e.g. <code>map3d</code>, <code>netinventory</code>, <code>quicktrack</code>).
-        New peers default to all subprojects enabled except <code>map3d</code>,
+        Each peer in the table above carries an editable pull policy. The policy is
+        keyed by subproject (the prefix of <code>record_type</code>, e.g.
+        <code>map3d</code>, <code>netinventory</code>, <code>quicktrack</code>).
+        New peers start with all subprojects enabled except <code>map3d</code>,
         because map3d roots can hold large videos and dense reconstructions.
-        Edit <code>tracksync/data/config.json</code> to flip a subproject on or off
-        for a specific peer.
+        Open a peer's policy panel to flip a subproject on or off, or to set a
+        non-default behavior for new subprojects this peer might publish later.
       </p>
     </section>
 

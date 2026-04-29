@@ -17,6 +17,7 @@ from app import create_app
 from sync_core import (
     ConfigStore,
     default_pull_policy,
+    discover_subprojects,
     peer_allows_subproject,
     peer_artifacts_dir,
     public_environments,
@@ -391,6 +392,96 @@ def test_pull_artifacts_policy(tmpdir: Path) -> None:
     assert_true(quarantined[0].read_bytes() == b"junk", "quarantined bytes should match what was downloaded")
 
 
+def test_admin_policy_form(tmpdir: Path) -> None:
+    data_dir = tmpdir / "policy-form"
+    write_config(
+        data_dir,
+        "host-a",
+        "host-a-local",
+        [
+            {
+                "id": "host-b",
+                "name": "Host B",
+                "base_url": "http://127.0.0.1:9999",
+                "secret": PAIR_SECRET,
+                "enabled": True,
+                "pull_policy": default_pull_policy(),
+                "created_at": "2026-04-28T00:00:00Z",
+                "last_sync_at": "",
+                "last_status": "new",
+            }
+        ],
+        [
+            {
+                "id": "netinv-evidence",
+                "path": str(tmpdir / "policy-form-empty"),
+                "tier": "evidence",
+                "record_type": "netinventory.host",
+                "include": ["**/*"],
+                "enabled": True,
+            }
+        ],
+    )
+
+    cfg = ConfigStore(data_dir).load()
+    discovered = discover_subprojects(cfg)
+    assert_true("map3d" in discovered, f"map3d should always be a known subproject, got {discovered}")
+    assert_true("netinventory" in discovered, f"netinventory should be discovered from artifact roots, got {discovered}")
+
+    old_env = os.environ.copy()
+    os.environ["TRACKSYNC_DATA_DIR"] = str(data_dir)
+    os.environ["TRACKSYNC_ADMIN_PASSWORD"] = "form-admin"
+    try:
+        app = create_app()
+    finally:
+        os.environ.clear()
+        os.environ.update(old_env)
+
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess["tracksync_admin"] = True
+
+    page = client.get("/")
+    assert_true(page.status_code == 200, f"index should render for admin, got {page.status_code}")
+    body = page.get_data(as_text=True)
+    assert_true("Pull Policy" in body, "policy section should render")
+    assert_true("name=\"sub_map3d\"" in body, "per-peer form should expose map3d subproject")
+    assert_true("name=\"sub_netinventory\"" in body, "per-peer form should expose discovered subprojects")
+    assert_true("Save policy" in body, "save button should render")
+
+    # Flip map3d on, leave the default at on, set netinventory to follow-default.
+    response = client.post(
+        "/peers/host-b/policy",
+        data={
+            "default": "on",
+            "sub_map3d": "on",
+            "sub_netinventory": "default",
+            "new_subproject": "Quick Track",
+            "new_state": "off",
+        },
+        follow_redirects=False,
+    )
+    assert_true(response.status_code in {302, 303}, f"policy form should redirect, got {response.status_code}")
+
+    saved = json.loads((data_dir / "config.json").read_text(encoding="utf-8"))
+    saved_policy = saved["peers"][0]["pull_policy"]
+    assert_true(saved_policy["default"] is True, f"default should round-trip, got {saved_policy}")
+    assert_true(saved_policy["subprojects"].get("map3d") is True, f"map3d should be enabled, got {saved_policy}")
+    assert_true("netinventory" not in saved_policy["subprojects"], f"follow-default should remove key, got {saved_policy}")
+    assert_true(saved_policy["subprojects"].get("quick-track") is False, f"new subproject should be slugged and saved, got {saved_policy}")
+
+    # Unknown peer ID should 404.
+    missing = client.post("/peers/nope/policy", data={"default": "on"}, follow_redirects=False)
+    assert_true(missing.status_code == 404, f"unknown peer should 404, got {missing.status_code}")
+
+    # The new policy should now allow pulling map3d via the runtime allow check.
+    cfg2 = ConfigStore(data_dir).load()
+    refreshed_peer = next(item for item in cfg2.peers if item["id"] == "host-b")
+    assert_true(peer_allows_subproject(refreshed_peer, "map3d"), "after policy change, map3d should be pullable")
+    assert_true(peer_allows_subproject(refreshed_peer, "netinventory"), "follow-default should still pull netinventory")
+    assert_true(not peer_allows_subproject(refreshed_peer, "quick-track"), "new subproject should be skipped")
+
+
 def test_localhost_peer_handshake(tmpdir: Path) -> None:
     port_b = free_port()
     data_a = tmpdir / "host-a"
@@ -616,6 +707,7 @@ def main() -> None:
         test_artifact_manifest(tmpdir)
         test_api_auth(tmpdir)
         test_pull_artifacts_policy(tmpdir)
+        test_admin_policy_form(tmpdir)
         test_localhost_peer_handshake(tmpdir)
         test_two_process_artifact_sync(tmpdir)
 

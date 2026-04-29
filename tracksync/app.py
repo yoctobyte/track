@@ -9,7 +9,20 @@ from pathlib import Path
 import requests
 from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
 
-from sync_core import ConfigStore, public_environments, pull_artifacts, resolve_artifact_file, scan_artifact_roots, sign_request, utcnow_iso, verify_signature
+from sync_core import (
+    ConfigStore,
+    default_pull_policy,
+    discover_subprojects,
+    public_environments,
+    pull_artifacts,
+    resolve_artifact_file,
+    safe_slug,
+    scan_artifact_roots,
+    sign_request,
+    subproject_of,
+    utcnow_iso,
+    verify_signature,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -94,7 +107,29 @@ def create_app() -> Flask:
 
     @app.route("/")
     def index():
-        return render_template("index.html", config=current_config())
+        cfg = current_config()
+        known = discover_subprojects(cfg)
+        peer_policies = []
+        for peer in cfg.peers:
+            policy = peer.get("pull_policy") or default_pull_policy()
+            subprojects = dict(policy.get("subprojects") or {})
+            rows = []
+            for name in sorted(set(known) | set(subprojects.keys())):
+                if name in subprojects:
+                    state = "on" if subprojects[name] else "off"
+                else:
+                    state = "default"
+                rows.append({"name": name, "state": state})
+            peer_policies.append({
+                "peer_id": peer.get("id"),
+                "default_on": bool(policy.get("default", True)),
+                "rows": rows,
+            })
+        return render_template(
+            "index.html",
+            config=cfg,
+            peer_policies={item["peer_id"]: item for item in peer_policies},
+        )
 
     @app.route("/peers", methods=["POST"])
     def add_peer():
@@ -119,6 +154,28 @@ def create_app() -> Flask:
             request.form.get("username", ""),
             request.form.get("password", ""),
         )
+        return redirect(url_for("index"))
+
+    @app.route("/peers/<peer_id>/policy", methods=["POST"])
+    def update_peer_policy(peer_id: str):
+        default_on = request.form.get("default", "on") == "on"
+        subprojects: dict[str, bool] = {}
+        for key, value in request.form.items():
+            if not key.startswith("sub_"):
+                continue
+            name = key[len("sub_"):]
+            if value == "on":
+                subprojects[name] = True
+            elif value == "off":
+                subprojects[name] = False
+        new_name = request.form.get("new_subproject", "").strip()
+        new_state = request.form.get("new_state", "")
+        if new_name and new_state in {"on", "off"}:
+            subprojects[safe_slug(new_name)] = (new_state == "on")
+        try:
+            app.config["TRACKSYNC_STORE"].update_peer_policy(peer_id, default_on, subprojects)
+        except KeyError:
+            abort(404)
         return redirect(url_for("index"))
 
     @app.route("/sync/<peer_id>", methods=["POST"])

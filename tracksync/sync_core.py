@@ -200,6 +200,25 @@ class ConfigStore:
         })
         return environment
 
+    def update_peer_policy(self, peer_id: str, default_on: bool, subprojects: dict[str, bool]) -> dict[str, Any]:
+        config = self.load()
+        normalized = {safe_slug(str(name)): bool(value) for name, value in subprojects.items() if str(name).strip()}
+        target: dict[str, Any] | None = None
+        for peer in config.peers:
+            if peer.get("id") == peer_id:
+                peer["pull_policy"] = {"default": bool(default_on), "subprojects": normalized}
+                target = peer
+        if target is None:
+            raise KeyError(peer_id)
+        self.save_dict({
+            "host_id": config.host_id,
+            "secret": config.secret,
+            "peers": config.peers,
+            "environments": config.environments,
+            "artifact_roots": config.artifact_roots,
+        })
+        return target
+
     def update_peer_status(self, peer_id: str, status: str) -> None:
         config = self.load()
         for peer in config.peers:
@@ -289,6 +308,16 @@ def scan_artifact_roots(config: SyncConfig) -> list[dict[str, Any]]:
 
 def peer_artifacts_dir(config: SyncConfig, peer_id: str) -> Path:
     return (config.data_dir / "peers" / safe_host_id(peer_id)).resolve()
+
+
+def discover_subprojects(config: SyncConfig) -> list[str]:
+    seen: set[str] = set()
+    for root_config in config.artifact_roots:
+        sub = subproject_of(str(root_config.get("record_type") or ""))
+        if sub:
+            seen.add(sub)
+    seen.add("map3d")
+    return sorted(seen)
 
 
 def pull_artifacts(
