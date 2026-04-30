@@ -2,14 +2,38 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import sys
 import uuid
 from contextlib import contextmanager
+from pathlib import Path
 
 from netinventory.collect.collector import CollectedObservation
 from netinventory.config import AppPaths
 from netinventory.core.context import UserContextRecord
 from netinventory.core.models import NetworkSummary, ObservationIngestResult, StatusSnapshot
 from netinventory.core.tasks import TaskDefinition, TaskRunRecord
+
+
+def _ensure_track_location_importable() -> None:
+    """Make `track_location` importable from the standalone client venv.
+
+    The package lives at <repo>/track_location/ as a sibling of
+    netinventory-client/. The client's venv installs only `netinventory`,
+    so we need to put the repo root on sys.path before the import succeeds.
+    """
+    try:
+        import track_location  # noqa: F401
+        return
+    except ImportError:
+        pass
+    here = Path(__file__).resolve()
+    for candidate in here.parents:
+        target = candidate / "track_location"
+        if (target / "__init__.py").exists() and (target / "db.py").exists():
+            parent = str(candidate)
+            if parent not in sys.path:
+                sys.path.insert(0, parent)
+            return
 
 SCHEMA_VERSION = 1
 
@@ -20,6 +44,7 @@ class Database:
         
     @property
     def location_db(self) -> "LocationDB":
+        _ensure_track_location_importable()
         from track_location import LocationDB
         realm_name = self.paths.environment_name if hasattr(self.paths, "environment_name") else "default"
         db_path = self.paths.state_dir / "realms" / f"{realm_name}.sqlite"
@@ -204,6 +229,28 @@ class Database:
                 """
             ).fetchall()
             return [_row_to_summary(row) for row in rows if row is not None]
+
+    def list_observations_by_kind(self, kind: str, limit: int = 20) -> list[dict[str, object]]:
+        self.initialize()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT observation_id, observed_at, device_id, network_id, kind,
+                       material_fingerprint, facts_json, summary
+                FROM observations
+                WHERE kind = ?
+                ORDER BY observed_at DESC, observation_id DESC
+                LIMIT ?
+                """,
+                (kind, limit),
+            ).fetchall()
+        results: list[dict[str, object]] = []
+        for row in rows:
+            item = dict(row)
+            facts_json = item.get("facts_json")
+            item["facts"] = _json_loads(facts_json) if isinstance(facts_json, str) and facts_json else {}
+            results.append(item)
+        return results
 
     def export_bundle_data(self, since_iso: str | None = None) -> dict[str, object]:
         self.initialize()

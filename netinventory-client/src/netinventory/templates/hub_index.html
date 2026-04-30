@@ -115,6 +115,20 @@
       border-radius: 10px; padding: 0.7rem 0.9rem; color: var(--warn);
       margin-bottom: 1rem; font-size: 0.92rem;
     }
+    .probe-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.3rem 0.6rem; }
+    .probe-grid label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.88rem; color: var(--ink); margin: 0; font-weight: 500; }
+    .probe-grid input[type="checkbox"] { width: auto; margin: 0; }
+    .snapshot-result { background: rgba(47, 106, 98, 0.06); border: 1px solid rgba(47, 106, 98, 0.2); border-radius: 10px; padding: 0.7rem; margin-top: 0.6rem; font-size: 0.86rem; }
+    .snapshot-result .probe { padding: 0.35rem 0; border-bottom: 1px dashed var(--line); }
+    .snapshot-result .probe:last-child { border-bottom: 0; }
+    .probe-status { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 5px; font-size: 0.74rem; font-weight: 700; margin-left: 0.4rem; }
+    .probe-status.ok { background: rgba(31, 106, 58, 0.15); color: var(--good); }
+    .probe-status.fail { background: rgba(155, 39, 31, 0.15); color: var(--bad); }
+    .snapshot-list-item { padding: 0.5rem 0; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+    .snapshot-list-item:last-child { border-bottom: 0; }
+    .hop-list { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.8rem; line-height: 1.4; }
+    .hop-list .private { color: var(--accent); }
+    .hop-list .public { color: var(--warn); font-weight: 700; }
   </style>
 </head>
 <body>
@@ -193,16 +207,46 @@
             <label for="loc-notes">Notes</label>
             <input id="loc-notes" name="notes" type="text" value="{{ location.notes }}" placeholder="cable colour, wall plate label, anything…">
           </div>
-          <div class="row" style="align-items:center;">
+
+          <h3 style="margin-top:0.7rem;">Include in snapshot</h3>
+          <div class="probe-grid">
+            {% for opt in probe_options %}
+            <label><input type="checkbox" name="probe" value="{{ opt.id }}" data-probe="{{ opt.id }}"> {{ opt.label }}</label>
+            {% endfor %}
+          </div>
+
+          <div class="row" style="align-items:center; margin-top:0.5rem;">
             <div id="loc-flash" class="save-flash">Saved ✓</div>
-            <div class="actions">
-              <button class="btn ghost" id="loc-save" type="button">Save all</button>
+            <div class="actions" style="display:flex; gap:0.4rem;">
+              <button class="btn ghost" id="loc-save" type="button">Save fields</button>
+              <button class="btn" id="loc-snapshot" type="button">Save snapshot</button>
             </div>
           </div>
         </form>
 
+        <div id="snapshot-result" class="snapshot-result" style="display:none;"></div>
+
         <h3>GPS</h3>
         <div id="gps-box" class="gps unavailable">Looking for gpsd…</div>
+
+        <h3>Recent snapshots</h3>
+        <div id="snapshot-history">
+          {% if snapshots %}
+            {% for s in snapshots %}
+            <div class="snapshot-list-item">
+              <div><strong>{{ s.summary or '(no location set)' }}</strong></div>
+              <div class="muted" style="font-size:0.78rem;">
+                {{ s.observed_at[:19] if s.observed_at else '' }}
+                {% if s.probes_requested %}
+                  · probes: {{ s.probes_requested|join(', ') }}
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="muted" style="margin:0; font-size:0.86rem;">No snapshots yet. Fill in location, pick probes, hit Save snapshot.</p>
+          {% endif %}
+        </div>
       </section>
 
       <section class="card stack">
@@ -540,6 +584,120 @@
         if (el) payload[f] = el.value;
       });
       saveLocation(payload);
+    });
+
+    // Probe checkbox state persists in localStorage
+    const probeBoxes = document.querySelectorAll('input[type="checkbox"][data-probe]');
+    const PROBE_PREF_KEY = "netinv.probes.v1";
+    try {
+      const saved = JSON.parse(localStorage.getItem(PROBE_PREF_KEY) || "[]");
+      probeBoxes.forEach(cb => { if (saved.includes(cb.value)) cb.checked = true; });
+    } catch (e) { /* ignore */ }
+    probeBoxes.forEach(cb => {
+      cb.addEventListener("change", () => {
+        const checked = Array.from(probeBoxes).filter(b => b.checked).map(b => b.value);
+        try { localStorage.setItem(PROBE_PREF_KEY, JSON.stringify(checked)); } catch (e) { /* ignore */ }
+      });
+    });
+
+    function fmtProbe(probeId, result) {
+      if (!result) return `<div class="muted">no result</div>`;
+      const ok = result.ok !== false;
+      const status = ok ? `<span class="probe-status ok">ok</span>` : `<span class="probe-status fail">failed</span>`;
+      const dur = result.duration_ms != null ? ` <span class="muted">(${result.duration_ms}ms)</span>` : "";
+      let body = "";
+      if (!ok) {
+        body = `<div class="muted">${result.error || "unknown error"}</div>`;
+      } else if (probeId === "exit_ip") {
+        body = `<div>Public IP: <code>${result.ip}</code> <span class="muted">via ${result.endpoint || ""}</span></div>`;
+      } else if (probeId === "dhcp") {
+        body = `<div>iface: <code>${result.interface || "?"}</code> · ip: <code>${result.ip || "?"}</code> · gw: <code>${result.gateway || "?"}</code> · src: ${result.source || "?"}</div>`;
+        if (result.dns && result.dns.length) body += `<div class="muted">dns: ${result.dns.join(", ")}</div>`;
+      } else if (probeId === "traceroute") {
+        const hops = (result.hops || []).map(h =>
+          `<div class="${h.private ? 'private' : (h.ip ? 'public' : 'muted')}">${h.hop.toString().padStart(2)}  ${h.ip || '*'} ${h.rtt_ms != null ? h.rtt_ms.toFixed(1) + 'ms' : ''}</div>`
+        ).join("");
+        body = `<div>target: <code>${result.target}</code> · ${result.internal_hop_count} internal hops${result.stopped_at_public ? ' (stopped at public)' : ''}</div><div class="hop-list">${hops}</div>`;
+      } else if (probeId === "link_speed") {
+        const sp = result.speed_mbit ? `${result.speed_mbit} Mbit/s` : (result.ethtool && result.ethtool.speed) || "?";
+        const dx = result.duplex || (result.ethtool && result.ethtool.duplex) || "?";
+        body = `<div>iface: <code>${result.interface || "?"}</code> · link: <strong>${sp}</strong> ${dx} · operstate: ${result.operstate || "?"}</div>`;
+      } else if (probeId === "wifi") {
+        if (!result.available) {
+          body = `<div class="muted">${result.reason || "no wireless"}</div>`;
+        } else {
+          const ifaces = result.interfaces || [];
+          body = ifaces.map(i => {
+            const link = i.link || {};
+            const linkLine = link.connected
+              ? `connected to <strong>${link.ssid || link.bssid || "?"}</strong> · ${link.signal || ""}`
+              : '<span class="muted">not connected</span>';
+            return `<div><code>${i.name}</code>: ${linkLine} · scanned ${i.scan_count || 0} APs</div>`;
+          }).join("");
+        }
+      } else if (probeId === "speed_test") {
+        body = `<div>down: <strong>${result.down_mbit} Mbit/s</strong> (${(result.bytes/1e6).toFixed(1)} MB in ${result.elapsed_s}s${result.complete ? "" : ", incomplete"})</div>`;
+      } else {
+        body = `<pre style="max-height: 200px; overflow:auto;">${JSON.stringify(result, null, 2)}</pre>`;
+      }
+      return `<div class="probe"><strong>${probeId}</strong>${status}${dur}${body}</div>`;
+    }
+
+    document.getElementById("loc-snapshot")?.addEventListener("click", async () => {
+      const btn = document.getElementById("loc-snapshot");
+      const idMap = {sublocation:"loc-sub", switch_port:"loc-port", building:"loc-building", cabinet:"loc-cab", switch:"loc-sw", notes:"loc-notes"};
+      const payload = { probes: [] };
+      locFields.forEach(f => {
+        const el = document.getElementById(idMap[f]);
+        if (el) payload[f] = el.value;
+      });
+      probeBoxes.forEach(cb => { if (cb.checked) payload.probes.push(cb.value); });
+
+      const resultBox = document.getElementById("snapshot-result");
+      btn.disabled = true;
+      btn.textContent = payload.probes.length ? `Running ${payload.probes.length} probe${payload.probes.length === 1 ? "" : "s"}…` : "Saving…";
+      resultBox.style.display = "block";
+      resultBox.innerHTML = `<div class="muted">capturing snapshot${payload.probes.length ? ` with ${payload.probes.join(", ")}` : ""}…</div>`;
+
+      try {
+        const resp = await fetch("/api/snapshot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          resultBox.innerHTML = `<div class="probe-status fail">snapshot failed</div>`;
+          return;
+        }
+        const probeHtml = Object.entries(data.probes || {}).map(([k, v]) => fmtProbe(k, v)).join("");
+        resultBox.innerHTML = `
+          <div><strong>Snapshot saved</strong> · ${data.summary || "(no location set)"}</div>
+          <div class="muted" style="font-size:0.78rem; margin-bottom: 0.4rem;">${data.observed_at}</div>
+          ${probeHtml || '<div class="muted">no probes selected</div>'}
+        `;
+        // Add to history list at top
+        const history = document.getElementById("snapshot-history");
+        if (history) {
+          const item = document.createElement("div");
+          item.className = "snapshot-list-item";
+          item.innerHTML = `
+            <div><strong>${data.summary || "(no location set)"}</strong></div>
+            <div class="muted" style="font-size:0.78rem;">
+              ${(data.observed_at || "").slice(0, 19)}
+              ${payload.probes.length ? " · probes: " + payload.probes.join(", ") : ""}
+            </div>`;
+          if (history.firstElementChild && history.firstElementChild.tagName === "P") {
+            history.innerHTML = "";
+          }
+          history.insertBefore(item, history.firstChild);
+        }
+      } catch (e) {
+        resultBox.innerHTML = `<div class="probe-status fail">snapshot error: ${e}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Save snapshot";
+      }
     });
 
     // Sync settings

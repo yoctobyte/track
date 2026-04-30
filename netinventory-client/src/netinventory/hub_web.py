@@ -316,6 +316,28 @@ EOF
     return app
 
 
+def list_recent_snapshots(db: Database, limit: int = 5) -> list[dict[str, object]]:
+    rows = db.list_observations_by_kind(SNAPSHOT_KIND, limit=limit)
+    snapshots: list[dict[str, object]] = []
+    for row in rows:
+        facts = row.get("facts") or {}
+        if not isinstance(facts, dict):
+            facts = {}
+        probes = facts.get("probes") if isinstance(facts.get("probes"), dict) else {}
+        snapshots.append(
+            {
+                "snapshot_id": row.get("observation_id"),
+                "observed_at": row.get("observed_at"),
+                "summary": row.get("summary"),
+                "location": facts.get("location") or {},
+                "probes_requested": facts.get("probes_requested") or [],
+                "probes": probes,
+                "network_id": row.get("network_id"),
+            }
+        )
+    return snapshots
+
+
 def current_location(db: Database) -> dict[str, str]:
     rows = db.list_user_context(entity_kind=LOCATION_ENTITY_KIND, entity_id=LOCATION_ENTITY_ID)
     latest: dict[str, str] = {field: "" for field in LOCATION_FIELDS}
