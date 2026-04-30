@@ -484,6 +484,34 @@ class Database:
                 (iso_string,),
             )
 
+    def get_app_state(self, key: str) -> str | None:
+        self.initialize()
+        with self.connect() as conn:
+            row = conn.execute("SELECT value FROM app_state WHERE key = ?", (key,)).fetchone()
+            return row["value"] if row else None
+
+    def set_app_state(self, key: str, value: str | None) -> None:
+        self.initialize()
+        with self.connect() as conn:
+            if value is None:
+                conn.execute("DELETE FROM app_state WHERE key = ?", (key,))
+                return
+            conn.execute(
+                """
+                INSERT INTO app_state(key, value) VALUES(?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (key, value),
+            )
+
+    def get_app_state_many(self, prefix: str) -> dict[str, str]:
+        self.initialize()
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT key, value FROM app_state WHERE key LIKE ?", (f"{prefix}%",)
+            ).fetchall()
+            return {row["key"]: row["value"] for row in rows}
+
     def import_bundle_data(self, bundle: dict[str, object]) -> dict[str, int]:
         self.initialize()
         records = bundle.get("records")

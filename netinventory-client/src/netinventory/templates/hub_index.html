@@ -7,13 +7,15 @@
   <style>
     :root {
       --bg: #eef1ea;
-      --panel: rgba(255, 255, 255, 0.9);
+      --panel: rgba(255, 255, 255, 0.92);
       --ink: #1a1d16;
       --muted: #5e6557;
       --line: rgba(49, 61, 41, 0.14);
       --accent: #2f6a62;
       --accent-soft: rgba(47, 106, 98, 0.12);
       --warn: #916022;
+      --bad: #9b271f;
+      --good: #1f6a3a;
       --shadow: 0 18px 36px rgba(21, 27, 18, 0.08);
     }
     * { box-sizing: border-box; }
@@ -25,143 +27,93 @@
         radial-gradient(circle at top left, rgba(47, 106, 98, 0.09), transparent 24%),
         linear-gradient(180deg, #f6f8f2 0%, #e7ecdf 100%);
     }
-    .shell {
-      max-width: 1240px;
-      margin: 0 auto;
-      padding: 1.2rem;
-    }
-    .hero, .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-    }
-    .topbar {
-      margin-bottom: 0.8rem;
-    }
+    .shell { max-width: 1280px; margin: 0 auto; padding: 1.2rem; }
+    .topbar { margin-bottom: 0.8rem; }
     .track-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      color: var(--muted);
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 0.82rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      color: var(--muted); text-decoration: none; font-weight: 700;
+      font-size: 0.82rem; letter-spacing: 0.04em; text-transform: uppercase;
     }
     .track-link:hover { color: var(--accent); }
-    .hero {
-      padding: 1.2rem;
-      margin-bottom: 1rem;
+    .hero, .card {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 18px; box-shadow: var(--shadow);
     }
-    .hero h1 {
-      margin: 0;
-      font-family: "IBM Plex Serif", Georgia, serif;
-      font-size: clamp(2rem, 4vw, 3rem);
-    }
-    .hero p {
-      margin: 0.6rem 0 0;
-      color: var(--muted);
-      max-width: 62rem;
-      line-height: 1.55;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
-    }
-    .card {
-      padding: 1rem 1.05rem;
-    }
-    .stack > * + * { margin-top: 0.8rem; }
+    .hero { padding: 1rem 1.2rem; margin-bottom: 1rem; }
+    .hero h1 { margin: 0; font-family: "IBM Plex Serif", Georgia, serif; font-size: clamp(1.6rem, 3vw, 2.4rem); }
+    .hero p { margin: 0.4rem 0 0; color: var(--muted); }
+    .grid { display: grid; gap: 1rem; }
+    .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .stack > * + * { margin-top: 0.6rem; }
+    .card { padding: 1rem 1.1rem; }
+    .card h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+    .card h3 { margin: 0.4rem 0 0.3rem; font-size: 0.95rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
     .muted { color: var(--muted); }
     .pill, .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      padding: 0.3rem 0.65rem;
-      border-radius: 999px;
-      font-size: 0.76rem;
-      font-weight: 700;
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.22rem 0.55rem; border-radius: 999px;
+      font-size: 0.74rem; font-weight: 700;
     }
-    .pill {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.72);
-    }
-    .badge {
-      background: var(--accent-soft);
-      color: var(--accent);
-    }
+    .pill { border: 1px solid var(--line); background: rgba(255,255,255,0.72); }
+    .badge { background: var(--accent-soft); color: var(--accent); }
+    .pill.good { background: rgba(31, 106, 58, 0.16); color: var(--good); border-color: rgba(31, 106, 58, 0.3); }
+    .pill.bad  { background: rgba(155, 39, 31, 0.16); color: var(--bad); border-color: rgba(155, 39, 31, 0.3); }
+    .pill.warn { background: rgba(145, 96, 34, 0.18); color: var(--warn); border-color: rgba(145, 96, 34, 0.3); }
     .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      min-height: 2.7rem;
-      padding: 0.7rem 1rem;
-      border-radius: 999px;
-      background: var(--accent);
-      color: white;
-      font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+      text-decoration: none; min-height: 2.2rem;
+      padding: 0.45rem 0.9rem; border-radius: 8px;
+      background: var(--accent); color: white; font-weight: 600;
+      border: 0; cursor: pointer; font-size: 0.92rem;
     }
-    code, pre {
-      font-family: "IBM Plex Mono", ui-monospace, monospace;
-    }
+    .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    code, pre { font-family: "IBM Plex Mono", ui-monospace, monospace; }
     code {
-      background: rgba(255,255,255,0.75);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 0.12rem 0.36rem;
+      background: rgba(255,255,255,0.75); border: 1px solid var(--line);
+      border-radius: 8px; padding: 0.1rem 0.35rem; font-size: 0.86rem;
     }
     pre {
-      margin: 0;
-      white-space: pre-wrap;
-      word-break: break-word;
-      background: rgba(255,255,255,0.72);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 0.85rem;
-      font-size: 0.85rem;
+      margin: 0; white-space: pre-wrap; word-break: break-word;
+      background: rgba(255,255,255,0.7); border: 1px solid var(--line);
+      border-radius: 12px; padding: 0.7rem; font-size: 0.82rem;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.92rem;
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 0.42rem 0.4rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    input[type="text"], input[type="password"], input[type="url"] {
+      width: 100%; padding: 0.5rem 0.65rem;
+      background: rgba(255,255,255,0.9); color: var(--ink);
+      border: 1px solid var(--line); border-radius: 8px;
+      font-family: inherit; font-size: 0.92rem;
     }
-    th, td {
-      padding: 0.55rem 0.4rem;
-      text-align: left;
-      border-bottom: 1px solid var(--line);
-      vertical-align: top;
+    input:focus { outline: none; border-color: var(--accent); }
+    label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 0.18rem; font-weight: 500; }
+    .field { margin-bottom: 0.6rem; }
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+    .row > * { flex: 1; min-width: 0; }
+    .row .actions { flex: 0 0 auto; }
+    .save-flash { font-size: 0.78rem; color: var(--good); opacity: 0; transition: opacity 0.3s; }
+    .save-flash.show { opacity: 1; }
+    .live-dot {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); margin-right: 0.4rem;
+      animation: pulse 1.6s ease-in-out infinite;
     }
-    th {
-      color: var(--muted);
-      font-size: 0.76rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .list {
-      margin: 0;
-      padding-left: 1.2rem;
-      color: var(--muted);
-      line-height: 1.65;
-    }
-    .annotate-box {
-      background: rgba(255, 255, 255, 0.4);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 0.6rem 0.8rem;
-      width: 100%;
-      max-width: 400px;
-      font-family: monospace;
-      margin-top: 5px;
-      transition: all 0.2s ease;
-    }
-    .annotate-box:focus {
-      outline: none;
-      border-color: var(--accent);
-      background: white;
+    @keyframes pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+    .iface-row.up td:first-child { font-weight: 600; }
+    .iface-row.down { color: var(--muted); }
+    .iface-row.wireless td:first-child::after { content: " ⌬"; color: var(--accent); }
+    details > summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
+    .gps { padding: 0.7rem; background: rgba(47, 106, 98, 0.06); border-radius: 10px; border: 1px dashed rgba(47, 106, 98, 0.3); }
+    .gps.no-fix { background: rgba(145, 96, 34, 0.06); border-color: rgba(145, 96, 34, 0.3); }
+    .gps.unavailable { background: rgba(0,0,0,0.03); border-color: var(--line); color: var(--muted); }
+    .priv-warning {
+      background: rgba(145, 96, 34, 0.12); border: 1px solid rgba(145, 96, 34, 0.35);
+      border-radius: 10px; padding: 0.7rem 0.9rem; color: var(--warn);
+      margin-bottom: 1rem; font-size: 0.92rem;
     }
   </style>
 </head>
@@ -170,200 +122,459 @@
     <div class="topbar">
       <a class="track-link" href="{{ track_base_url }}">← TRACK</a>
     </div>
+
     <section class="hero">
-      <div class="stack">
-        <div class="badge">TRACK-integrated</div>
-        <h1>{{ title }}</h1>
-        <p>{{ subtitle }}. This hub is the central storage and web surface for network observations. Privileged capture belongs on the agent side. Aggregation, review, and export belong here.</p>
-        <div style="display:flex; flex-wrap:wrap; gap:0.6rem;">
-          <span class="pill">Public: <code>{{ public_url }}</code></span>
-          <span class="pill">Bind: <code>{{ service_bind }}</code></span>
-          <span class="pill">GitHub: <code>{{ github_repo }}</code></span>
+      <div class="row">
+        <div>
+          <h1>{{ title }}</h1>
+          <p>{{ subtitle }} — laptop walks the building, records what's plugged in where.</p>
+        </div>
+        <div class="actions" style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+          <span id="priv-pill" class="pill"><span class="live-dot"></span><span id="priv-text">checking…</span></span>
+          <button class="btn" id="btn-scan" type="button">Scan now</button>
         </div>
       </div>
     </section>
 
-    <div class="grid" style="margin-bottom: 1rem;">
+    <div id="priv-banner"></div>
+
+    <div class="grid cols-2" style="margin-bottom: 1rem;">
       <section class="card stack">
-        <h2 style="margin:0;">Current status</h2>
+        <h2>Where are you right now?</h2>
+        <p class="muted" style="margin: 0 0 0.4rem; font-size: 0.86rem;">
+          Free-form notes about the spot. All fields optional. Saves on blur.
+        </p>
+        <form id="location-form" autocomplete="off">
+          <div class="row">
+            <div class="field">
+              <label for="loc-building">Building</label>
+              <input id="loc-building" name="building" type="text" value="{{ location.building }}" placeholder="e.g. South wing">
+            </div>
+            <div class="field">
+              <label for="loc-sub">Sub-location</label>
+              <input id="loc-sub" name="sublocation" type="text" value="{{ location.sublocation }}" placeholder="e.g. Floor 2, room 204">
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="loc-cab">Cabinet / rack</label>
+              <input id="loc-cab" name="cabinet" type="text" value="{{ location.cabinet }}" placeholder="e.g. RACK-B12">
+            </div>
+            <div class="field">
+              <label for="loc-sw">Switch</label>
+              <input id="loc-sw" name="switch" type="text" value="{{ location.switch }}" placeholder="e.g. core-sw01">
+            </div>
+            <div class="field">
+              <label for="loc-port">Port</label>
+              <input id="loc-port" name="switch_port" type="text" value="{{ location.switch_port }}" placeholder="e.g. Gi1/0/24">
+            </div>
+          </div>
+          <div class="field">
+            <label for="loc-notes">Notes</label>
+            <input id="loc-notes" name="notes" type="text" value="{{ location.notes }}" placeholder="cable colour, wall plate label, anything…">
+          </div>
+          <div class="row" style="align-items:center;">
+            <div id="loc-flash" class="save-flash">Saved ✓</div>
+            <div class="actions">
+              <button class="btn ghost" id="loc-save" type="button">Save all</button>
+            </div>
+          </div>
+        </form>
+
+        <h3>GPS</h3>
+        <div id="gps-box" class="gps unavailable">Looking for gpsd…</div>
+      </section>
+
+      <section class="card stack">
+        <h2>Live network <span id="rt-time" class="muted" style="font-size:0.78rem; font-weight:400;"></span></h2>
         <table>
-          <tr><th>Networks</th><td>{{ status.network_count }}</td></tr>
+          <tr><th>Hostname</th><td id="rt-host">—</td></tr>
+          <tr><th>Primary IP</th><td id="rt-ip">—</td></tr>
+          <tr><th>Default gateway</th><td id="rt-gw">—</td></tr>
+          <tr><th>Active network</th><td id="rt-active">—</td></tr>
+          <tr><th>Last change</th><td id="rt-change">—</td></tr>
+          <tr><th>ARP entries</th><td id="rt-arp-count">—</td></tr>
+          <tr><th>DNS</th><td id="rt-dns">—</td></tr>
+        </table>
+
+        <h3>Interfaces</h3>
+        <table id="rt-iface-table">
+          <thead>
+            <tr>
+              <th>Name</th><th>State</th><th>IPv4 / IPv6</th>
+              <th class="num">RX</th><th class="num">TX</th>
+            </tr>
+          </thead>
+          <tbody id="rt-iface-body">
+            <tr><td colspan="5" class="muted">loading…</td></tr>
+          </tbody>
+        </table>
+
+        <details>
+          <summary>ARP / neighbour table (<span id="rt-arp-summary">0</span>)</summary>
+          <table>
+            <thead><tr><th>IP</th><th>MAC</th><th>Device</th><th>State</th></tr></thead>
+            <tbody id="rt-arp-body"></tbody>
+          </table>
+        </details>
+
+        <details>
+          <summary>Wi-Fi <span id="rt-wifi-summary" class="muted"></span></summary>
+          <div id="rt-wifi-body" class="muted">no wireless interface detected</div>
+        </details>
+      </section>
+    </div>
+
+    <div class="grid cols-2" style="margin-bottom: 1rem;">
+      <section class="card stack">
+        <h2>Sync target</h2>
+        <p class="muted" style="margin:0 0 0.4rem; font-size:0.86rem;">
+          Where to push observations. Leave disabled to keep them local only.
+        </p>
+        <form id="sync-form" autocomplete="off">
+          <div class="field">
+            <label for="sync-url">Public host / endpoint URL</label>
+            <input id="sync-url" type="url" name="target_url" value="{{ sync_settings.target_url }}" placeholder="https://track.example.com/netinventory/api/simple-ingest">
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="sync-user">Username</label>
+              <input id="sync-user" type="text" name="username" value="{{ sync_settings.username }}" placeholder="optional">
+            </div>
+            <div class="field">
+              <label for="sync-pass">Password</label>
+              <input id="sync-pass" type="password" name="password" value="{{ sync_settings.password }}" placeholder="optional">
+            </div>
+          </div>
+          <div class="field">
+            <label for="sync-secret">Shared secret (X-NetInv-Token)</label>
+            <input id="sync-secret" type="password" name="shared_secret" value="{{ sync_settings.shared_secret }}" placeholder="optional">
+          </div>
+          <div class="row" style="align-items:center;">
+            <label class="row" style="align-items:center; gap:0.4rem; flex:0 0 auto;">
+              <input type="checkbox" id="sync-enabled" {% if sync_settings.enabled == "1" %}checked{% endif %} style="width:auto;">
+              <span style="margin:0;">Enable background sync</span>
+            </label>
+            <div id="sync-flash" class="save-flash">Saved ✓</div>
+            <div class="actions" style="display:flex; gap:0.5rem;">
+              <button class="btn ghost" id="sync-save" type="button">Save</button>
+              <button class="btn" id="sync-now" type="button">Sync now</button>
+            </div>
+          </div>
+        </form>
+        <div class="muted" style="font-size: 0.84rem;">
+          Last attempt: <code id="sync-attempt">{{ sync_settings.last_attempt_at or "never" }}</code><br>
+          Last status: <code id="sync-status">{{ sync_settings.last_status or "—" }}</code>
+        </div>
+      </section>
+
+      <section class="card stack">
+        <h2>Storage & identity</h2>
+        <table>
+          <tr><th>Networks recorded</th><td>{{ status.network_count }}</td></tr>
           <tr><th>Observations</th><td>{{ status.observation_count }}</td></tr>
           <tr><th>Active network</th><td><code>{{ status.active_network_id or 'none' }}</code></td></tr>
           <tr><th>Device ID</th><td><code>{{ status.device_id }}</code></td></tr>
           <tr><th>Database</th><td><code>{{ status.db_path }}</code></td></tr>
+          <tr><th>Public URL</th><td><code>{{ public_url }}</code></td></tr>
+          <tr><th>Bind</th><td><code>{{ service_bind }}</code></td></tr>
         </table>
-        {% if status.active_network_id %}
-        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--line);">
-          <strong>Where are you right now?</strong> <span id="save-status" class="muted" style="float: right; opacity: 0; transition: opacity 0.3s;">Saved ✓</span>
-          <input type="text" id="annotate-input" class="annotate-box" placeholder="e.g. Building A, Cabinet B, Switch C..." autocomplete="off">
-        </div>
-        {% endif %}
-      </section>
-
-      <section class="card stack">
-        <h2 style="margin:0;">Agent flow</h2>
-        <ul class="list">
-          <li>Run the agent on the laptop or controlled device.</li>
-          <li>Use privileged local capture there when raw inspection is needed.</li>
-          <li>Attach field context like rack, patch panel, or wall port.</li>
-          <li>Export or sync results back into this hub.</li>
-        </ul>
-        <div>
-          <a class="btn" href="agents/bootstrap.sh">Download bootstrap script</a>
-        </div>
-      </section>
-
-      <section class="card stack">
-        <h2 style="margin:0;">Local secret</h2>
-        <p class="muted" style="margin:0;">The rewrite service API already uses a shared secret. This remains local state, not public shell state.</p>
+        <h3>Local API token</h3>
         <pre>{{ shared_secret }}</pre>
       </section>
     </div>
 
-    <div class="grid" style="margin-bottom: 1rem;">
+    <div class="grid cols-2">
       <section class="card stack">
-        <h2 style="margin:0;">Networks</h2>
+        <h2>Networks seen</h2>
         {% if network_rows %}
-          <table>
-            <thead>
-              <tr>
-                <th>Network</th>
-                <th>Seen</th>
-                <th>Latest facts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in network_rows %}
-                <tr>
-                  <td>
-                    <div><code>{{ row.summary.network_id }}</code></div>
-                    <div class="muted">{{ row.summary.display_name or 'unnamed' }}</div>
-                  </td>
-                  <td>
-                    <div>{{ row.summary.seen_count }} times</div>
-                    <div class="muted">{{ row.summary.last_seen or '-' }}</div>
-                  </td>
-                  <td>
-                    <div>gateway: <code>{{ row.facts.get('default_gateway') or '-' }}</code></div>
-                    <div>ip: <code>{{ row.facts.get('primary_ip') or '-' }}</code></div>
-                    <div class="muted">{{ row.latest.summary if row.latest else 'no latest observation' }}</div>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <table>
+          <thead><tr><th>Network</th><th>Seen</th><th>Latest facts</th></tr></thead>
+          <tbody>
+            {% for row in network_rows %}
+            <tr>
+              <td><code>{{ row.summary.network_id }}</code><br><span class="muted">{{ row.summary.display_name or '—' }}</span></td>
+              <td>{{ row.summary.seen_count }}×<br><span class="muted">{{ row.summary.last_seen or '-' }}</span></td>
+              <td>
+                <div>gw: <code>{{ row.facts.get('default_gateway') or '-' }}</code></div>
+                <div>ip: <code>{{ row.facts.get('primary_ip') or '-' }}</code></div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% else %}
-          <p class="muted" style="margin:0;">No stored networks yet.</p>
+        <p class="muted">No networks recorded yet — try Scan now.</p>
         {% endif %}
       </section>
 
       <section class="card stack">
-        <h2 style="margin:0;">Recent task runs</h2>
+        <h2>Recent activity</h2>
         {% if recent_runs %}
-          <table>
-            <thead>
-              <tr>
-                <th>Started</th>
-                <th>Task</th>
-                <th>State</th>
-                <th>Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for run in recent_runs %}
-                <tr>
-                  <td>{{ run.started_at }}</td>
-                  <td><code>{{ run.task_id }}</code></td>
-                  <td>{{ run.state }}</td>
-                  <td class="muted">{{ run.detail or '-' }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <table>
+          <thead><tr><th>When</th><th>Task</th><th>State</th><th>Detail</th></tr></thead>
+          <tbody>
+            {% for run in recent_runs %}
+            <tr>
+              <td>{{ run.started_at[:19] if run.started_at else '-' }}</td>
+              <td><code>{{ run.task_id }}</code></td>
+              <td>{{ run.state }}</td>
+              <td class="muted">{{ run.detail or '-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% else %}
-          <p class="muted" style="margin:0;">No task history yet.</p>
+        <p class="muted">No task history yet.</p>
         {% endif %}
-      </section>
-    </div>
-
-    <div class="grid">
-      <section class="card stack">
-        <h2 style="margin:0;">Recent context</h2>
+        <h3>Recent context</h3>
         {% if context_rows %}
-          <table>
-            <thead>
-              <tr>
-                <th>Created</th>
-                <th>Entity</th>
-                <th>Field</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in context_rows %}
-                <tr>
-                  <td>{{ row.created_at }}</td>
-                  <td><code>{{ row.entity_kind }}:{{ row.entity_id }}</code></td>
-                  <td>{{ row.field }}</td>
-                  <td class="muted">{{ row.value }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <table>
+          <tbody>
+            {% for row in context_rows %}
+            <tr>
+              <td class="muted" style="white-space:nowrap;">{{ row.created_at[:19] if row.created_at else '' }}</td>
+              <td><code>{{ row.entity_kind }}:{{ row.entity_id }}</code></td>
+              <td><strong>{{ row.field }}</strong></td>
+              <td>{{ row.value }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
         {% else %}
-          <p class="muted" style="margin:0;">No user context recorded yet.</p>
+        <p class="muted">No annotations yet.</p>
         {% endif %}
-      </section>
-
-      <section class="card stack">
-        <h2 style="margin:0;">Position in TRACK</h2>
-        <ul class="list">
-          <li><strong>Agent</strong>: laptop or controlled device, with local privileges where needed.</li>
-          <li><strong>Hub</strong>: central database and service surface.</li>
-          <li><strong>Web</strong>: operator-facing summary and download surface.</li>
-        </ul>
-        <p class="muted" style="margin:0;">
-          This keeps privileged inspection out of the public-facing web app while still letting TRACK integrate network evidence with rooms, racks, ports, and device documentation later.
-        </p>
       </section>
     </div>
   </div>
+
   <script>
-    const annotateInput = document.getElementById('annotate-input');
-    const saveStatus = document.getElementById('save-status');
-    if (annotateInput) {
-      annotateInput.addEventListener('keydown', async (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          const val = annotateInput.value.trim();
-          if (!val) return;
-          
-          annotateInput.disabled = true;
-          try {
-            const resp = await fetch('/annotate_current', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ rack_location: val })
-            });
-            if (resp.ok) {
-              annotateInput.value = '';
-              saveStatus.style.opacity = '1';
-              setTimeout(() => {
-                saveStatus.style.opacity = '0';
-                window.location.reload(); 
-              }, 1000);
-            } else {
-              alert('Failed to save context');
-            }
-          } catch (err) {
-            alert('Error: ' + err);
+    const fmtBytes = (n) => {
+      if (n == null) return "—";
+      const units = ["B", "KB", "MB", "GB", "TB"];
+      let v = n, i = 0;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
+    };
+    const text = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+
+    async function refreshRealtime() {
+      try {
+        const resp = await fetch("/api/realtime", { cache: "no-store" });
+        if (!resp.ok) return;
+        const d = await resp.json();
+        text("rt-time", d.now ? `(${new Date(d.now).toLocaleTimeString()})` : "");
+        text("rt-host", `${d.hostname || "—"}${d.fqdn && d.fqdn !== d.hostname ? " · " + d.fqdn : ""}`);
+        text("rt-ip", d.primary_ip || "—");
+        text("rt-gw", d.default_gateway ? `${d.default_gateway} (${d.default_route_interface || "?"})` : "—");
+        text("rt-active", d.active_network_id || "none");
+        text("rt-change", d.last_material_change_at || "—");
+        text("rt-arp-count", `${d.arp ? d.arp.count : 0}`);
+        text("rt-arp-summary", `${d.arp ? d.arp.count : 0}`);
+        text("rt-dns", (d.dns_servers || []).join(", ") || "—");
+        text("sync-attempt", d.sync_last_attempt_at || "never");
+        text("sync-status", d.sync_last_status || "—");
+
+        const privPill = document.getElementById("priv-pill");
+        const privText = document.getElementById("priv-text");
+        const privBanner = document.getElementById("priv-banner");
+        if (privPill && privText) {
+          if (d.privileged) {
+            privPill.className = "pill good";
+            privText.textContent = "running as root";
+            privBanner.innerHTML = "";
+          } else if (d.sudo_available) {
+            privPill.className = "pill good";
+            privText.textContent = "sudo cached";
+            privBanner.innerHTML = "";
+          } else {
+            privPill.className = "pill warn";
+            privText.textContent = "no privileges";
+            privBanner.innerHTML = '<div class="priv-warning">Running unprivileged. Wi-Fi scans and full ARP needs root. Run <code>sudo -v</code> in the launcher terminal, or restart the client with the launcher script.</div>';
           }
-          annotateInput.disabled = false;
-          annotateInput.focus();
         }
-      });
+
+        // Interfaces
+        const tbody = document.getElementById("rt-iface-body");
+        if (tbody) {
+          tbody.innerHTML = "";
+          (d.interfaces || []).forEach(iface => {
+            if (iface.is_loopback) return;
+            const tr = document.createElement("tr");
+            const isUp = iface.operstate === "up" || iface.carrier === 1;
+            tr.className = "iface-row " + (isUp ? "up" : "down") + (iface.is_wireless ? " wireless" : "");
+            const ipv4 = (iface.addresses || []).filter(a => a.family === "inet").map(a => `${a.address}/${a.prefixlen}`).join(", ") || "—";
+            const ipv6 = (iface.addresses || []).filter(a => a.family === "inet6" && a.scope !== "link").map(a => `${a.address}/${a.prefixlen}`).join(", ") || "";
+            tr.innerHTML = `
+              <td><code>${iface.name}</code><br><span class="muted">${iface.mac_address || "—"}</span></td>
+              <td>${iface.operstate || "—"}${iface.is_wireless ? "<br><span class='pill'>wifi</span>" : ""}</td>
+              <td>${ipv4}${ipv6 ? "<br><span class='muted'>" + ipv6 + "</span>" : ""}</td>
+              <td class="num">${fmtBytes(iface.rx_bytes)}<br><span class="muted">${iface.rx_packets || 0} pkt</span></td>
+              <td class="num">${fmtBytes(iface.tx_bytes)}<br><span class="muted">${iface.tx_packets || 0} pkt</span></td>
+            `;
+            tbody.appendChild(tr);
+          });
+          if (!tbody.children.length) tbody.innerHTML = '<tr><td colspan="5" class="muted">no interfaces</td></tr>';
+        }
+
+        // ARP table
+        const arpBody = document.getElementById("rt-arp-body");
+        if (arpBody) {
+          arpBody.innerHTML = "";
+          ((d.arp && d.arp.entries) || []).slice(0, 50).forEach(e => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td><code>${e.ip}</code></td><td><code>${e.mac || "—"}</code></td><td>${e.device || "—"}</td><td class="muted">${e.state || ""}</td>`;
+            arpBody.appendChild(tr);
+          });
+        }
+
+        // GPS
+        const gpsBox = document.getElementById("gps-box");
+        if (gpsBox) {
+          if (!d.gps || !d.gps.available) {
+            gpsBox.className = "gps unavailable";
+            gpsBox.textContent = (d.gps && d.gps.reason) || "no GPS";
+          } else if (!d.gps.fix) {
+            gpsBox.className = "gps no-fix";
+            gpsBox.textContent = "GPS detected, no fix yet";
+          } else {
+            gpsBox.className = "gps";
+            gpsBox.innerHTML = `<strong>${d.gps.lat?.toFixed(6)}, ${d.gps.lon?.toFixed(6)}</strong>` +
+              (d.gps.alt != null ? ` · alt ${d.gps.alt.toFixed(0)}m` : "") +
+              (d.gps.speed != null ? ` · speed ${d.gps.speed.toFixed(1)}m/s` : "") +
+              (d.gps.time ? `<br><span class="muted">${d.gps.time}</span>` : "");
+          }
+        }
+
+        // WiFi
+        const wifiBody = document.getElementById("rt-wifi-body");
+        const wifiSummary = document.getElementById("rt-wifi-summary");
+        if (wifiBody && d.wifi) {
+          if (!d.wifi.available) {
+            wifiBody.className = "muted";
+            wifiBody.textContent = d.wifi.reason || "no wireless interface detected";
+            wifiSummary.textContent = "";
+          } else {
+            const ifaces = d.wifi.interfaces || [];
+            wifiSummary.textContent = ifaces.length === 1 ? ifaces[0].name : `${ifaces.length} ifaces`;
+            wifiBody.className = "";
+            wifiBody.innerHTML = ifaces.map(iface => {
+              const link = iface.link || {};
+              const linkLine = link.connected
+                ? `<div>connected to <strong>${link.ssid || link.bssid || "?"}</strong> · ${link.signal || "?"} · ${link.tx_bitrate || ""}</div>`
+                : `<div class="muted">not connected</div>`;
+              const rows = (iface.scan || []).map(n =>
+                `<tr><td>${n.ssid || '<span class="muted">(hidden)</span>'}</td><td><code>${n.bssid || ""}</code></td><td class="num">${n.signal || ""}</td><td>${n.freq || ""}</td></tr>`
+              ).join("");
+              const scanNote = iface.scan_privileged
+                ? `<div class="muted" style="font-size:0.82rem;">scanned ${iface.scan_count} APs</div>`
+                : `<div class="muted" style="font-size:0.82rem;">scan needs root or cached sudo</div>`;
+              return `
+                <div style="margin-bottom: 0.6rem;">
+                  <strong><code>${iface.name}</code></strong>${linkLine}${scanNote}
+                  ${rows ? `<table style="margin-top:0.3rem;"><thead><tr><th>SSID</th><th>BSSID</th><th class="num">Signal</th><th>Freq</th></tr></thead><tbody>${rows}</tbody></table>` : ""}
+                </div>
+              `;
+            }).join("");
+          }
+        }
+      } catch (e) {
+        console.warn("realtime refresh failed", e);
+      }
     }
+
+    // Location form: save on blur and on Save All
+    const locFields = ["building","sublocation","cabinet","switch","switch_port","notes"];
+    function flash(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 1200);
+    }
+    async function saveLocation(payload, flashId="loc-flash") {
+      try {
+        const resp = await fetch("/api/location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (resp.ok) flash(flashId);
+      } catch (e) { console.warn("location save failed", e); }
+    }
+    locFields.forEach(f => {
+      const idMap = {sublocation:"loc-sub", switch_port:"loc-port", building:"loc-building", cabinet:"loc-cab", switch:"loc-sw", notes:"loc-notes"};
+      const el = document.getElementById(idMap[f]);
+      if (!el) return;
+      let prior = el.value;
+      el.addEventListener("blur", () => {
+        if (el.value === prior) return;
+        prior = el.value;
+        saveLocation({ [f]: el.value });
+      });
+    });
+    document.getElementById("loc-save")?.addEventListener("click", () => {
+      const payload = {};
+      locFields.forEach(f => {
+        const idMap = {sublocation:"loc-sub", switch_port:"loc-port", building:"loc-building", cabinet:"loc-cab", switch:"loc-sw", notes:"loc-notes"};
+        const el = document.getElementById(idMap[f]);
+        if (el) payload[f] = el.value;
+      });
+      saveLocation(payload);
+    });
+
+    // Sync settings
+    document.getElementById("sync-save")?.addEventListener("click", async () => {
+      const payload = {
+        target_url: document.getElementById("sync-url").value,
+        username: document.getElementById("sync-user").value,
+        password: document.getElementById("sync-pass").value,
+        shared_secret: document.getElementById("sync-secret").value,
+        enabled: document.getElementById("sync-enabled").checked,
+      };
+      const resp = await fetch("/api/sync/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (resp.ok) flash("sync-flash");
+    });
+    document.getElementById("sync-now")?.addEventListener("click", async () => {
+      const btn = document.getElementById("sync-now");
+      btn.disabled = true;
+      btn.textContent = "Syncing…";
+      try {
+        const resp = await fetch("/api/sync/run", { method: "POST" });
+        const result = await resp.json();
+        if (result.ok && !result.skipped) {
+          alert(`Synced ${result.records} records`);
+        } else if (result.ok) {
+          alert(`Idle: ${result.reason}`);
+        } else {
+          alert(`Sync failed: ${result.error || result.reason || "unknown"}`);
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Sync now";
+        refreshRealtime();
+      }
+    });
+
+    // Manual scan
+    document.getElementById("btn-scan")?.addEventListener("click", async () => {
+      const btn = document.getElementById("btn-scan");
+      btn.disabled = true;
+      btn.textContent = "Scanning…";
+      try {
+        await fetch("/api/scan", { method: "POST" });
+        await refreshRealtime();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Scan now";
+      }
+    });
+
+    refreshRealtime();
+    setInterval(refreshRealtime, 4000);
   </script>
 </body>
 </html>
