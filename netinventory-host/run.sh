@@ -43,6 +43,7 @@ fi
 echo "Checking NetInventory Host requirements..."
 "$VENV/bin/pip" install -q -r requirements.txt
 
+export PYTHONPATH="$DIR/..:${PYTHONPATH:-}"
 export NETINVENTORY_HOST_BIND="$HOST"
 export NETINVENTORY_HOST_PORT="$PORT"
 

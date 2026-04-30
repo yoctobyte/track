@@ -17,6 +17,13 @@ SCHEMA_VERSION = 1
 class Database:
     def __init__(self, paths: AppPaths):
         self.paths = paths
+        
+    @property
+    def location_db(self) -> "LocationDB":
+        from track_location import LocationDB
+        realm_name = self.paths.environment_name if hasattr(self.paths, "environment_name") else "default"
+        db_path = self.paths.state_dir / "realms" / f"{realm_name}.sqlite"
+        return LocationDB(db_path)
 
     def initialize(self) -> None:
         self.paths.root.mkdir(parents=True, exist_ok=True)

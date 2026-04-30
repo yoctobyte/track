@@ -350,35 +350,103 @@ def rack_form_data(form: Any) -> dict[str, Any]:
     }
 
 
-def save_rack_record(record: dict[str, Any]) -> None:
-    path = rack_inventory_path(record["id"])
-    path.write_text(json.dumps(record, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+def get_location_db() -> "LocationDB":
+    from track_location import LocationDB
+    return LocationDB(runtime_paths()["root"] / "locations.sqlite")
 
+def save_rack_record(record: dict[str, Any]) -> None:
+    db = get_location_db()
+    b_name = record.get("building", "").strip() or "Unknown Building"
+    b = next((x for x in db.list_buildings() if x["name"] == b_name), None)
+    if not b:
+        b = db.create_building(name=b_name)
+        
+    l_name = record.get("location", "").strip() or "Unknown Location"
+    l = next((x for x in db.list_locations(b["id"]) if x["name"] == l_name), None)
+    if not l:
+        l = db.create_location(building_id=b["id"], name=l_name, type="room")
+        
+    c_name = record.get("name", "").strip() or "Unnamed Rack"
+    c_id = record["id"]
+    
+    # Pack original NetInventory JSON payload into extra_data for lossless fidelity
+    # Strip devices to not duplicate them heavily in JSON
+    extra_record = {**record}
+    if "devices" in extra_record:
+        del extra_record["devices"]
+    
+    existing_c = db.get_cabinet(c_id)
+    if existing_c:
+        db.update_cabinet(c_id, location_id=l["id"], name=c_name, notes=record.get("description", ""), extra_data=extra_record)
+    else:
+        db.create_cabinet(location_id=l["id"], name=c_name, notes=record.get("description", ""), extra_data=extra_record, id=c_id)
+        
+    for d in db.list_devices(cabinet_id=c_id):
+        db.delete_device(d["id"])
+        
+    for device in record.get("devices", []):
+        db.create_device(
+            cabinet_id=c_id,
+            location_id=l["id"],
+            name=device.get("name", ""),
+            kind=device.get("kind", ""),
+            brand=device.get("brand", ""),
+            model=device.get("model", ""),
+            port_count=device.get("port_count") or 0,
+            unit_size=device.get("unit_size") or 1,
+            u_position=device.get("u_position"),
+            notes=device.get("notes", ""),
+            id=device.get("id") or None
+        )
 
 def load_rack_record(rack_id: str) -> dict[str, Any] | None:
-    path = rack_inventory_path(rack_id)
-    if not path.exists():
+    db = get_location_db()
+    c = db.get_cabinet(rack_id)
+    if not c:
         return None
-    try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-    if not isinstance(loaded, dict):
-        return None
+        
     record = default_rack_record()
-    record.update(loaded)
-    record["photos"] = loaded.get("photos", []) if isinstance(loaded.get("photos"), list) else []
-    record["devices"] = loaded.get("devices", []) if isinstance(loaded.get("devices"), list) else []
+    if c["extra_data"]:
+        try:
+            import json
+            record.update(json.loads(c["extra_data"]))
+        except Exception:
+            pass
+            
+    record["id"] = c["id"]
+    record["name"] = c["name"]
+    record["description"] = c["notes"]
+    
+    l = db.get_location(c["location_id"]) if c["location_id"] else None
+    if l:
+        record["location"] = l["name"]
+        b = db.get_building(l["building_id"]) if l["building_id"] else None
+        if b:
+            record["building"] = b["name"]
+            
+    devices = []
+    for d in db.list_devices(cabinet_id=rack_id):
+        devices.append({
+            "id": d["id"],
+            "name": d["name"],
+            "kind": d["kind"],
+            "brand": d["brand"],
+            "model": d["model"],
+            "port_count": d["port_count"],
+            "unit_size": d["unit_size"],
+            "u_position": d["u_position"],
+            "notes": d["notes"],
+        })
+    record["devices"] = devices
     return record
 
-
 def list_racks() -> list[dict[str, Any]]:
+    db = get_location_db()
     rows: list[dict[str, Any]] = []
-    for path in sorted(runtime_paths()["rack_inventory"].glob("*.json")):
-        rack = load_rack_record(path.stem)
-        if not rack:
-            continue
-        rows.append(rack)
+    for c in db.list_cabinets():
+        rack = load_rack_record(c["id"])
+        if rack:
+            rows.append(rack)
     rows.sort(key=lambda item: item.get("updated_at") or "", reverse=True)
     return rows
 

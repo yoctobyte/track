@@ -13,6 +13,12 @@ from flask import Flask, Response, abort, make_response, redirect, render_templa
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
+try:
+    from track_location import LocationDB
+    HAS_LOCATION_DB = True
+except ImportError:
+    HAS_LOCATION_DB = False
+
 
 BASE_DIR = Path(__file__).resolve().parent
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif"}
@@ -131,11 +137,29 @@ def create_app() -> Flask:
             "public_prefix": request.headers.get("X-Forwarded-Prefix", "").rstrip("/"),
         }
 
+    def get_location_db() -> LocationDB | None:
+        if not HAS_LOCATION_DB:
+            return None
+        realm = request.headers.get("X-Trackhub-Environment", "default")
+        db_path = app.config["QUICKTRACK_DATA_DIR"] / "realms" / f"{realm}.sqlite"
+        return LocationDB(db_path)
+
     @app.get("/")
     def index():
         records = read_records(paths["records"])[:30]
         sender_id = request.cookies.get("quicktrack_sender_id", "")
-        return render_template("index.html", records=records, sender_id=sender_id)
+        
+        db = get_location_db()
+        targets = {}
+        if db:
+            targets = {
+                "buildings": db.list_buildings(),
+                "locations": db.list_locations(),
+                "cabinets": db.list_cabinets(),
+                "devices": db.list_devices(),
+            }
+            
+        return render_template("index.html", records=records, sender_id=sender_id, targets=targets)
 
     @app.post("/submit")
     def submit():
@@ -172,6 +196,7 @@ def create_app() -> Flask:
             "created_at": received_at.isoformat().replace("+00:00", "Z"),
             "sender_id": sender_id,
             "description": clean_text(request.form.get("description", ""), 2000),
+            "target": request.form.get("target", ""),
             "location": {
                 "latitude": latitude,
                 "longitude": longitude,
@@ -181,6 +206,18 @@ def create_app() -> Flask:
             "photo": photo_meta,
         }
         write_record(paths["records"], record)
+        
+        target_raw = request.form.get("target", "")
+        if target_raw and ":" in target_raw:
+            target_type, target_id = target_raw.split(":", 1)
+            db = get_location_db()
+            if db:
+                db.create_media_record(
+                    target_type=target_type,
+                    target_id=target_id,
+                    source_app="quicktrack",
+                    uri=f"/{photo_meta['relative_path']}"
+                )
 
         response = make_response(redirect(url_for("index", saved=record_id)))
         if sender_id:

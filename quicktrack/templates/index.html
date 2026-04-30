@@ -233,6 +233,35 @@
         <button class="btn" type="submit">Submit Observation</button>
       </div>
 
+      {% if targets %}
+      <label>
+        Target Location/Asset
+        <select name="target" style="width:100%; border:1px solid var(--line); border-radius:16px; padding:0.85rem 0.95rem; background:white; color:var(--ink); font:inherit;">
+          <option value="">-- None --</option>
+          {% if targets.buildings %}
+          <optgroup label="Buildings">
+            {% for b in targets.buildings %}<option value="building:{{ b.id }}">{{ b.name }}</option>{% endfor %}
+          </optgroup>
+          {% endif %}
+          {% if targets.locations %}
+          <optgroup label="Locations">
+            {% for l in targets.locations %}<option value="location:{{ l.id }}">{{ l.name }}</option>{% endfor %}
+          </optgroup>
+          {% endif %}
+          {% if targets.cabinets %}
+          <optgroup label="Cabinets">
+            {% for c in targets.cabinets %}<option value="cabinet:{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </optgroup>
+          {% endif %}
+          {% if targets.devices %}
+          <optgroup label="Devices">
+            {% for d in targets.devices %}<option value="device:{{ d.id }}">{{ d.name }}</option>{% endfor %}
+          </optgroup>
+          {% endif %}
+        </select>
+      </label>
+      {% endif %}
+
       <label>
         Description
         <textarea name="description" placeholder="Optional note, object, room, issue, or context."></textarea>

@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 from datetime import UTC, datetime
 
 from flask import Flask, Response, jsonify, render_template, request
 
 from netinventory.auth import load_or_create_shared_secret
+from netinventory.collect.collector import CollectedObservation
 from netinventory.config import get_app_paths, get_hub_settings
 from netinventory.context import add_user_context
 from netinventory.core.context import UserContextRecord
+from netinventory.probes import PROBE_IDS, PROBE_LABELS, run_probe
 from netinventory.realtime import gather_realtime
 from netinventory.storage.db import Database
 from netinventory.sync import get_sync_settings, run_sync_once, save_sync_settings
@@ -17,6 +21,7 @@ from netinventory.sync import get_sync_settings, run_sync_once, save_sync_settin
 LOCATION_ENTITY_KIND = "current_location"
 LOCATION_ENTITY_ID = "active"
 LOCATION_FIELDS = ("building", "sublocation", "cabinet", "switch", "switch_port", "notes")
+SNAPSHOT_KIND = "location_snapshot"
 
 
 def create_hub_web() -> Flask:
@@ -46,6 +51,7 @@ def create_hub_web() -> Flask:
         last_change = db.get_app_state("last_material_change_at")
         sync_settings = get_sync_settings(db)
         location = current_location(db)
+        snapshots = list_recent_snapshots(db, limit=5)
 
         network_rows = []
         for network in networks:
@@ -53,6 +59,7 @@ def create_hub_web() -> Flask:
             facts = latest.get("facts", {}) if latest else {}
             network_rows.append({"summary": network.to_dict(), "latest": latest, "facts": facts})
 
+        probe_options = [{"id": pid, "label": PROBE_LABELS.get(pid, pid)} for pid in PROBE_IDS]
         return render_template(
             "hub_index.html",
             title="NetInventory",
@@ -69,6 +76,8 @@ def create_hub_web() -> Flask:
             sync_settings=sync_settings,
             location=location,
             location_fields=LOCATION_FIELDS,
+            probe_options=probe_options,
+            snapshots=snapshots,
         )
 
     @app.get("/api/realtime")
@@ -132,6 +141,75 @@ def create_hub_web() -> Flask:
         else:
             db.set_app_state("sync_last_status", f"failed: {result.get('error') or result.get('reason', 'unknown')}")
         return jsonify(result)
+
+    @app.post("/api/snapshot")
+    def api_snapshot():
+        data = request.get_json(silent=True) or {}
+        location_input = {f: str(data.get(f, "") or "").strip() for f in LOCATION_FIELDS}
+        requested_probes = [p for p in (data.get("probes") or []) if p in PROBE_IDS]
+        probe_kwargs: dict[str, dict] = data.get("probe_options") or {}
+
+        paths = app.config["NETINV_PATHS"]
+        db = Database(paths)
+
+        for field, value in location_input.items():
+            if value or current_location(db).get(field):
+                db.add_user_context(
+                    UserContextRecord(
+                        context_id=str(uuid.uuid4()),
+                        created_at=datetime.now(UTC).isoformat(),
+                        entity_kind=LOCATION_ENTITY_KIND,
+                        entity_id=LOCATION_ENTITY_ID,
+                        field=field,
+                        value=value,
+                    )
+                )
+
+        probe_results: dict[str, dict] = {}
+        for probe_id in requested_probes:
+            probe_results[probe_id] = run_probe(probe_id, **(probe_kwargs.get(probe_id) or {}))
+
+        status = db.get_status()
+        active_network = status.active_network_id or "unknown"
+        snapshot_id = str(uuid.uuid4())
+        observed_at = datetime.now(UTC).isoformat()
+        location_summary = " / ".join(v for v in (location_input[f] for f in LOCATION_FIELDS) if v) or "(no location set)"
+
+        facts: dict[str, object] = {
+            "snapshot_id": snapshot_id,
+            "location": {f: location_input[f] for f in LOCATION_FIELDS},
+            "probes_requested": list(requested_probes),
+            "probes": probe_results,
+        }
+        material_seed = json.dumps({"snapshot": snapshot_id, "at": observed_at}, sort_keys=True).encode("utf-8")
+        material_fp = hashlib.sha256(material_seed).hexdigest()
+        observation = CollectedObservation(
+            observation_id=snapshot_id,
+            observed_at=observed_at,
+            network_id=active_network,
+            kind=SNAPSHOT_KIND,
+            facts=facts,
+            material_fingerprint=material_fp,
+            summary=location_summary,
+            display_name=location_summary[:80],
+            confidence=0.95,
+        )
+        db.record_observation(observation)
+        return jsonify(
+            {
+                "ok": True,
+                "snapshot_id": snapshot_id,
+                "observed_at": observed_at,
+                "location": current_location(db),
+                "probes": probe_results,
+                "summary": location_summary,
+            }
+        )
+
+    @app.get("/api/snapshots")
+    def api_snapshots():
+        db = Database(app.config["NETINV_PATHS"])
+        return jsonify({"snapshots": list_recent_snapshots(db, limit=20)})
 
     @app.post("/api/scan")
     def api_scan():
