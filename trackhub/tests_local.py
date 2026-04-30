@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
 
 import app as trackhub_app  # noqa: E402
+from config import iter_launch_entries  # noqa: E402
 
 
 def assert_true(condition: bool, message: str) -> None:
@@ -149,11 +150,27 @@ def test_quicktrack_is_listed_and_proxyable() -> None:
     )
 
 
+def test_testing_launch_plan_starts_quicktrack_and_local_client() -> None:
+    app = trackhub_app.create_app()
+    launches = {
+        (entry["environment_id"], entry["app_id"]): entry
+        for entry in iter_launch_entries(app.config["TRACKHUB"])
+    }
+    quicktrack = launches.get(("testing", "quicktrack"))
+    netinventory_client = launches.get(("testing", "netinventory-client"))
+
+    assert_true(quicktrack is not None, "testing QuickTrack should have a launch entry")
+    assert_true(bool(quicktrack["autostart"]), "testing QuickTrack should autostart")
+    assert_true(netinventory_client is not None, "testing NetInventory Client should have a launch entry")
+    assert_true(bool(netinventory_client["autostart"]), "testing NetInventory Client should autostart")
+
+
 def main() -> None:
     test_hidden_netinventory_client_not_listed_or_proxied_on_public_host()
     test_hidden_netinventory_client_localhost_shortcut_can_proxy()
     test_visible_netinventory_client_can_proxy_for_local_hosts()
     test_quicktrack_is_listed_and_proxyable()
+    test_testing_launch_plan_starts_quicktrack_and_local_client()
     print("trackhub local tests passed")
 
 

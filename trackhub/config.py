@@ -121,7 +121,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                         "QUICKTRACK_PORT": "5107",
                         "QUICKTRACK_DATA_DIR": "./quicktrack/data/environments/testing",
                     },
-                    "autostart": False,
+                    "autostart": True,
                     "status": "experimental",
                 },
             ],

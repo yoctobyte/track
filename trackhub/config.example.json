@@ -88,7 +88,7 @@
             "QUICKTRACK_PORT": "5107",
             "QUICKTRACK_DATA_DIR": "./quicktrack/data/environments/testing"
           },
-          "autostart": false,
+          "autostart": true,
           "status": "experimental"
         }
       ]
