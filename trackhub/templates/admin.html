@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card stack" style="margin-bottom: 1rem;">
+  <div class="row">
+    <div>
+      <h2 style="margin:0; font-family:'IBM Plex Serif', Georgia, serif;">TRACK Admin</h2>
+      <p class="muted" style="margin:0.4rem 0 0;">Manage location visibility, passwords, and first-run environment setup.</p>
+    </div>
+    {% if admin_authenticated %}
+      <a class="btn secondary" href="{{ url_for('admin_logout') }}">Admin Logout</a>
+    {% endif %}
+  </div>
+  {% if message %}
+    <p class="badge">{{ message }}</p>
+  {% endif %}
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+</section>
+
+{% if not admin_authenticated %}
+  <section class="card stack" style="max-width: 34rem;">
+    <h3 style="margin:0;">Admin Login</h3>
+    <form class="stack" method="post" action="{{ url_for('admin') }}">
+      <input type="hidden" name="action" value="login">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <label>
+        <span class="muted">Admin password</span>
+        <input name="password" type="password" autocomplete="current-password" autofocus required>
+      </label>
+      <button class="btn" type="submit">Login</button>
+    </form>
+  </section>
+{% else %}
+  <section class="grid" style="margin-bottom: 1rem;">
+    {% for env in environments %}
+      <article class="card stack">
+        <div class="row">
+          <div>
+            <h3 style="margin:0;">{{ env.name }}</h3>
+            <p class="muted" style="margin:0.25rem 0 0;"><code>{{ env.id }}</code></p>
+          </div>
+          <span class="badge {{ env.badge }}">{{ env.badge }}</span>
+        </div>
+        <p class="muted">{{ env.description }}</p>
+        <form class="stack" method="post" action="{{ url_for('admin_save') }}">
+          <input type="hidden" name="action" value="update-environment">
+          <input type="hidden" name="env_id" value="{{ env.id }}">
+          <label>
+            <input type="checkbox" name="enabled" {% if env.enabled %}checked{% endif %} style="width:auto; min-height:auto;">
+            Enabled
+          </label>
+          <label>
+            <span class="muted">Location password</span>
+            <input name="password" type="password" autocomplete="new-password" placeholder="{% if env.has_password %}Leave blank to keep current password{% else %}Optional{% endif %}">
+          </label>
+          <button class="btn secondary" type="submit">Save {{ env.name }}</button>
+        </form>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="grid">
+    <article class="card stack">
+      <h3 style="margin:0;">Add Location</h3>
+      <form class="stack" method="post" action="{{ url_for('admin_save') }}">
+        <input type="hidden" name="action" value="add-environment">
+        <label>
+          <span class="muted">ID / slug</span>
+          <input name="id" placeholder="field-laptop" required>
+        </label>
+        <label>
+          <span class="muted">Display name</span>
+          <input name="name" placeholder="Field Laptop" required>
+        </label>
+        <label>
+          <span class="muted">Description</span>
+          <input name="description" placeholder="Local laptop environment.">
+        </label>
+        <label>
+          <span class="muted">Location password</span>
+          <input name="password" type="password" autocomplete="new-password">
+        </label>
+        <label>
+          <input type="checkbox" name="enabled" checked style="width:auto; min-height:auto;">
+          Enabled
+        </label>
+        <button class="btn" type="submit">Add Location</button>
+      </form>
+    </article>
+
+    <article class="card stack">
+      <h3 style="margin:0;">Admin Password</h3>
+      <p class="muted">This protects the admin page only. Location passwords remain separate.</p>
+      <form class="stack" method="post" action="{{ url_for('admin_save') }}">
+        <input type="hidden" name="action" value="set-admin-password">
+        <label>
+          <span class="muted">New admin password</span>
+          <input name="password" type="password" autocomplete="new-password" required>
+        </label>
+        <button class="btn warn" type="submit">Update Admin Password</button>
+      </form>
+    </article>
+  </section>
+{% endif %}
+{% endblock %}

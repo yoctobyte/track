@@ -180,7 +180,7 @@
             "QUICKTRACK_PORT": "5117",
             "QUICKTRACK_DATA_DIR": "./quicktrack/data/environments/museum"
           },
-          "autostart": false,
+          "autostart": true,
           "status": "experimental"
         }
       ]
@@ -253,7 +253,7 @@
             "QUICKTRACK_PORT": "5127",
             "QUICKTRACK_DATA_DIR": "./quicktrack/data/environments/lab"
           },
-          "autostart": false,
+          "autostart": true,
           "status": "experimental"
         }
       ]

@@ -150,17 +150,33 @@ def test_quicktrack_is_listed_and_proxyable() -> None:
     )
 
 
-def test_testing_launch_plan_starts_quicktrack_and_local_client() -> None:
+def test_admin_page_renders_login_and_authenticated_view() -> None:
     app = trackhub_app.create_app()
-    launches = {
-        (entry["environment_id"], entry["app_id"]): entry
-        for entry in iter_launch_entries(app.config["TRACKHUB"])
-    }
-    quicktrack = launches.get(("testing", "quicktrack"))
-    netinventory_client = launches.get(("testing", "netinventory-client"))
+    client = app.test_client()
 
-    assert_true(quicktrack is not None, "testing QuickTrack should have a launch entry")
-    assert_true(bool(quicktrack["autostart"]), "testing QuickTrack should autostart")
+    login_response = client.get("/admin")
+    assert_true(login_response.status_code == 200, "admin login page should render")
+    assert_true(b"Admin Login" in login_response.data, "admin login form should be present")
+
+    with client.session_transaction() as session:
+        session["trackhub_admin"] = True
+    admin_response = client.get("/admin")
+    assert_true(admin_response.status_code == 200, "authenticated admin page should render")
+    assert_true(b"Add Location" in admin_response.data, "admin location form should be present")
+
+
+def test_launch_plan_starts_quicktrack_and_local_client() -> None:
+    app = trackhub_app.create_app()
+    launch_rows = list(iter_launch_entries(app.config["TRACKHUB"]))
+    launches = {(entry["environment_id"], entry["app_id"]): entry for entry in launch_rows}
+    netinventory_client = launches.get(("testing", "netinventory-client"))
+    quicktrack_rows = [entry for entry in launch_rows if entry["app_id"] == "quicktrack"]
+
+    assert_true(quicktrack_rows, "QuickTrack should have launch entries")
+    assert_true(
+        all(bool(entry["autostart"]) for entry in quicktrack_rows),
+        "all configured QuickTrack environments should autostart",
+    )
     assert_true(netinventory_client is not None, "testing NetInventory Client should have a launch entry")
     assert_true(bool(netinventory_client["autostart"]), "testing NetInventory Client should autostart")
 
@@ -170,7 +186,8 @@ def main() -> None:
     test_hidden_netinventory_client_localhost_shortcut_can_proxy()
     test_visible_netinventory_client_can_proxy_for_local_hosts()
     test_quicktrack_is_listed_and_proxyable()
-    test_testing_launch_plan_starts_quicktrack_and_local_client()
+    test_admin_page_renders_login_and_authenticated_view()
+    test_launch_plan_starts_quicktrack_and_local_client()
     print("trackhub local tests passed")
 
 

@@ -22,6 +22,9 @@
       <strong>Expected upstream</strong>
       <code>{{ target_url }}</code>
       <div class="muted">Current path: {{ app_item.public_path }}</div>
+      {% if app_item.launch_script %}
+        <div class="muted">Start script: <code>{{ app_item.launch_script }}</code></div>
+      {% endif %}
     </div>
   </div>
 
