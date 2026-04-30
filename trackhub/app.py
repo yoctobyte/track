@@ -51,6 +51,9 @@ def create_app() -> Flask:
             return True
         return bool(app_item.get("local_shortcut")) and is_loopback_request()
 
+    def should_open_standalone_local(app_item) -> bool:
+        return bool(app_item.get("local_shortcut")) and is_loopback_request()
+
     def hydrate_environment(env):
         hydrated = dict(env)
         apps = []
@@ -64,7 +67,9 @@ def create_app() -> Flask:
                 app_item["public_url"] = f"{public_base_url}{public_path}"
             else:
                 app_item["public_url"] = ""
-            if routing_mode == "app-proxy" and public_path:
+            if should_open_standalone_local(app_item) and local_url:
+                app_item["open_url"] = local_url
+            elif routing_mode == "app-proxy" and public_path:
                 app_item["open_url"] = public_path
             else:
                 app_item["open_url"] = local_url or app_item["public_url"]
@@ -261,8 +266,8 @@ def create_app() -> Flask:
             for app_item in env.get("apps", []):
                 if not app_item.get("local_shortcut"):
                     continue
-                public_path = str(app_item.get("public_path", "")).strip() or str(app_item.get("open_url", "")).strip()
-                if not public_path:
+                local_url = str(app_item.get("local_url", "")).strip()
+                if not local_url:
                     continue
                 shortcuts.append(
                     {
@@ -270,7 +275,7 @@ def create_app() -> Flask:
                         "env_name": env["name"],
                         "name": app_item.get("name", app_item.get("id", "Local Tool")),
                         "summary": app_item.get("summary", ""),
-                        "href": url_for("choose_location", env_id=env["id"], next=public_path),
+                        "href": local_url,
                     }
                 )
         return shortcuts

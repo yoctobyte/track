@@ -69,7 +69,7 @@ def test_hidden_netinventory_client_not_listed_or_proxied_on_public_host() -> No
     assert_true(response.status_code == 404, "hidden client app should not proxy on public host")
 
 
-def test_hidden_netinventory_client_localhost_shortcut_can_proxy() -> None:
+def test_hidden_netinventory_client_localhost_shortcut_opens_standalone() -> None:
     app = trackhub_app.create_app()
 
     original_request = trackhub_app.requests.request
@@ -92,12 +92,20 @@ def test_hidden_netinventory_client_localhost_shortcut_can_proxy() -> None:
     assert_true(home.status_code == 200, "localhost home page should render")
     assert_true(b"Local Laptop Tools" in home.data, "localhost home page should show local tools")
     assert_true(b"NetInventory Client" in home.data, "localhost home page should link NetInventory Client")
+    assert_true(
+        b'href="http://127.0.0.1:8889/"' in home.data,
+        "localhost home shortcut should open standalone NetInventory Client",
+    )
     assert_true(overview.status_code == 200, "localhost environment page should render")
     assert_true(
         b"NetInventory Client" in overview.data,
         "localhost shortcut should show hidden client app",
     )
-    assert_true(response.status_code == 200, "localhost shortcut should proxy hidden client app")
+    assert_true(
+        b'href="http://127.0.0.1:8889/"' in overview.data,
+        "localhost environment shortcut should open standalone NetInventory Client",
+    )
+    assert_true(response.status_code == 200, "manual localhost proxy path should still proxy hidden client app")
     assert_true(
         seen.get("url", "").startswith("http://127.0.0.1:8889/"),
         "localhost shortcut should target the configured local client URL",
@@ -194,7 +202,7 @@ def test_launch_plan_starts_quicktrack_and_local_client() -> None:
 
 def main() -> None:
     test_hidden_netinventory_client_not_listed_or_proxied_on_public_host()
-    test_hidden_netinventory_client_localhost_shortcut_can_proxy()
+    test_hidden_netinventory_client_localhost_shortcut_opens_standalone()
     test_visible_netinventory_client_can_proxy_for_local_hosts()
     test_quicktrack_is_listed_and_proxyable()
     test_admin_page_renders_login_and_authenticated_view()
