@@ -8,6 +8,7 @@ VENV="$DIR/venv"
 HOST="${NETINVENTORY_UI_HOST:-127.0.0.1}"
 PORT="${NETINVENTORY_UI_PORT:-8889}"
 PID_FILE="$DIR/.netinventory-ui.pid"
+BACKGROUND="${NETINVENTORY_BACKGROUND:-0}"
 
 echo "Stopping any existing NetInventory hub on port $PORT..."
 fuser -k "$PORT/tcp" 2>/dev/null || true
@@ -36,11 +37,16 @@ echo "Checking NetInventory dependencies..."
 export NETINV_PUBLIC_PATH="${NETINV_PUBLIC_PATH:-/}"
 
 echo "Starting NetInventory client hub on http://$HOST:$PORT/..."
-if command -v setsid >/dev/null 2>&1; then
-  NETINV_UI_BIND="$HOST:$PORT" setsid "$VENV/bin/netinv" hub-web > netinventory-ui.log 2>&1 < /dev/null &
+if [ "$BACKGROUND" = "1" ]; then
+  if command -v setsid >/dev/null 2>&1; then
+    NETINV_UI_BIND="$HOST:$PORT" setsid "$VENV/bin/netinv" hub-web > netinventory-ui.log 2>&1 < /dev/null &
+  else
+    NETINV_UI_BIND="$HOST:$PORT" nohup "$VENV/bin/netinv" hub-web > netinventory-ui.log 2>&1 < /dev/null &
+  fi
+  PID=$!
+  echo "$PID" > "$PID_FILE"
+  echo "NetInventory client hub started with PID $PID. Logs: netinventory-ui.log"
 else
-  NETINV_UI_BIND="$HOST:$PORT" nohup "$VENV/bin/netinv" hub-web > netinventory-ui.log 2>&1 < /dev/null &
+  rm -f "$PID_FILE"
+  exec env NETINV_UI_BIND="$HOST:$PORT" "$VENV/bin/netinv" hub-web
 fi
-PID=$!
-echo "$PID" > "$PID_FILE"
-echo "NetInventory client hub started with PID $PID. Logs: netinventory-ui.log"

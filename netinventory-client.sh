@@ -7,6 +7,7 @@ CLIENT_DIR="$ROOT_DIR/netinventory-client"
 HOST="${NETINVENTORY_UI_HOST:-127.0.0.1}"
 PORT="${NETINVENTORY_UI_PORT:-8889}"
 TRACK_BASE_URL="${TRACK_BASE_URL:-https://track.praktijkpioniers.com}"
+LOCAL_URL="http://$HOST:$PORT/"
 
 export NETINVENTORY_UI_HOST="$HOST"
 export NETINVENTORY_UI_PORT="$PORT"
@@ -22,7 +23,7 @@ cat <<EOF
 Starting standalone NetInventory Client.
 
 Local UI:
-  http://$HOST:$PORT/
+  $LOCAL_URL
 
 Remote TRACK host for future sync/upload:
   $TRACK_BASE_URL
@@ -30,4 +31,21 @@ Remote TRACK host for future sync/upload:
 This does not start the TRACK umbrella app.
 EOF
 
+open_browser() {
+  if [ "${NETINVENTORY_OPEN_BROWSER:-1}" = "0" ]; then
+    return 0
+  fi
+  (
+    sleep "${NETINVENTORY_BROWSER_DELAY:-2}"
+    if command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "$LOCAL_URL" >/dev/null 2>&1 || true
+    elif command -v sensible-browser >/dev/null 2>&1; then
+      sensible-browser "$LOCAL_URL" >/dev/null 2>&1 || true
+    elif command -v gio >/dev/null 2>&1; then
+      gio open "$LOCAL_URL" >/dev/null 2>&1 || true
+    fi
+  ) &
+}
+
+open_browser
 "$CLIENT_DIR/run-track.sh"

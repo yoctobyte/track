@@ -63,8 +63,10 @@ Run it standalone from the repository root:
 ```
 
 It is intentionally not part of the TRACK umbrella UI or autostart plan. An
-admin can run it on any laptop, then configure sync/upload toward the public
-NetInventory host for the chosen environment.
+admin can run it on any laptop, keep it in the foreground for privileged
+operations, then configure sync/upload toward the public NetInventory host for
+the chosen environment. The launcher opens the local web UI in a browser when
+possible; set `NETINVENTORY_OPEN_BROWSER=0` to disable that.
 
 Current focus:
 

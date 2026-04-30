@@ -140,8 +140,13 @@ Optional environment variables:
 ```bash
 NETINVENTORY_UI_HOST=127.0.0.1
 NETINVENTORY_UI_PORT=8889
+NETINVENTORY_OPEN_BROWSER=0
 TRACK_BASE_URL=https://track.praktijkpioniers.com
 ```
+
+The launcher runs in the foreground so privileged operations can request
+credentials or root rights through the terminal. It opens the local URL in a
+browser when possible unless `NETINVENTORY_OPEN_BROWSER=0` is set.
 
 The client UI stays local. Upload/sync should target the public NetInventory
 host for the selected environment using explicit credentials.
