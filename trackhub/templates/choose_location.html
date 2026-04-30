@@ -2,25 +2,35 @@
 {% block content %}
 <div class="grid">
   <section class="card stack" style="grid-column: span 2;">
-    <h2 style="margin:0; font-family:'IBM Plex Serif', Georgia, serif;">Choose a location</h2>
+    <h2 style="margin:0; font-family:'IBM Plex Serif', Georgia, serif;">
+      {% if single_environment %}Enter {{ single_environment.name }}{% else %}Choose a location{% endif %}
+    </h2>
     <p class="muted lede" style="margin:0;">
-      Select the environment you want to enter and provide its password. After that, the shell will route
-      you into the correct subproject paths for that location.
+      {% if single_environment %}
+        This host serves one location. Provide its password and the shell will open the dashboard directly.
+      {% else %}
+        Select the environment you want to enter and provide its password. After that, the shell will route
+        you into the correct subproject paths for that location.
+      {% endif %}
     </p>
     {% if error %}
       <div class="error">{{ error }}</div>
     {% endif %}
     <form method="post" class="stack">
       <input type="hidden" name="next" value="{{ next_url }}">
-      <div class="stack">
-        <label for="env_id"><strong>Location</strong></label>
-        <select id="env_id" name="env_id">
-          <option value="">Choose a location</option>
-          {% for env in environments %}
-            <option value="{{ env.id }}" {% if env_id == env.id %}selected{% endif %}>{{ env.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
+      {% if single_environment %}
+        <input id="env_id" type="hidden" name="env_id" value="{{ single_environment.id }}">
+      {% else %}
+        <div class="stack">
+          <label for="env_id"><strong>Location</strong></label>
+          <select id="env_id" name="env_id">
+            <option value="">Choose a location</option>
+            {% for env in environments %}
+              <option value="{{ env.id }}" {% if env_id == env.id %}selected{% endif %}>{{ env.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endif %}
       <div class="stack">
         <label for="username"><strong>Password manager username</strong></label>
         <input
@@ -31,7 +41,13 @@
           value="{{ env_id }}"
           required
         >
-        <span class="muted">This mirrors the location id so browsers can save separate passwords for museum, lab, and testing.</span>
+        <span class="muted">
+          {% if single_environment %}
+            This uses the local location id so browsers can remember the right password.
+          {% else %}
+            This mirrors the location id so browsers can save separate passwords for museum, lab, and testing.
+          {% endif %}
+        </span>
       </div>
       <div class="stack">
         <label for="password"><strong>Password</strong></label>
@@ -44,6 +60,7 @@
     </form>
   </section>
 
+  {% if not single_environment %}
   <aside class="card stack">
     <h3 style="margin:0;">Locations</h3>
     <div class="stack">
@@ -55,23 +72,32 @@
       {% endfor %}
     </div>
   </aside>
+  {% endif %}
 </div>
 <script>
   const locationSelect = document.getElementById("env_id");
   const usernameInput = document.getElementById("username");
 
   function syncUsername() {
+    if (!locationSelect || locationSelect.tagName !== "SELECT") {
+      return;
+    }
     usernameInput.value = locationSelect.value;
   }
 
   function syncLocation() {
+    if (!locationSelect || locationSelect.tagName !== "SELECT") {
+      return;
+    }
     const matchingOption = Array.from(locationSelect.options).find((option) => option.value === usernameInput.value);
     if (matchingOption) {
       locationSelect.value = usernameInput.value;
     }
   }
 
-  locationSelect.addEventListener("change", syncUsername);
+  if (locationSelect && locationSelect.tagName === "SELECT") {
+    locationSelect.addEventListener("change", syncUsername);
+  }
   usernameInput.addEventListener("input", syncLocation);
   usernameInput.addEventListener("change", syncLocation);
   window.addEventListener("pageshow", syncLocation);

@@ -20,7 +20,7 @@ node, even if it is offline most of the time.
 For the first practical setup, a peer is:
 
 - host URL
-- optional location slug
+- optional remote environment slug, stored as a local routing hint
 - optional remote username/password for the admin's local use
 - sync secret for signed API requests
 
@@ -76,7 +76,12 @@ protocol.
 
 ## Environments
 
-Environment slugs are assumed unique for now:
+Environment slugs identify a location on the host that publishes them, not a
+global namespace. A remote host can call a site `historicmuseumutrecht` while a
+workstation calls its local copy `devspacemuseum`; TrackSync treats that as an
+admin-managed relationship, not as an automatic collision or merge.
+
+Example local slugs:
 
 ```text
 museum
@@ -84,8 +89,9 @@ testing
 lab
 ```
 
-A host may serve multiple slugs. Collision handling and slug migration are
-deferred until real deployments prove the edge cases.
+A host may serve multiple slugs. Cross-host matching, collision handling, and
+slug migration are intentionally deferred until real deployments prove the edge
+cases.
 
 ## Artifact Roots
 

@@ -252,10 +252,14 @@
           <p>{{ subtitle }}</p>
         </div>
         <nav class="topnav">
-          <a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a>
-          <a href="{{ url_for('choose_location') }}" class="{% if request.path.startswith('/choose-location') %}active{% endif %}">Choose Location</a>
+          {% if shell_single_environment %}
+            <a href="{{ url_for('environment_detail', env_id=shell_single_environment.id) }}" class="{% if request.path == '/' or (current_environment and current_environment.id == shell_single_environment.id) %}active{% endif %}">Dashboard</a>
+          {% else %}
+            <a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a>
+            <a href="{{ url_for('choose_location') }}" class="{% if request.path.startswith('/choose-location') %}active{% endif %}">Locations</a>
+          {% endif %}
           <a href="{{ url_for('admin') }}" class="{% if request.path.startswith('/admin') %}active{% endif %}">Admin</a>
-          {% if shell_environment %}
+          {% if shell_environment and not shell_single_environment %}
             <a href="{{ url_for('environment_detail', env_id=shell_environment.id) }}" class="{% if current_environment and current_environment.id == shell_environment.id %}active{% endif %}">
               {{ shell_environment.name }}
             </a>
@@ -266,6 +270,11 @@
       <div class="contextbar">
         <span class="pill">Public base: <code>{{ public_base_url or 'configured later' }}</code></span>
         <span class="pill">Routing: <code>{{ routing_mode }}</code></span>
+        {% if shell_single_environment %}
+          <span class="pill">Single location host</span>
+        {% else %}
+          <span class="pill">{{ shell_environment_count }} locations</span>
+        {% endif %}
         {% if shell_environment %}
           <span class="pill">Selected location: <strong style="margin-left:0.35rem;">{{ shell_environment.name }}</strong></span>
         {% endif %}

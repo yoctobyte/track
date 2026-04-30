@@ -139,17 +139,20 @@ class ConfigStore:
         secret: str,
         *,
         location_slug: str = "",
+        remote_environment_slug: str = "",
         username: str = "",
         password: str = "",
     ) -> dict[str, Any]:
         config = self.load()
         peer_id = safe_host_id(name)
+        remote_env = remote_environment_slug.strip() or location_slug.strip()
         peer = {
             "id": peer_id,
             "name": name.strip() or peer_id,
             "base_url": normalize_base_url(base_url),
             "secret": secret.strip(),
-            "location_slug": safe_slug(location_slug) if location_slug.strip() else "",
+            "remote_environment_slug": safe_slug(remote_env) if remote_env else "",
+            "location_slug": safe_slug(remote_env) if remote_env else "",
             "username": username.strip(),
             "password": password,
             "enabled": True,

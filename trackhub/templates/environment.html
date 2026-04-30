@@ -6,11 +6,15 @@
       <h2 style="margin:0; font-family:'IBM Plex Serif', Georgia, serif;">{{ current_environment.name }}</h2>
       <p class="muted" style="margin:0.35rem 0 0;">{{ current_environment.description }}</p>
     </div>
-    <span class="badge {{ current_environment.badge }}">{{ current_environment.badge }}</span>
+    {% if not shell_single_environment %}
+      <span class="badge {{ current_environment.badge }}">{{ current_environment.badge }}</span>
+    {% endif %}
   </div>
-  <p class="muted" style="margin:0;">
-    This location is authenticated for the current session. Subprojects still run independently beneath the umbrella shell.
-  </p>
+  {% if not shell_single_environment %}
+    <p class="muted" style="margin:0;">
+      This location is authenticated for the current session. Subprojects still run independently beneath the umbrella shell.
+    </p>
+  {% endif %}
 </div>
 
 <div class="grid">
@@ -21,20 +25,21 @@
         <span class="badge {% if app.status != 'active' %}planned{% endif %}">{{ app.status }}</span>
       </div>
       <p class="muted" style="margin:0;">{{ app.summary }}</p>
-      {% if app.public_path %}
-        <div class="muted" style="font-size:0.9rem;">Canonical public path</div>
-        <code>{{ app.public_path }}</code>
-      {% endif %}
-      {% if app.public_url %}
-        <div class="muted" style="font-size:0.9rem;">Intended public URL</div>
-        <code>{{ app.public_url }}</code>
-      {% endif %}
       {% if app.open_url %}
         <div class="row">
           <a class="btn" href="{{ app.open_url }}">Open</a>
+          {% if app.public_path %}
+            <code>{{ app.public_path }}</code>
+          {% endif %}
         </div>
       {% else %}
         <p class="muted" style="margin:0;">No endpoint configured yet for this location.</p>
+      {% endif %}
+      {% if app.public_url %}
+        <details class="muted">
+          <summary>Technical route</summary>
+          <div style="margin-top:0.5rem;"><code>{{ app.public_url }}</code></div>
+        </details>
       {% endif %}
     </div>
   {% endfor %}

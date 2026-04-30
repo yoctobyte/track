@@ -75,6 +75,10 @@ def create_app() -> Flask:
             return items
         return [env for env in items if env.get("enabled", True)]
 
+    def single_environment():
+        active = environments()
+        return active[0] if len(active) == 1 else None
+
     def environment_by_id(env_id: str, include_disabled: bool = False):
         return next((env for env in environments(include_disabled=include_disabled) if env["id"] == env_id), None)
 
@@ -273,10 +277,13 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_shell_state():
+        active = environments()
         return {
             "shell_environment": current_environment(),
             "shell_authenticated": sorted(session.get("trackhub_authenticated", [])),
             "shell_admin_authenticated": is_admin_authenticated(),
+            "shell_single_environment": active[0] if len(active) == 1 else None,
+            "shell_environment_count": len(active),
         }
 
     @app.after_request
@@ -288,6 +295,9 @@ def create_app() -> Flask:
 
     @app.get("/")
     def index():
+        only_env = single_environment()
+        if only_env is not None:
+            return redirect(url_for("environment_detail", env_id=only_env["id"]))
         return render_template(
             "index.html",
             title=app.config["TRACKHUB"]["title"],
@@ -402,6 +412,9 @@ def create_app() -> Flask:
         username = request.values.get("username", "").strip()
         if not env_id and username:
             env_id = username
+        only_env = single_environment()
+        if not env_id and only_env is not None:
+            env_id = only_env["id"]
         next_url = request.values.get("next", "").strip() or "/"
         error = ""
         selected_env = environment_by_id(env_id) if env_id else None
@@ -432,6 +445,7 @@ def create_app() -> Flask:
             env_id=env_id,
             next_url=next_url,
             error=error,
+            single_environment=only_env,
         )
 
     @app.get("/logout")

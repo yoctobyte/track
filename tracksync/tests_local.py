@@ -141,6 +141,7 @@ def test_config_store_permissions(tmpdir: Path) -> None:
         password="local-password",
     )
     assert_true(credentialed_peer["location_slug"] == "museum-main", "peer location should be slugged")
+    assert_true(credentialed_peer["remote_environment_slug"] == "museum-main", "remote environment should be slugged")
     assert_true(credentialed_peer["username"] == "rene", "peer username should persist locally")
     assert_true(credentialed_peer["password"] == "local-password", "peer password should persist locally")
     store.update_peer_status("stable-server", "ok")
@@ -154,6 +155,17 @@ def test_config_store_permissions(tmpdir: Path) -> None:
     assert_true(public[0]["slug"] == "museum-main", "public environment should include slug")
     assert_true("password" not in public[0], "public environment must not export password")
     assert_true("username" not in public[0], "public environment must not export username")
+
+    remapped_peer = store.add_peer(
+        "Remote Museum",
+        "http://127.0.0.1:9997/",
+        "remote-secret",
+        remote_environment_slug="Historic Museum Utrecht",
+    )
+    assert_true(
+        remapped_peer["remote_environment_slug"] == "historic-museum-utrecht",
+        "remote environment slug is a peer-local hint, not a required local namespace match",
+    )
 
 
 def test_artifact_manifest(tmpdir: Path) -> None:
@@ -447,6 +459,8 @@ def test_admin_policy_form(tmpdir: Path) -> None:
     assert_true("Pull Policy" in body, "policy section should render")
     assert_true("name=\"sub_map3d\"" in body, "per-peer form should expose map3d subproject")
     assert_true("name=\"sub_netinventory\"" in body, "per-peer form should expose discovered subprojects")
+    assert_true("remote_environment_slug" in body, "peer form should collect a peer-local remote environment hint")
+    assert_true("Local slugs do not have to match peer slugs" in body, "UI should clarify that namespaces are not global")
     assert_true("Save policy" in body, "save button should render")
 
     # Flip map3d on, leave the default at on, set netinventory to follow-default.

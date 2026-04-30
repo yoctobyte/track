@@ -98,6 +98,36 @@ def test_admin_page_renders_login_and_authenticated_view() -> None:
     assert_true(b"Add Location" in admin_response.data, "admin location form should be present")
 
 
+def test_single_environment_host_skips_public_landing_page() -> None:
+    app = trackhub_app.create_app()
+    testing = next(env for env in app.config["TRACKHUB"]["environments"] if env["id"] == "testing")
+    testing = dict(testing)
+    testing["password"] = "testing-password"
+    app.config["TRACKHUB"]["environments"] = [testing]
+    client = app.test_client()
+
+    home = client.get("/", base_url="https://track.example.test", follow_redirects=False)
+    assert_true(home.status_code in {302, 303}, f"single environment home should redirect, got {home.status_code}")
+    assert_true(home.headers["Location"].endswith("/env/testing"), "home should route to the only environment")
+
+    login = client.get("/choose-location", base_url="https://track.example.test")
+    body = login.get_data(as_text=True)
+    assert_true("Enter Testing" in body, "single environment login should name the only location")
+    assert_true('name="env_id" value="testing"' in body, "single environment login should preselect env")
+    assert_true("Choose a location" not in body, "single environment login should not show location selector copy")
+
+    entered = client.post(
+        "/choose-location?next=/env/testing",
+        data={"env_id": "testing", "username": "testing", "password": "testing-password"},
+        base_url="https://track.example.test",
+        follow_redirects=True,
+    )
+    entered_body = entered.get_data(as_text=True)
+    assert_true(entered.status_code == 200, f"single environment dashboard should render, got {entered.status_code}")
+    assert_true("Dashboard" in entered_body, "nav should use dashboard label on single-environment hosts")
+    assert_true("Choose Location" not in entered_body, "nav should hide location chooser on single-environment hosts")
+
+
 def test_launch_plan_starts_quicktrack_not_netinventory_client() -> None:
     app = trackhub_app.create_app()
     launch_rows = list(iter_launch_entries(app.config["TRACKHUB"]))
@@ -117,6 +147,7 @@ def main() -> None:
     test_netinventory_client_is_not_in_trackhub()
     test_quicktrack_is_listed_and_proxyable()
     test_admin_page_renders_login_and_authenticated_view()
+    test_single_environment_host_skips_public_landing_page()
     test_launch_plan_starts_quicktrack_not_netinventory_client()
     print("trackhub local tests passed")
 

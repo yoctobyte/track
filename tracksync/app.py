@@ -138,6 +138,7 @@ def create_app() -> Flask:
                 request.form.get("name", ""),
                 request.form.get("base_url", ""),
                 request.form.get("secret", ""),
+                remote_environment_slug=request.form.get("remote_environment_slug", ""),
                 location_slug=request.form.get("location_slug", ""),
                 username=request.form.get("username", ""),
                 password=request.form.get("password", ""),

@@ -48,14 +48,14 @@
       {% if error %}<p class="error">{{ error }}</p>{% endif %}
       <table>
         <thead>
-          <tr><th>Name</th><th>URL</th><th>Location</th><th>Pull policy</th><th>Last status</th><th>Action</th></tr>
+          <tr><th>Name</th><th>URL</th><th>Remote environment</th><th>Pull policy</th><th>Last status</th><th>Action</th></tr>
         </thead>
         <tbody>
           {% for peer in config.peers %}
           <tr>
             <td>{{ peer.name }}<br><span class="meta">{{ peer.id }}</span></td>
             <td>{{ peer.base_url }}</td>
-            <td>{{ peer.location_slug or "" }}</td>
+            <td>{{ peer.remote_environment_slug or peer.location_slug or "" }}</td>
             <td>
               {% set entry = peer_policies.get(peer.id) %}
               {% if entry %}
@@ -126,7 +126,7 @@
       <form class="grid" method="post" action="{{ url_for('add_peer') }}">
         <label>Name<input name="name" placeholder="stable-server" required></label>
         <label>URL<input name="base_url" placeholder="https://track.example.com/tracksync" required></label>
-        <label>Location<input name="location_slug" placeholder="museum"></label>
+        <label>Remote env<input name="remote_environment_slug" placeholder="historicmuseumutrecht"></label>
         <label>User<input name="username" placeholder="admin"></label>
         <label>Password<input name="password" type="password"></label>
         <label>Sync Secret<input name="secret" type="password" required></label>
@@ -154,13 +154,13 @@
         </tbody>
       </table>
       <form class="grid" method="post" action="{{ url_for('add_environment') }}">
-        <label>Slug<input name="slug" placeholder="museum" required></label>
+        <label>Local slug<input name="slug" placeholder="devspacemuseum" required></label>
         <label>Name<input name="name" placeholder="Museum"></label>
         <label>User<input name="username" placeholder="admin"></label>
         <label>Password<input name="password" type="password"></label>
         <button type="submit">Add</button>
       </form>
-      <p class="meta">Passwords stay local and are not exported in sync manifests.</p>
+      <p class="meta">Passwords stay local and are not exported in sync manifests. Local slugs do not have to match peer slugs.</p>
     </section>
 
     <section>
