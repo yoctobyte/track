@@ -21,18 +21,26 @@ if [ -f "$PID_FILE" ]; then
   rm -f "$PID_FILE"
 fi
 
-if [ ! -d "$VENV" ]; then
+if [ ! -x "$VENV/bin/python" ] || [ ! -x "$VENV/bin/pip" ] || ! "$VENV/bin/python" -m pip --version >/dev/null 2>&1; then
+  if [ -d "$VENV" ]; then
+    echo "Recreating broken NetInventory virtual environment..."
+    rm -rf "$VENV"
+  fi
   echo "Creating virtual environment..."
   python3 -m venv "$VENV"
 fi
 
 echo "Checking NetInventory dependencies..."
-"$VENV/bin/pip" install -q -e .
+"$VENV/bin/python" -m pip install -q -e .
 
 export NETINV_PUBLIC_PATH="${NETINV_PUBLIC_PATH:-/netinventory-client/}"
 
 echo "Starting NetInventory client hub on http://$HOST:$PORT/..."
-NETINV_UI_BIND="$HOST:$PORT" nohup "$VENV/bin/netinv" hub-web > netinventory-ui.log 2>&1 &
+if command -v setsid >/dev/null 2>&1; then
+  NETINV_UI_BIND="$HOST:$PORT" setsid "$VENV/bin/netinv" hub-web > netinventory-ui.log 2>&1 < /dev/null &
+else
+  NETINV_UI_BIND="$HOST:$PORT" nohup "$VENV/bin/netinv" hub-web > netinventory-ui.log 2>&1 < /dev/null &
+fi
 PID=$!
 echo "$PID" > "$PID_FILE"
 echo "NetInventory client hub started with PID $PID. Logs: netinventory-ui.log"
