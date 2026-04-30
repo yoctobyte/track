@@ -253,6 +253,28 @@ def create_app() -> Flask:
                 )
         return app_templates
 
+    def localhost_shortcut_apps() -> list[dict[str, object]]:
+        if not is_loopback_request():
+            return []
+        shortcuts: list[dict[str, object]] = []
+        for env in environments():
+            for app_item in env.get("apps", []):
+                if not app_item.get("local_shortcut"):
+                    continue
+                public_path = str(app_item.get("public_path", "")).strip() or str(app_item.get("open_url", "")).strip()
+                if not public_path:
+                    continue
+                shortcuts.append(
+                    {
+                        "env_id": env["id"],
+                        "env_name": env["name"],
+                        "name": app_item.get("name", app_item.get("id", "Local Tool")),
+                        "summary": app_item.get("summary", ""),
+                        "href": url_for("choose_location", env_id=env["id"], next=public_path),
+                    }
+                )
+        return shortcuts
+
     def serialize_config_for_save() -> dict[str, object]:
         config = deepcopy(app.config["TRACKHUB"])
         clean_envs = []
@@ -302,6 +324,7 @@ def create_app() -> Flask:
             routing_mode=app.config["TRACKHUB"].get("routing_mode", "reverse-proxy"),
             environments=environments(),
             current_environment=None,
+            localhost_shortcuts=localhost_shortcut_apps(),
         )
 
     @app.route("/admin", methods=["GET", "POST"])

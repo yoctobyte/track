@@ -50,6 +50,13 @@ def test_hidden_netinventory_client_not_listed_or_proxied_on_public_host() -> No
     base_url = "https://track.example.test"
     client = authenticated_client(app, base_url=base_url)
 
+    home = client.get("/", base_url=base_url)
+    assert_true(home.status_code == 200, "public home page should render")
+    assert_true(
+        b"Local Laptop Tools" not in home.data,
+        "localhost-only tools should not be listed on public host",
+    )
+
     response = client.get("/env/testing", base_url=base_url)
     assert_true(response.status_code == 200, "testing environment page should render")
     assert_true(b"NetInventory Host" in response.data, "host app should remain visible")
@@ -76,11 +83,15 @@ def test_hidden_netinventory_client_localhost_shortcut_can_proxy() -> None:
     try:
         base_url = "http://127.0.0.1"
         client = authenticated_client(app, base_url=base_url)
+        home = client.get("/", base_url=base_url)
         overview = client.get("/env/testing", base_url=base_url)
         response = client.get("/netinventory-client/", base_url=base_url)
     finally:
         trackhub_app.requests.request = original_request
 
+    assert_true(home.status_code == 200, "localhost home page should render")
+    assert_true(b"Local Laptop Tools" in home.data, "localhost home page should show local tools")
+    assert_true(b"NetInventory Client" in home.data, "localhost home page should link NetInventory Client")
     assert_true(overview.status_code == 200, "localhost environment page should render")
     assert_true(
         b"NetInventory Client" in overview.data,
