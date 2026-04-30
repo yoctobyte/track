@@ -148,21 +148,41 @@
           <div class="row">
             <div class="field">
               <label for="loc-building">Building</label>
-              <input id="loc-building" name="building" type="text" value="{{ location.building }}" placeholder="e.g. South wing">
+              <input id="loc-building" name="building" type="text" value="{{ location.building }}" list="dl-buildings" placeholder="e.g. South wing">
+              <datalist id="dl-buildings">
+                {% for b in targets.get('buildings', []) %}
+                <option value="{{ b.name }}"></option>
+                {% endfor %}
+              </datalist>
             </div>
             <div class="field">
               <label for="loc-sub">Sub-location</label>
-              <input id="loc-sub" name="sublocation" type="text" value="{{ location.sublocation }}" placeholder="e.g. Floor 2, room 204">
+              <input id="loc-sub" name="sublocation" type="text" value="{{ location.sublocation }}" list="dl-locations" placeholder="e.g. Floor 2, room 204">
+              <datalist id="dl-locations">
+                {% for l in targets.get('locations', []) %}
+                <option value="{{ l.name }}"></option>
+                {% endfor %}
+              </datalist>
             </div>
           </div>
           <div class="row">
             <div class="field">
               <label for="loc-cab">Cabinet / rack</label>
-              <input id="loc-cab" name="cabinet" type="text" value="{{ location.cabinet }}" placeholder="e.g. RACK-B12">
+              <input id="loc-cab" name="cabinet" type="text" value="{{ location.cabinet }}" list="dl-cabinets" placeholder="e.g. RACK-B12">
+              <datalist id="dl-cabinets">
+                {% for c in targets.get('cabinets', []) %}
+                <option value="{{ c.name }}"></option>
+                {% endfor %}
+              </datalist>
             </div>
             <div class="field">
               <label for="loc-sw">Switch</label>
-              <input id="loc-sw" name="switch" type="text" value="{{ location.switch }}" placeholder="e.g. core-sw01">
+              <input id="loc-sw" name="switch" type="text" value="{{ location.switch }}" list="dl-devices" placeholder="e.g. core-sw01">
+              <datalist id="dl-devices">
+                {% for d in targets.get('devices', []) %}
+                {% if d.kind == 'switch' %}<option value="{{ d.name }}"></option>{% endif %}
+                {% endfor %}
+              </datalist>
             </div>
             <div class="field">
               <label for="loc-port">Port</label>

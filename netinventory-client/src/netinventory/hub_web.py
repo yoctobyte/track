@@ -59,6 +59,18 @@ def create_hub_web() -> Flask:
             facts = latest.get("facts", {}) if latest else {}
             network_rows.append({"summary": network.to_dict(), "latest": latest, "facts": facts})
 
+        targets = {}
+        try:
+            ldb = db.location_db
+            targets = {
+                "buildings": ldb.list_buildings(),
+                "locations": ldb.list_locations(),
+                "cabinets": ldb.list_cabinets(),
+                "devices": ldb.list_devices(),
+            }
+        except Exception:
+            pass
+
         probe_options = [{"id": pid, "label": PROBE_LABELS.get(pid, pid)} for pid in PROBE_IDS]
         return render_template(
             "hub_index.html",
@@ -78,6 +90,7 @@ def create_hub_web() -> Flask:
             location_fields=LOCATION_FIELDS,
             probe_options=probe_options,
             snapshots=snapshots,
+            targets=targets,
         )
 
     @app.get("/api/realtime")
@@ -112,6 +125,8 @@ def create_hub_web() -> Flask:
                 )
             )
             saved[field] = value
+            
+        _ensure_local_location_db(db, saved)
         return jsonify({"ok": True, "saved": saved, "location": current_location(db)})
 
     @app.post("/api/sync/settings")
@@ -126,6 +141,14 @@ def create_hub_web() -> Flask:
             shared_secret=str(data.get("shared_secret", "")),
             enabled=bool(data.get("enabled", True)),
         )
+        
+        if bool(data.get("enabled", True)):
+            try:
+                import threading
+                threading.Thread(target=run_sync_once, args=(db,), daemon=True).start()
+            except Exception:
+                pass
+
         return jsonify({"ok": True, "settings": get_sync_settings(db)})
 
     @app.post("/api/sync/run")
@@ -164,6 +187,8 @@ def create_hub_web() -> Flask:
                         value=value,
                     )
                 )
+
+        _ensure_local_location_db(db, location_input)
 
         probe_results: dict[str, dict] = {}
         for probe_id in requested_probes:
@@ -317,3 +342,40 @@ def _parse_bind(bind: str) -> tuple[str, int]:
         raise ValueError(f"invalid bind address: {bind!r}")
     host, port_text = bind.rsplit(":", 1)
     return host, int(port_text)
+
+def _ensure_local_location_db(db: Database, location_input: dict[str, str]) -> None:
+    try:
+        ldb = db.location_db
+        b_name = location_input.get("building", "").strip()
+        l_name = location_input.get("sublocation", "").strip()
+        c_name = location_input.get("cabinet", "").strip()
+        d_name = location_input.get("switch", "").strip()
+
+        b_id, l_id, c_id = None, None, None
+
+        if b_name:
+            b = next((x for x in ldb.list_buildings() if x["name"] == b_name), None)
+            if not b:
+                b = ldb.create_building(name=b_name)
+            b_id = b["id"]
+
+        if l_name and b_id:
+            loc = next((x for x in ldb.list_locations(building_id=b_id) if x["name"] == l_name), None)
+            if not loc:
+                loc = ldb.create_location(building_id=b_id, name=l_name, type="room")
+            l_id = loc["id"]
+
+        if c_name and l_id:
+            cab = next((x for x in ldb.list_cabinets(location_id=l_id) if x["name"] == c_name), None)
+            if not cab:
+                cab = ldb.create_cabinet(location_id=l_id, name=c_name)
+            c_id = cab["id"]
+
+        if d_name and c_id:
+            dev = next((x for x in ldb.list_devices(cabinet_id=c_id) if x["name"] == d_name), None)
+            if not dev:
+                ldb.create_device(cabinet_id=c_id, location_id=l_id, name=d_name, kind="switch")
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to insert local location DB: %s", e)

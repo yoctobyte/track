@@ -55,6 +55,40 @@ def save_sync_settings(
     db.set_app_state("sync_enabled", "1" if enabled else "0")
 
 
+def _pull_locations(db: Database, settings: dict[str, str]) -> None:
+    target = settings["target_url"]
+    if not target or "/api/simple-ingest" not in target:
+        return
+    export_url = target.replace("/api/simple-ingest", "/api/core/locations/export")
+    
+    headers = {}
+    if settings["shared_secret"]:
+        headers["X-NetInv-Token"] = settings["shared_secret"]
+    if settings["username"] and settings["password"]:
+        token = base64.b64encode(f"{settings['username']}:{settings['password']}".encode("utf-8")).decode("ascii")
+        headers["Authorization"] = f"Basic {token}"
+        
+    request = urllib.request.Request(export_url, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode("utf-8"))
+                ldb = db.location_db
+                for b in data.get("buildings", []):
+                    if not ldb.get_building(b["id"]):
+                        ldb.create_building(name=b["name"], description=b.get("description", ""), id=b["id"])
+                for l in data.get("locations", []):
+                    if not ldb.get_location(l["id"]):
+                        ldb.create_location(building_id=l["building_id"], name=l["name"], type=l.get("type", "room"), id=l["id"])
+                for c in data.get("cabinets", []):
+                    if not ldb.get_cabinet(c["id"]):
+                        ldb.create_cabinet(location_id=c["location_id"], name=c["name"], id=c["id"])
+                for d in data.get("devices", []):
+                    if not ldb.get_device(d["id"]):
+                        ldb.create_device(cabinet_id=d.get("cabinet_id"), location_id=d.get("location_id"), name=d["name"], kind=d.get("kind", ""), id=d["id"])
+    except Exception as exc:
+        logger.warning(f"Failed to pull locations: {exc}")
+
 def run_sync_once(db: Database) -> dict[str, object]:
     settings = get_sync_settings(db)
     if settings["enabled"] != "1":
@@ -63,6 +97,8 @@ def run_sync_once(db: Database) -> dict[str, object]:
     target = settings["target_url"]
     if not target:
         return {"ok": False, "skipped": True, "reason": "no target configured"}
+        
+    _pull_locations(db, settings)
 
     last_sync = db.get_last_sync_time()
     bundle = db.export_bundle_data(since_iso=last_sync)

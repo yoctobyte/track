@@ -943,4 +943,14 @@ cd "$WORKDIR/netinventory-client"
             "simple_registrations": len(read_simple_registrations(limit=10000)),
         }
 
+    @app.get("/api/core/locations/export")
+    def api_export_locations():
+        db = get_location_db()
+        return jsonify({
+            "buildings": db.list_buildings(),
+            "locations": db.list_locations(),
+            "cabinets": db.list_cabinets(),
+            "devices": db.list_devices()
+        })
+
     return app
