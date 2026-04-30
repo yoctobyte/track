@@ -41,24 +41,6 @@
     </div>
   </aside>
 
-  {% if localhost_shortcuts %}
-    <aside class="card stack">
-      <h3 style="margin:0;">Local Laptop Tools</h3>
-      <p class="muted" style="margin:0;">
-        You are browsing from localhost, so local-only tools are available here.
-      </p>
-      {% for app in localhost_shortcuts %}
-        <div class="card stack" style="box-shadow:none; background:var(--panel-strong);">
-          <div class="row">
-            <strong>{{ app.name }}</strong>
-            <span class="badge private">{{ app.env_name }}</span>
-          </div>
-          <p class="muted" style="margin:0;">{{ app.summary }}</p>
-          <a class="btn" href="{{ app.href }}">Open {{ app.name }}</a>
-        </div>
-      {% endfor %}
-    </aside>
-  {% endif %}
 </div>
 
 <div class="grid">

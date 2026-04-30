@@ -33,7 +33,7 @@ fi
 echo "Checking NetInventory dependencies..."
 "$VENV/bin/python" -m pip install -q -e .
 
-export NETINV_PUBLIC_PATH="${NETINV_PUBLIC_PATH:-/netinventory-client/}"
+export NETINV_PUBLIC_PATH="${NETINV_PUBLIC_PATH:-/}"
 
 echo "Starting NetInventory client hub on http://$HOST:$PORT/..."
 if command -v setsid >/dev/null 2>&1; then

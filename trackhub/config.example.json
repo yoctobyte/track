@@ -47,21 +47,6 @@
           "autostart": true
         },
         {
-          "id": "netinventory-client",
-          "name": "NetInventory Client",
-          "summary": "Run the attended laptop-side network inspection tool locally during field work.",
-          "local_url": "http://127.0.0.1:8889/",
-          "public_path": "/netinventory-client/",
-          "launch_script": "./netinventory-client/run-track.sh",
-          "launch_env": {
-            "NETINVENTORY_UI_PORT": "8889",
-            "NETINV_PUBLIC_PATH": "/netinventory-client/"
-          },
-          "autostart": true,
-          "visible": true,
-          "local_shortcut": true
-        },
-        {
           "id": "devicecontrol",
           "name": "DeviceControl",
           "summary": "Run approved Ansible maintenance actions against enrolled devices.",

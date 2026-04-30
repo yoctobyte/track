@@ -109,8 +109,7 @@ Example:
   "trackhub_public_base_url": "https://track.praktijkpioniers.com",
   "tracksync_remote_url": "https://track.praktijkpioniers.com/tracksync",
   "suggested_location_slug": "museum",
-  "suggested_location_name": "Museum",
-  "netinventory_client_visible_localhost": true
+  "suggested_location_name": "Museum"
 }
 ```
 
@@ -123,6 +122,29 @@ TRACKSYNC_REMOTE_URL=https://track.praktijkpioniers.com/tracksync
 TRACK_LOCATION_SLUG=museum
 TRACK_LOCATION_NAME=Museum
 ```
+
+## NetInventory Client
+
+The attended laptop-side NetInventory client is not launched by the TRACK
+umbrella app and is not listed in the umbrella UI. It is a standalone operator
+tool kept in this repository.
+
+On a laptop, run:
+
+```bash
+./netinventory-client.sh
+```
+
+Optional environment variables:
+
+```bash
+NETINVENTORY_UI_HOST=127.0.0.1
+NETINVENTORY_UI_PORT=8889
+TRACK_BASE_URL=https://track.praktijkpioniers.com
+```
+
+The client UI stays local. Upload/sync should target the public NetInventory
+host for the selected environment using explicit credentials.
 
 ## Pairing Flow
 

@@ -56,6 +56,16 @@ Current focus:
 
 Laptop-side network observation and field inventory tooling.
 
+Run it standalone from the repository root:
+
+```bash
+./netinventory-client.sh
+```
+
+It is intentionally not part of the TRACK umbrella UI or autostart plan. An
+admin can run it on any laptop, then configure sync/upload toward the public
+NetInventory host for the chosen environment.
+
 Current focus:
 
 - local network probing

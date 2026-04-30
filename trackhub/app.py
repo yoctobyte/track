@@ -42,17 +42,8 @@ def create_app() -> Flask:
     def refresh_config() -> None:
         app.config["TRACKHUB"] = load_config()
 
-    def is_loopback_request() -> bool:
-        host = request.host.split(":", 1)[0].strip("[]").lower()
-        return host in {"localhost", "127.0.0.1", "::1"}
-
     def app_is_visible(app_item) -> bool:
-        if app_item.get("visible", True):
-            return True
-        return bool(app_item.get("local_shortcut")) and is_loopback_request()
-
-    def should_open_standalone_local(app_item) -> bool:
-        return bool(app_item.get("local_shortcut")) and is_loopback_request()
+        return bool(app_item.get("visible", True))
 
     def hydrate_environment(env):
         hydrated = dict(env)
@@ -67,9 +58,7 @@ def create_app() -> Flask:
                 app_item["public_url"] = f"{public_base_url}{public_path}"
             else:
                 app_item["public_url"] = ""
-            if should_open_standalone_local(app_item) and local_url:
-                app_item["open_url"] = local_url
-            elif routing_mode == "app-proxy" and public_path:
+            if routing_mode == "app-proxy" and public_path:
                 app_item["open_url"] = public_path
             else:
                 app_item["open_url"] = local_url or app_item["public_url"]
@@ -258,28 +247,6 @@ def create_app() -> Flask:
                 )
         return app_templates
 
-    def localhost_shortcut_apps() -> list[dict[str, object]]:
-        if not is_loopback_request():
-            return []
-        shortcuts: list[dict[str, object]] = []
-        for env in environments():
-            for app_item in env.get("apps", []):
-                if not app_item.get("local_shortcut"):
-                    continue
-                local_url = str(app_item.get("local_url", "")).strip()
-                if not local_url:
-                    continue
-                shortcuts.append(
-                    {
-                        "env_id": env["id"],
-                        "env_name": env["name"],
-                        "name": app_item.get("name", app_item.get("id", "Local Tool")),
-                        "summary": app_item.get("summary", ""),
-                        "href": local_url,
-                    }
-                )
-        return shortcuts
-
     def serialize_config_for_save() -> dict[str, object]:
         config = deepcopy(app.config["TRACKHUB"])
         clean_envs = []
@@ -329,7 +296,6 @@ def create_app() -> Flask:
             routing_mode=app.config["TRACKHUB"].get("routing_mode", "reverse-proxy"),
             environments=environments(),
             current_environment=None,
-            localhost_shortcuts=localhost_shortcut_apps(),
         )
 
     @app.route("/admin", methods=["GET", "POST"])

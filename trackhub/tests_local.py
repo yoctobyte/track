@@ -39,106 +39,20 @@ def authenticated_client(app, env_id: str = "testing", base_url: str = "http://l
     return client
 
 
-def testing_apps(app):
-    return next(
-        env for env in app.config["TRACKHUB"]["environments"] if env.get("id") == "testing"
-    )["apps"]
-
-
-def test_hidden_netinventory_client_not_listed_or_proxied_on_public_host() -> None:
+def test_netinventory_client_is_not_in_trackhub() -> None:
     app = trackhub_app.create_app()
-    base_url = "https://track.example.test"
-    client = authenticated_client(app, base_url=base_url)
-
-    home = client.get("/", base_url=base_url)
-    assert_true(home.status_code == 200, "public home page should render")
-    assert_true(
-        b"Local Laptop Tools" not in home.data,
-        "localhost-only tools should not be listed on public host",
-    )
-
-    response = client.get("/env/testing", base_url=base_url)
-    assert_true(response.status_code == 200, "testing environment page should render")
-    assert_true(b"NetInventory Host" in response.data, "host app should remain visible")
-    assert_true(
-        b"NetInventory Client" not in response.data,
-        "hidden client app should not be listed on public host",
-    )
-
-    response = client.get("/netinventory-client/", base_url=base_url)
-    assert_true(response.status_code == 404, "hidden client app should not proxy on public host")
-
-
-def test_hidden_netinventory_client_localhost_shortcut_opens_standalone() -> None:
-    app = trackhub_app.create_app()
-
-    original_request = trackhub_app.requests.request
-    seen: dict[str, str] = {}
-
-    def fake_request(**kwargs):
-        seen["url"] = kwargs["url"]
-        return FakeResponse()
-
-    trackhub_app.requests.request = fake_request
-    try:
-        base_url = "http://127.0.0.1"
+    for base_url in ["https://track.example.test", "http://127.0.0.1"]:
         client = authenticated_client(app, base_url=base_url)
         home = client.get("/", base_url=base_url)
         overview = client.get("/env/testing", base_url=base_url)
         response = client.get("/netinventory-client/", base_url=base_url)
-    finally:
-        trackhub_app.requests.request = original_request
 
-    assert_true(home.status_code == 200, "localhost home page should render")
-    assert_true(b"Local Laptop Tools" in home.data, "localhost home page should show local tools")
-    assert_true(b"NetInventory Client" in home.data, "localhost home page should link NetInventory Client")
-    assert_true(
-        b'href="http://127.0.0.1:8889/"' in home.data,
-        "localhost home shortcut should open standalone NetInventory Client",
-    )
-    assert_true(overview.status_code == 200, "localhost environment page should render")
-    assert_true(
-        b"NetInventory Client" in overview.data,
-        "localhost shortcut should show hidden client app",
-    )
-    assert_true(
-        b'href="http://127.0.0.1:8889/"' in overview.data,
-        "localhost environment shortcut should open standalone NetInventory Client",
-    )
-    assert_true(response.status_code == 200, "manual localhost proxy path should still proxy hidden client app")
-    assert_true(
-        seen.get("url", "").startswith("http://127.0.0.1:8889/"),
-        "localhost shortcut should target the configured local client URL",
-    )
-
-
-def test_visible_netinventory_client_can_proxy_for_local_hosts() -> None:
-    app = trackhub_app.create_app()
-    for app_item in testing_apps(app):
-        if app_item.get("id") == "netinventory-client":
-            app_item["visible"] = True
-            app_item["autostart"] = True
-
-    original_request = trackhub_app.requests.request
-    seen: dict[str, str] = {}
-
-    def fake_request(**kwargs):
-        seen["url"] = kwargs["url"]
-        return FakeResponse()
-
-    trackhub_app.requests.request = fake_request
-    try:
-        base_url = "https://track.example.test"
-        client = authenticated_client(app, base_url=base_url)
-        response = client.get("/netinventory-client/", base_url=base_url)
-    finally:
-        trackhub_app.requests.request = original_request
-
-    assert_true(response.status_code == 200, "explicitly visible client app should proxy")
-    assert_true(
-        seen.get("url", "").startswith("http://127.0.0.1:8889/"),
-        "explicitly visible client app should target the configured local client URL",
-    )
+        assert_true(home.status_code == 200, "home page should render")
+        assert_true(overview.status_code == 200, "testing environment page should render")
+        assert_true(b"NetInventory Host" in overview.data, "host app should remain visible")
+        assert_true(b"NetInventory Client" not in home.data, "client should not be on home page")
+        assert_true(b"NetInventory Client" not in overview.data, "client should not be on environment page")
+        assert_true(response.status_code == 404, "client proxy path should not be owned by TrackHub")
 
 
 def test_quicktrack_is_listed_and_proxyable() -> None:
@@ -184,7 +98,7 @@ def test_admin_page_renders_login_and_authenticated_view() -> None:
     assert_true(b"Add Location" in admin_response.data, "admin location form should be present")
 
 
-def test_launch_plan_starts_quicktrack_and_local_client() -> None:
+def test_launch_plan_starts_quicktrack_not_netinventory_client() -> None:
     app = trackhub_app.create_app()
     launch_rows = list(iter_launch_entries(app.config["TRACKHUB"]))
     launches = {(entry["environment_id"], entry["app_id"]): entry for entry in launch_rows}
@@ -196,17 +110,14 @@ def test_launch_plan_starts_quicktrack_and_local_client() -> None:
         all(bool(entry["autostart"]) for entry in quicktrack_rows),
         "all configured QuickTrack environments should autostart",
     )
-    assert_true(netinventory_client is not None, "testing NetInventory Client should have a launch entry")
-    assert_true(bool(netinventory_client["autostart"]), "testing NetInventory Client should autostart")
+    assert_true(netinventory_client is None, "NetInventory Client should not have a TrackHub launch entry")
 
 
 def main() -> None:
-    test_hidden_netinventory_client_not_listed_or_proxied_on_public_host()
-    test_hidden_netinventory_client_localhost_shortcut_opens_standalone()
-    test_visible_netinventory_client_can_proxy_for_local_hosts()
+    test_netinventory_client_is_not_in_trackhub()
     test_quicktrack_is_listed_and_proxyable()
     test_admin_page_renders_login_and_authenticated_view()
-    test_launch_plan_starts_quicktrack_and_local_client()
+    test_launch_plan_starts_quicktrack_not_netinventory_client()
     print("trackhub local tests passed")
 
 
