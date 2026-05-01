@@ -21,13 +21,13 @@ SYNC_KEYS = (
     "sync_enabled",
     "sync_last_status",
     "sync_last_attempt_at",
+    "sync_targets",
 )
 
 
 def get_sync_settings(db: Database) -> dict[str, str]:
     state = db.get_app_state_many("sync_")
-    settings = get_hub_settings()
-    target = state.get("sync_target_url") or f"{settings.track_base_url}/netinventory/api/simple-ingest"
+    target = state.get("sync_target_url", "")
     return {
         "target_url": target,
         "username": state.get("sync_username", ""),
@@ -37,6 +37,71 @@ def get_sync_settings(db: Database) -> dict[str, str]:
         "last_status": state.get("sync_last_status", ""),
         "last_attempt_at": state.get("sync_last_attempt_at", ""),
     }
+
+
+def get_sync_targets(db: Database) -> list[dict[str, str]]:
+    raw = db.get_app_state("sync_targets") or "[]"
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(data, list):
+        return []
+    cleaned: list[dict[str, str]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("target_url") or "").strip()
+        if not url:
+            continue
+        cleaned.append({
+            "name": str(item.get("name") or url),
+            "target_url": url,
+            "username": str(item.get("username") or ""),
+            "password": str(item.get("password") or ""),
+            "shared_secret": str(item.get("shared_secret") or ""),
+        })
+    return cleaned
+
+
+def save_sync_targets(db: Database, targets: list[dict[str, str]]) -> None:
+    db.set_app_state("sync_targets", json.dumps(targets))
+
+
+def upsert_sync_target(db: Database, *, name: str, target_url: str, username: str, password: str, shared_secret: str) -> list[dict[str, str]]:
+    target_url = target_url.strip()
+    if not target_url:
+        return get_sync_targets(db)
+    targets = get_sync_targets(db)
+    entry = {
+        "name": name.strip() or target_url,
+        "target_url": target_url,
+        "username": username.strip(),
+        "password": password,
+        "shared_secret": shared_secret.strip(),
+    }
+    found = False
+    for i, t in enumerate(targets):
+        if t["target_url"] == target_url:
+            targets[i] = entry
+            found = True
+            break
+    if not found:
+        targets.append(entry)
+    save_sync_targets(db, targets)
+    return targets
+
+
+def remove_sync_target(db: Database, target_url: str) -> list[dict[str, str]]:
+    targets = [t for t in get_sync_targets(db) if t.get("target_url") != target_url]
+    save_sync_targets(db, targets)
+    return targets
+
+
+def has_credentials(settings: dict[str, str]) -> bool:
+    if (settings.get("shared_secret") or "").strip():
+        return True
+    return bool((settings.get("username") or "").strip() and (settings.get("password") or ""))
 
 
 def save_sync_settings(
@@ -89,15 +154,18 @@ def _pull_locations(db: Database, settings: dict[str, str]) -> None:
     except Exception as exc:
         logger.warning(f"Failed to pull locations: {exc}")
 
-def run_sync_once(db: Database) -> dict[str, object]:
+def run_sync_once(db: Database, *, manual: bool = False) -> dict[str, object]:
     settings = get_sync_settings(db)
-    if settings["enabled"] != "1":
+    if not manual and settings["enabled"] != "1":
         return {"ok": False, "skipped": True, "reason": "sync disabled"}
 
     target = settings["target_url"]
     if not target:
         return {"ok": False, "skipped": True, "reason": "no target configured"}
-        
+
+    if not has_credentials(settings):
+        return {"ok": False, "skipped": True, "reason": "logged out (no credentials)"}
+
     _pull_locations(db, settings)
 
     last_sync = db.get_last_sync_time()

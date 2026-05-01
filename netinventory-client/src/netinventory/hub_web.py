@@ -5,7 +5,7 @@ import json
 import uuid
 from datetime import UTC, datetime
 
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, abort, jsonify, render_template, request
 
 from netinventory.auth import load_or_create_shared_secret
 from netinventory.collect.collector import CollectedObservation
@@ -15,7 +15,15 @@ from netinventory.core.context import UserContextRecord
 from netinventory.probes import PROBE_IDS, PROBE_LABELS, gather_probe_tooling, run_probe
 from netinventory.realtime import gather_realtime
 from netinventory.storage.db import Database
-from netinventory.sync import get_sync_settings, run_sync_once, save_sync_settings
+from netinventory.sync import (
+    get_sync_settings,
+    get_sync_targets,
+    has_credentials,
+    remove_sync_target,
+    run_sync_once,
+    save_sync_settings,
+    upsert_sync_target,
+)
 
 
 LOCATION_ENTITY_KIND = "current_location"
@@ -63,6 +71,8 @@ def create_hub_web() -> Flask:
         context_rows = db.list_user_context()[:10]
         last_change = db.get_app_state("last_material_change_at")
         sync_settings = get_sync_settings(db)
+        sync_targets = get_sync_targets(db)
+        sync_logged_in = has_credentials(sync_settings)
         location = current_location(db)
         snapshots = list_recent_snapshots(db, limit=5)
 
@@ -104,6 +114,8 @@ def create_hub_web() -> Flask:
             github_repo=settings.github_repo,
             last_change=last_change,
             sync_settings=sync_settings,
+            sync_targets=sync_targets,
+            sync_logged_in=sync_logged_in,
             location=location,
             location_fields=LOCATION_FIELDS,
             probe_options=probe_options,
@@ -152,28 +164,96 @@ def create_hub_web() -> Flask:
     def api_sync_settings():
         data = request.get_json(silent=True) or {}
         db = Database(app.config["NETINV_PATHS"])
+        target_url = str(data.get("target_url", "")).strip()
+        username = str(data.get("username", ""))
+        password = str(data.get("password", ""))
+        shared_secret = str(data.get("shared_secret", ""))
+        enabled = bool(data.get("enabled", True))
         save_sync_settings(
             db,
-            target_url=str(data.get("target_url", "")),
-            username=str(data.get("username", "")),
-            password=str(data.get("password", "")),
-            shared_secret=str(data.get("shared_secret", "")),
-            enabled=bool(data.get("enabled", True)),
+            target_url=target_url,
+            username=username,
+            password=password,
+            shared_secret=shared_secret,
+            enabled=enabled,
         )
-        
-        if bool(data.get("enabled", True)):
+        if target_url and bool(data.get("remember", True)):
+            upsert_sync_target(
+                db,
+                name=str(data.get("name", "") or target_url),
+                target_url=target_url,
+                username=username,
+                password=password,
+                shared_secret=shared_secret,
+            )
+
+        if enabled and target_url:
             try:
                 import threading
                 threading.Thread(target=run_sync_once, args=(db,), daemon=True).start()
             except Exception:
                 pass
 
+        return jsonify({
+            "ok": True,
+            "settings": get_sync_settings(db),
+            "targets": get_sync_targets(db),
+            "logged_in": has_credentials(get_sync_settings(db)),
+        })
+
+    @app.get("/api/sync/targets")
+    def api_sync_targets_list():
+        db = Database(app.config["NETINV_PATHS"])
+        return jsonify({"targets": get_sync_targets(db), "active_url": get_sync_settings(db).get("target_url", "")})
+
+    @app.post("/api/sync/targets/select")
+    def api_sync_target_select():
+        data = request.get_json(silent=True) or {}
+        url = str(data.get("target_url", "")).strip()
+        if not url:
+            abort(400)
+        db = Database(app.config["NETINV_PATHS"])
+        target = next((t for t in get_sync_targets(db) if t["target_url"] == url), None)
+        if not target:
+            abort(404)
+        save_sync_settings(
+            db,
+            target_url=target["target_url"],
+            username=target["username"],
+            password=target["password"],
+            shared_secret=target["shared_secret"],
+            enabled=get_sync_settings(db).get("enabled", "1") == "1",
+        )
         return jsonify({"ok": True, "settings": get_sync_settings(db)})
+
+    @app.post("/api/sync/targets/delete")
+    def api_sync_target_delete():
+        data = request.get_json(silent=True) or {}
+        url = str(data.get("target_url", "")).strip()
+        if not url:
+            abort(400)
+        db = Database(app.config["NETINV_PATHS"])
+        targets = remove_sync_target(db, url)
+        return jsonify({"ok": True, "targets": targets})
+
+    @app.post("/api/sync/logout")
+    def api_sync_logout():
+        db = Database(app.config["NETINV_PATHS"])
+        current = get_sync_settings(db)
+        save_sync_settings(
+            db,
+            target_url=current["target_url"],
+            username="",
+            password="",
+            shared_secret="",
+            enabled=current.get("enabled", "1") == "1",
+        )
+        return jsonify({"ok": True, "settings": get_sync_settings(db), "logged_in": False})
 
     @app.post("/api/sync/run")
     def api_sync_run():
         db = Database(app.config["NETINV_PATHS"])
-        result = run_sync_once(db)
+        result = run_sync_once(db, manual=True)
         now = datetime.now(UTC).isoformat()
         db.set_app_state("sync_last_attempt_at", now)
         if result.get("ok") and not result.get("skipped"):

@@ -176,17 +176,20 @@ def probe_exit_ip(timeout: float = 4.0) -> dict[str, Any]:
         "https://icanhazip.com/",
     )
     last_error = ""
+    attempts: list[str] = []
     for url in endpoints:
         try:
             request = urllib.request.Request(url, headers={"User-Agent": "netinv/0.1"})
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 body = response.read(64).decode("utf-8", errors="ignore").strip()
+            attempts.append(f"{url} -> {body!r}")
             if body and _looks_like_ip(body):
-                return {"ip": body, "endpoint": url}
+                return {"ip": body, "endpoint": url, "raw_output": "\n".join(attempts)}
         except (urllib.error.URLError, socket.timeout, OSError) as exc:
             last_error = f"{url}: {exc}"
+            attempts.append(last_error)
             continue
-    return {"ok": False, "error": last_error or "no endpoint reachable"}
+    return {"ok": False, "error": last_error or "no endpoint reachable", "raw_output": "\n".join(attempts)}
 
 
 def probe_traceroute(target: str = "1.1.1.1", max_hops: int = 12, stop_at_public: bool = True) -> dict[str, Any]:
@@ -216,7 +219,7 @@ def _run_with_timeout(cmd: list[str], timeout: float) -> tuple[str, str | None]:
 def _parse_traceroute_output(produced: tuple[str, str | None], target: str, stop_at_public: bool, mode: str) -> dict[str, Any]:
     output, err = produced
     if err:
-        return {"ok": False, "error": err}
+        return {"ok": False, "error": err, "raw_output": output or ""}
     hops: list[dict[str, Any]] = []
     stopped_at_public = False
     seen_hop_numbers: set[int] = set()
@@ -253,6 +256,7 @@ def _parse_traceroute_output(produced: tuple[str, str | None], target: str, stop
         "hops": hops,
         "stopped_at_public": stopped_at_public,
         "internal_hop_count": sum(1 for h in hops if h.get("private")),
+        "raw_output": output,
     }
 
 
@@ -293,6 +297,16 @@ def probe_link_speed(iface: str | None = None) -> dict[str, Any]:
         ethtool_out = _capture([ethtool, iface])
         if ethtool_out:
             result["ethtool"] = _parse_ethtool(ethtool_out)
+            result["raw_output"] = ethtool_out
+    if "raw_output" not in result:
+        sysfs_lines = [
+            f"interface  : {iface}",
+            f"operstate  : {operstate or '-'}",
+            f"carrier    : {carrier if carrier is not None else '-'}",
+            f"speed_mbit : {speed if speed and speed > 0 else '-'}",
+            f"duplex     : {duplex or '-'}",
+        ]
+        result["raw_output"] = "\n".join(sysfs_lines)
     return result
 
 
@@ -377,13 +391,18 @@ def _dhcp_via_nmcli(iface: str) -> dict[str, Any] | None:
             if "=" in value:
                 opt_name, _, opt_value = value.partition("=")
                 dhcp_data[opt_name.strip()] = opt_value.strip()
-    if not dhcp_data:
+    ip = fields.get("IP4.ADDRESS[1]", "").split("/")[0] or None
+    gateway = fields.get("IP4.GATEWAY") or None
+    dns = [v for k, v in fields.items() if k.startswith("IP4.DNS")]
+    if not (ip or gateway or dns or dhcp_data):
         return None
     return {
-        "ip": fields.get("IP4.ADDRESS[1]", "").split("/")[0] or None,
-        "gateway": fields.get("IP4.GATEWAY") or None,
-        "dns": [v for k, v in fields.items() if k.startswith("IP4.DNS")],
+        "ip": ip,
+        "gateway": gateway,
+        "dns": dns,
         "lease": dhcp_data,
+        "connection": fields.get("GENERAL.CONNECTION"),
+        "raw_output": out,
     }
 
 
@@ -418,6 +437,7 @@ def _dhcp_via_networkd(iface: str) -> dict[str, Any] | None:
             "gateway": data.get("ROUTER"),
             "dns": data.get("DNS", "").split() if data.get("DNS") else [],
             "lease": data,
+            "raw_output": text,
         }
     return None
 
@@ -445,6 +465,7 @@ def _dhcp_via_dhclient_lease(iface: str) -> dict[str, Any] | None:
             "gateway": latest.get("option routers"),
             "dns": (latest.get("option domain-name-servers", "") or "").split(","),
             "lease": latest,
+            "raw_output": text,
         }
     return None
 

@@ -312,11 +312,31 @@
 
     <div class="grid cols-2" style="margin-bottom: 1rem;">
       <section class="card stack">
-        <h2>Sync target</h2>
+        <h2>Sync target
+          <span id="sync-state-pill" class="pill {% if sync_logged_in %}good{% else %}warn{% endif %}" style="vertical-align: middle; margin-left: 0.4rem;">
+            {% if sync_logged_in %}logged in{% else %}logged out{% endif %}
+          </span>
+        </h2>
         <p class="muted" style="margin:0 0 0.4rem; font-size:0.86rem;">
-          Where to push observations. Leave disabled to keep them local only.
+          Push observations to a TRACK host. Add multiple hosts (per location) and switch between them. Auto-sync skips if no URL is set or no credentials are stored.
         </p>
         <form id="sync-form" autocomplete="off">
+          <div class="field">
+            <label for="sync-target-select">Saved hosts</label>
+            <div class="row" style="align-items:center;">
+              <select id="sync-target-select" style="flex:1; padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,0.9);">
+                <option value="">— pick a saved host —</option>
+                {% for t in sync_targets %}
+                <option value="{{ t.target_url }}" {% if t.target_url == sync_settings.target_url %}selected{% endif %}>{{ t.name }} — {{ t.target_url }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="btn ghost" id="sync-target-delete" style="flex: 0 0 auto;" title="Forget the selected host">Forget</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="sync-name">Friendly name <span class="muted">(optional, just for the dropdown)</span></label>
+            <input id="sync-name" type="text" name="name" value="" placeholder="e.g. Main office, Site A">
+          </div>
           <div class="field">
             <label for="sync-url">Public host / endpoint URL</label>
             <input id="sync-url" type="url" name="target_url" value="{{ sync_settings.target_url }}" placeholder="https://track.example.com/netinventory/api/simple-ingest">
@@ -342,6 +362,7 @@
             </label>
             <div id="sync-flash" class="save-flash">Saved ✓</div>
             <div class="actions" style="display:flex; gap:0.5rem;">
+              <button class="btn ghost" id="sync-logout" type="button">Log out</button>
               <button class="btn ghost" id="sync-save" type="button">Save</button>
               <button class="btn" id="sync-now" type="button">Sync now</button>
             </div>
@@ -649,13 +670,20 @@
       saveLocation(payload);
     });
 
-    // Probe checkbox state persists in localStorage
+    // Probe checkbox state persists in localStorage; default = all enabled probes selected.
     const probeBoxes = document.querySelectorAll('input[type="checkbox"][data-probe]');
     const PROBE_PREF_KEY = "netinv.probes.v1";
-    try {
-      const saved = JSON.parse(localStorage.getItem(PROBE_PREF_KEY) || "[]");
-      probeBoxes.forEach(cb => { if (saved.includes(cb.value)) cb.checked = true; });
-    } catch (e) { /* ignore */ }
+    const stored = localStorage.getItem(PROBE_PREF_KEY);
+    if (stored === null) {
+      probeBoxes.forEach(cb => { cb.checked = true; });
+    } else {
+      try {
+        const saved = JSON.parse(stored);
+        probeBoxes.forEach(cb => { cb.checked = saved.includes(cb.value); });
+      } catch (e) {
+        probeBoxes.forEach(cb => { cb.checked = true; });
+      }
+    }
     probeBoxes.forEach(cb => {
       cb.addEventListener("change", () => {
         const checked = Array.from(probeBoxes).filter(b => b.checked).map(b => b.value);
@@ -663,47 +691,58 @@
       });
     });
 
+    const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+
     function fmtProbe(probeId, result) {
       if (!result) return `<div class="muted">no result</div>`;
       const ok = result.ok !== false;
       const status = ok ? `<span class="probe-status ok">ok</span>` : `<span class="probe-status fail">failed</span>`;
       const dur = result.duration_ms != null ? ` <span class="muted">(${result.duration_ms}ms)</span>` : "";
-      let body = "";
+      let summary = "";
       if (!ok) {
-        body = `<div class="muted">${result.error || "unknown error"}</div>`;
+        summary = `<div class="muted">${escapeHtml(result.error || "unknown error")}</div>`;
       } else if (probeId === "exit_ip") {
-        body = `<div>Public IP: <code>${result.ip}</code> <span class="muted">via ${result.endpoint || ""}</span></div>`;
+        summary = `<div>Public IP: <code>${escapeHtml(result.ip)}</code> <span class="muted">via ${escapeHtml(result.endpoint || "")}</span></div>`;
       } else if (probeId === "dhcp") {
-        body = `<div>iface: <code>${result.interface || "?"}</code> · ip: <code>${result.ip || "?"}</code> · gw: <code>${result.gateway || "?"}</code> · src: ${result.source || "?"}</div>`;
-        if (result.dns && result.dns.length) body += `<div class="muted">dns: ${result.dns.join(", ")}</div>`;
+        const src = result.sources && result.sources[0] && result.sources[0].source;
+        summary = `<div>iface: <code>${escapeHtml(result.interface || "?")}</code> · ip: <code>${escapeHtml(result.ip || "?")}</code> · gw: <code>${escapeHtml(result.gateway || "?")}</code> · src: ${escapeHtml(src || "?")}${result.connection ? ' · conn: <code>'+escapeHtml(result.connection)+'</code>' : ''}</div>`;
+        if (result.dns && result.dns.length) summary += `<div class="muted">dns: ${escapeHtml(result.dns.join(", "))}</div>`;
+        if (result.lease && Object.keys(result.lease).length) {
+          const lease = Object.entries(result.lease).map(([k,v]) => `${escapeHtml(k)}: ${escapeHtml(v)}`).join("\n");
+          summary += `<details style="margin-top:0.3rem;"><summary class="muted" style="font-size:0.78rem;">lease options</summary><pre>${lease}</pre></details>`;
+        }
       } else if (probeId === "traceroute") {
         const hops = (result.hops || []).map(h =>
-          `<div class="${h.private ? 'private' : (h.ip ? 'public' : 'muted')}">${h.hop.toString().padStart(2)}  ${h.ip || '*'} ${h.rtt_ms != null ? h.rtt_ms.toFixed(1) + 'ms' : ''}</div>`
+          `<div class="${h.private ? 'private' : (h.ip ? 'public' : 'muted')}">${h.hop.toString().padStart(2)}  ${escapeHtml(h.ip || '*')} ${h.rtt_ms != null ? h.rtt_ms.toFixed(1) + 'ms' : ''}</div>`
         ).join("");
-        body = `<div>target: <code>${result.target}</code> · ${result.internal_hop_count} internal hops${result.stopped_at_public ? ' (stopped at public)' : ''}</div><div class="hop-list">${hops}</div>`;
+        summary = `<div>target: <code>${escapeHtml(result.target)}</code> · ${result.internal_hop_count} internal hops${result.stopped_at_public ? ' (stopped at public)' : ''}</div><div class="hop-list">${hops}</div>`;
       } else if (probeId === "link_speed") {
         const sp = result.speed_mbit ? `${result.speed_mbit} Mbit/s` : (result.ethtool && result.ethtool.speed) || "?";
         const dx = result.duplex || (result.ethtool && result.ethtool.duplex) || "?";
-        body = `<div>iface: <code>${result.interface || "?"}</code> · link: <strong>${sp}</strong> ${dx} · operstate: ${result.operstate || "?"}</div>`;
+        summary = `<div>iface: <code>${escapeHtml(result.interface || "?")}</code> · link: <strong>${escapeHtml(sp)}</strong> ${escapeHtml(dx)} · operstate: ${escapeHtml(result.operstate || "?")}</div>`;
       } else if (probeId === "wifi") {
         if (!result.available) {
-          body = `<div class="muted">${result.reason || "no wireless"}</div>`;
+          summary = `<div class="muted">${escapeHtml(result.reason || "no wireless")}</div>`;
         } else {
           const ifaces = result.interfaces || [];
-          body = ifaces.map(i => {
+          summary = ifaces.map(i => {
             const link = i.link || {};
             const linkLine = link.connected
-              ? `connected to <strong>${link.ssid || link.bssid || "?"}</strong> · ${link.signal || ""}`
+              ? `connected to <strong>${escapeHtml(link.ssid || link.bssid || "?")}</strong> · ${escapeHtml(link.signal || "")}`
               : '<span class="muted">not connected</span>';
-            return `<div><code>${i.name}</code>: ${linkLine} · scanned ${i.scan_count || 0} APs</div>`;
+            return `<div><code>${escapeHtml(i.name)}</code>: ${linkLine} · scanned ${i.scan_count || 0} APs</div>`;
           }).join("");
         }
       } else if (probeId === "speed_test") {
-        body = `<div>down: <strong>${result.down_mbit} Mbit/s</strong> (${(result.bytes/1e6).toFixed(1)} MB in ${result.elapsed_s}s${result.complete ? "" : ", incomplete"})</div>`;
+        summary = `<div>down: <strong>${result.down_mbit} Mbit/s</strong> (${(result.bytes/1e6).toFixed(1)} MB in ${result.elapsed_s}s${result.complete ? "" : ", incomplete"})</div>`;
       } else {
-        body = `<pre style="max-height: 200px; overflow:auto;">${JSON.stringify(result, null, 2)}</pre>`;
+        summary = `<pre style="max-height: 200px; overflow:auto;">${escapeHtml(JSON.stringify(result, null, 2))}</pre>`;
       }
-      return `<div class="probe"><strong>${probeId}</strong>${status}${dur}${body}</div>`;
+      let raw = "";
+      if (result.raw_output) {
+        raw = `<details class="raw-output" style="margin-top:0.35rem;"><summary class="muted" style="font-size:0.78rem;">raw output</summary><pre>${escapeHtml(result.raw_output)}</pre></details>`;
+      }
+      return `<div class="probe"><strong>${probeId}</strong>${status}${dur}${summary}${raw}</div>`;
     }
 
     document.getElementById("loc-snapshot")?.addEventListener("click", async () => {
@@ -763,21 +802,111 @@
       }
     });
 
-    // Sync settings
+    // Sync settings + multi-host
+    let syncTargets = {{ sync_targets|tojson }};
+    function setSyncStatePill(loggedIn) {
+      const pill = document.getElementById("sync-state-pill");
+      if (!pill) return;
+      pill.className = "pill " + (loggedIn ? "good" : "warn");
+      pill.textContent = loggedIn ? "logged in" : "logged out";
+      pill.style.verticalAlign = "middle";
+      pill.style.marginLeft = "0.4rem";
+    }
+    function rebuildTargetSelect(activeUrl) {
+      const sel = document.getElementById("sync-target-select");
+      if (!sel) return;
+      sel.innerHTML = '<option value="">— pick a saved host —</option>';
+      syncTargets.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t.target_url;
+        opt.textContent = `${t.name} — ${t.target_url}`;
+        if (t.target_url === activeUrl) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+    function populateFromTarget(t) {
+      if (!t) return;
+      document.getElementById("sync-name").value = t.name || "";
+      document.getElementById("sync-url").value = t.target_url || "";
+      document.getElementById("sync-user").value = t.username || "";
+      document.getElementById("sync-pass").value = t.password || "";
+      document.getElementById("sync-secret").value = t.shared_secret || "";
+    }
+    document.getElementById("sync-target-select")?.addEventListener("change", async (ev) => {
+      const url = ev.target.value;
+      if (!url) return;
+      const local = syncTargets.find(t => t.target_url === url);
+      if (local) populateFromTarget(local);
+      try {
+        const resp = await fetch("/api/sync/targets/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_url: url }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.settings) {
+            populateFromTarget({
+              name: local?.name || "",
+              target_url: data.settings.target_url || "",
+              username: data.settings.username || "",
+              password: data.settings.password || "",
+              shared_secret: data.settings.shared_secret || "",
+            });
+            setSyncStatePill(!!(data.settings.shared_secret || (data.settings.username && data.settings.password)));
+          }
+          flash("sync-flash");
+        }
+      } catch (e) { console.warn("select target failed", e); }
+    });
+    document.getElementById("sync-target-delete")?.addEventListener("click", async () => {
+      const url = document.getElementById("sync-target-select").value;
+      if (!url) return;
+      if (!confirm(`Forget saved host:\n${url}?`)) return;
+      const resp = await fetch("/api/sync/targets/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_url: url }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        syncTargets = data.targets || [];
+        rebuildTargetSelect(document.getElementById("sync-url").value);
+      }
+    });
     document.getElementById("sync-save")?.addEventListener("click", async () => {
       const payload = {
+        name: document.getElementById("sync-name").value,
         target_url: document.getElementById("sync-url").value,
         username: document.getElementById("sync-user").value,
         password: document.getElementById("sync-pass").value,
         shared_secret: document.getElementById("sync-secret").value,
         enabled: document.getElementById("sync-enabled").checked,
+        remember: !!document.getElementById("sync-url").value.trim(),
       };
       const resp = await fetch("/api/sync/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (resp.ok) flash("sync-flash");
+      if (resp.ok) {
+        const data = await resp.json();
+        syncTargets = data.targets || syncTargets;
+        rebuildTargetSelect(payload.target_url);
+        setSyncStatePill(!!data.logged_in);
+        flash("sync-flash");
+      }
+    });
+    document.getElementById("sync-logout")?.addEventListener("click", async () => {
+      if (!confirm("Clear stored credentials for this client? Auto-sync will pause until you log in again.")) return;
+      const resp = await fetch("/api/sync/logout", { method: "POST" });
+      if (resp.ok) {
+        document.getElementById("sync-user").value = "";
+        document.getElementById("sync-pass").value = "";
+        document.getElementById("sync-secret").value = "";
+        setSyncStatePill(false);
+        flash("sync-flash");
+      }
     });
     document.getElementById("sync-now")?.addEventListener("click", async () => {
       const btn = document.getElementById("sync-now");
