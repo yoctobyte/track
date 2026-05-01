@@ -34,6 +34,7 @@ DEFAULT_CONFIG: dict[str, object] = {
                         "MAP3D_INSTANCE": "testing",
                         "MAP3D_PORT_HTTP": "5001",
                         "MAP3D_PORT_HTTPS": "5444",
+                        "MAP3D_DATA_DIR": "./map3d/data/environments/testing",
                     },
                     "autostart": True,
                     "status": "active",

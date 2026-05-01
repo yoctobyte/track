@@ -10,4 +10,5 @@ __pycache__/
 *.log
 *.pid
 .secret_key
+.secret_key.*
 data/

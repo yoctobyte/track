@@ -50,6 +50,23 @@ def command_validate() -> int:
         elif not script_path.is_file():
             print(f"invalid launch target: {entry['name']} -> {entry['script']}")
             failures += 1
+        app_id = entry["app_id"]
+        env_id = entry["environment_id"]
+        launch_env = entry.get("env", {})
+        env_data_keys = {
+            "map3d": "MAP3D_DATA_DIR",
+            "netinventory": "NETINVENTORY_HOST_DATA_DIR",
+            "quicktrack": "QUICKTRACK_DATA_DIR",
+        }
+        if app_id in env_data_keys:
+            key = env_data_keys[app_id]
+            value = str(launch_env.get(key, ""))
+            if f"/environments/{env_id}" not in value and f"\\environments\\{env_id}" not in value:
+                print(f"shared data path risk: {entry['name']} must set {key} under data/environments/{env_id}")
+                failures += 1
+        if app_id == "devicecontrol" and str(launch_env.get("DEVICECONTROL_ENVIRONMENT", "")) != env_id:
+            print(f"shared data path risk: {entry['name']} must set DEVICECONTROL_ENVIRONMENT={env_id}")
+            failures += 1
     if failures:
         print(f"Validation failed: {failures} launch target(s) invalid.")
         return 1

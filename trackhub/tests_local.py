@@ -143,12 +143,53 @@ def test_launch_plan_starts_quicktrack_not_netinventory_client() -> None:
     assert_true(netinventory_client is None, "NetInventory Client should not have a TrackHub launch entry")
 
 
+def test_environment_data_paths_are_explicit_or_intentionally_global() -> None:
+    app = trackhub_app.create_app()
+    intentionally_global = {
+        "museumcontrol",
+        "tracksync",
+    }
+    required_env_data = {
+        "map3d": "MAP3D_DATA_DIR",
+        "netinventory": "NETINVENTORY_HOST_DATA_DIR",
+        "quicktrack": "QUICKTRACK_DATA_DIR",
+    }
+    required_env_vars = {
+        "devicecontrol": "DEVICECONTROL_ENVIRONMENT",
+    }
+
+    for env in app.config["TRACKHUB"]["environments"]:
+        env_id = env["id"]
+        for app_item in env.get("apps", []):
+            app_id = app_item.get("id", "")
+            launch_script = app_item.get("launch_script")
+            if not launch_script:
+                continue
+            launch_env = app_item.get("launch_env") or {}
+            if app_id in intentionally_global:
+                continue
+            if app_id in required_env_data:
+                key = required_env_data[app_id]
+                value = str(launch_env.get(key, ""))
+                assert_true(
+                    f"/environments/{env_id}" in value or f"\\environments\\{env_id}" in value,
+                    f"{env_id}:{app_id} must use an environment-specific {key}",
+                )
+            if app_id in required_env_vars:
+                key = required_env_vars[app_id]
+                assert_true(
+                    str(launch_env.get(key, "")) == env_id,
+                    f"{env_id}:{app_id} must set {key}={env_id}",
+                )
+
+
 def main() -> None:
     test_netinventory_client_is_not_in_trackhub()
     test_quicktrack_is_listed_and_proxyable()
     test_admin_page_renders_login_and_authenticated_view()
     test_single_environment_host_skips_public_landing_page()
     test_launch_plan_starts_quicktrack_not_netinventory_client()
+    test_environment_data_paths_are_explicit_or_intentionally_global()
     print("trackhub local tests passed")
 
 

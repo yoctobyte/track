@@ -10,7 +10,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from app import create_app, load_or_create_simple_upload_token  # noqa: E402
+from app import configured_passwords, create_app, load_or_create_simple_upload_token  # noqa: E402
 from app.topology import build_topology  # noqa: E402
 
 
@@ -134,9 +134,57 @@ def test_flask_ingest_rebuilds_topology() -> None:
                     os.environ[key] = value
 
 
+def test_environment_scoped_passwords_and_sessions() -> None:
+    old_env = {
+        "NETINVENTORY_HOST_INSTANCE": os.environ.get("NETINVENTORY_HOST_INSTANCE"),
+        "NETINVENTORY_TESTING_ADMIN_PASSWORD": os.environ.get("NETINVENTORY_TESTING_ADMIN_PASSWORD"),
+        "NETINVENTORY_MUSEUM_ADMIN_PASSWORD": os.environ.get("NETINVENTORY_MUSEUM_ADMIN_PASSWORD"),
+        "NETINVENTORY_ADMIN_PASSWORD": os.environ.get("NETINVENTORY_ADMIN_PASSWORD"),
+    }
+    try:
+        os.environ["NETINVENTORY_TESTING_ADMIN_PASSWORD"] = "testing-admin"
+        os.environ["NETINVENTORY_MUSEUM_ADMIN_PASSWORD"] = "museum-admin"
+        os.environ["NETINVENTORY_ADMIN_PASSWORD"] = "global-admin"
+
+        os.environ["NETINVENTORY_HOST_INSTANCE"] = "testing"
+        testing_app = create_app()
+        with testing_app.test_request_context("/"):
+            assert_true(
+                configured_passwords()["admin"] == "testing-admin",
+                "testing should prefer environment-specific admin password",
+            )
+        assert_true(
+            testing_app.config["SESSION_COOKIE_NAME"] == "netinventory_host_testing",
+            "testing should have an environment-specific session cookie",
+        )
+
+        os.environ["NETINVENTORY_HOST_INSTANCE"] = "museum"
+        museum_app = create_app()
+        with museum_app.test_request_context("/"):
+            assert_true(
+                configured_passwords()["admin"] == "museum-admin",
+                "museum should prefer environment-specific admin password",
+            )
+        assert_true(
+            museum_app.config["SESSION_COOKIE_NAME"] == "netinventory_host_museum",
+            "museum should have an environment-specific session cookie",
+        )
+        assert_true(
+            testing_app.config["SECRET_KEY"] != museum_app.config["SECRET_KEY"],
+            "different environments should not share generated secret keys",
+        )
+    finally:
+        for key, value in old_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 def main() -> int:
     test_build_topology_from_registration()
     test_flask_ingest_rebuilds_topology()
+    test_environment_scoped_passwords_and_sessions()
     print("netinventory-host local tests passed")
     return 0
 

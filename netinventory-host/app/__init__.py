@@ -54,7 +54,8 @@ def load_secret_key() -> str:
     configured = os.environ.get("NETINVENTORY_HOST_SECRET_KEY", "").strip()
     if configured:
         return configured
-    secret_path = BASE_DIR / ".secret_key"
+    env_name = instance_name()
+    secret_path = BASE_DIR / f".secret_key.{env_name}"
     if secret_path.exists():
         return secret_path.read_text(encoding="utf-8").strip()
     secret = f"netinventory-host-{secrets.token_urlsafe(32)}"
@@ -131,10 +132,18 @@ def load_or_create_simple_upload_token() -> str:
 
 
 def configured_passwords() -> dict[str, str]:
+    env_prefix = f"NETINVENTORY_{instance_name().upper().replace('-', '_')}"
+
+    def password_for(role: str) -> str:
+        specific = os.environ.get(f"{env_prefix}_{role.upper()}_PASSWORD", "").strip()
+        if specific:
+            return specific
+        return os.environ.get(f"NETINVENTORY_{role.upper()}_PASSWORD", "").strip()
+
     return {
-        "admin": os.environ.get("NETINVENTORY_ADMIN_PASSWORD", "").strip(),
-        "privileged": os.environ.get("NETINVENTORY_PRIVILEGED_PASSWORD", "").strip(),
-        "user": os.environ.get("NETINVENTORY_USER_PASSWORD", "").strip(),
+        "admin": password_for("admin"),
+        "privileged": password_for("privileged"),
+        "user": password_for("user"),
     }
 
 
@@ -630,8 +639,9 @@ def simple_download_response(app: Flask, template_name: str, download_name: str,
 
 def create_app() -> Flask:
     app = Flask(__name__, template_folder=str(BASE_DIR / "templates"))
-    app.config["SECRET_KEY"] = load_secret_key()
     app.config["NETINV_HOST_INSTANCE"] = instance_name()
+    app.config["SECRET_KEY"] = load_secret_key()
+    app.config["SESSION_COOKIE_NAME"] = f"netinventory_host_{app.config['NETINV_HOST_INSTANCE']}"
     app.config["NETINV_HOST_BIND"] = os.environ.get("NETINVENTORY_HOST_BIND", "127.0.0.1").strip() or "127.0.0.1"
     app.config["NETINV_HOST_PORT"] = int(os.environ.get("NETINVENTORY_HOST_PORT", "8888").strip() or "8888")
     app.config["NETINV_HOST_TRACK_BASE"] = (

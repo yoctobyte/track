@@ -26,11 +26,13 @@ Configure role passwords before exposing a host publicly:
 
 ```bash
 ./netinventory-host/password-tool.sh
+./netinventory-host/password-tool.sh museum
 ```
 
-Store the generated `NETINVENTORY_ADMIN_PASSWORD`,
-`NETINVENTORY_PRIVILEGED_PASSWORD`, and `NETINVENTORY_USER_PASSWORD` values in
-the service environment. Do not commit them.
+Store the generated values in the service environment. Do not commit them. The
+host checks environment-specific variables first, for example
+`NETINVENTORY_MUSEUM_ADMIN_PASSWORD`, then falls back to global
+`NETINVENTORY_ADMIN_PASSWORD` for simple single-environment deployments.
 
 Roles:
 
@@ -40,6 +42,8 @@ Roles:
 
 The public index hides upload tokens and laptop setup blocks until a
 privileged/admin password is entered. Upload endpoints require the upload token.
+Each NetInventory Host environment also gets its own session cookie and secret
+file, so logging into one environment does not authenticate another.
 
 ## Laptop Setup Block
 
