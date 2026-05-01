@@ -10,7 +10,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from app import create_app  # noqa: E402
+from app import create_app, load_or_create_simple_upload_token  # noqa: E402
 from app.topology import build_topology  # noqa: E402
 
 
@@ -72,19 +72,30 @@ def test_flask_ingest_rebuilds_topology() -> None:
             "NETINVENTORY_HOST_DATA_DIR": os.environ.get("NETINVENTORY_HOST_DATA_DIR"),
             "NETINVENTORY_HOST_INSTANCE": os.environ.get("NETINVENTORY_HOST_INSTANCE"),
             "NETINVENTORY_HOST_SECRET_KEY": os.environ.get("NETINVENTORY_HOST_SECRET_KEY"),
+            "NETINVENTORY_PRIVILEGED_PASSWORD": os.environ.get("NETINVENTORY_PRIVILEGED_PASSWORD"),
         }
         os.environ["NETINVENTORY_HOST_DATA_DIR"] = tmp
         os.environ["NETINVENTORY_HOST_INSTANCE"] = "testing"
         os.environ["NETINVENTORY_HOST_SECRET_KEY"] = "test-secret"
+        os.environ["NETINVENTORY_PRIVILEGED_PASSWORD"] = "priv-test"
         try:
             app = create_app()
             client = app.test_client()
+            blocked = client.post(
+                "/api/simple-ingest",
+                data=json.dumps(sample_registration()["payload"]),
+                content_type="application/json",
+                headers={"X-Track-Client-Id": "laptop-alpha"},
+            )
+            assert_true(blocked.status_code == 403, "ingest without upload token should fail")
+            token = load_or_create_simple_upload_token()
             response = client.post(
                 "/api/simple-ingest",
                 data=json.dumps(sample_registration()["payload"]),
                 content_type="application/json",
                 headers={
                     "X-Track-Client-Id": "laptop-alpha",
+                    "X-NetInv-Token": token,
                     "X-Forwarded-For": "10.0.0.8",
                 },
             )
@@ -103,6 +114,18 @@ def test_flask_ingest_rebuilds_topology() -> None:
             page_response = client.get("/topology")
             assert_true(page_response.status_code == 200, f"page failed: {page_response.status_code}")
             assert_true(b"Guessed Network Graph" in page_response.data, "expected topology page content")
+
+            index_public = client.get("/")
+            assert_true(index_public.status_code == 200, "index should render")
+            public_body = index_public.get_data(as_text=True)
+            assert_true(token not in public_body, "public index must not expose upload token")
+            assert_true("NetInventory Client Setup" not in public_body, "public index must not expose pairing block")
+
+            login = client.post("/login", data={"password": "priv-test"}, follow_redirects=True)
+            assert_true(login.status_code == 200, "privileged login should work")
+            private_body = login.get_data(as_text=True)
+            assert_true(token in private_body, "privileged index should expose upload token")
+            assert_true("track-netinventory-sync-target-v1" in private_body, "privileged index should expose setup block")
         finally:
             for key, value in old_env.items():
                 if value is None:

@@ -12,10 +12,70 @@
       <span>Repo <a href="{{ github_repo }}">{{ github_repo }}</a></span>
     </div>
     <div class="rack-hero-actions">
+      {% if can_upload %}
       <a class="download alt" href="{{ url_for('rack_new') }}">Create Rack Record</a>
       <a class="download" href="/downloads/netinventory-client-bootstrap.sh">Download Client Bootstrap</a>
+      {% else %}
+      <span class="muted">Log in as privileged/admin to create records or download bootstrap scripts.</span>
+      {% endif %}
     </div>
   </section>
+
+  <section class="panel" style="margin-top: 0.8rem;">
+    <div class="split">
+      <div>
+        <h2>Access</h2>
+        {% if current_role %}
+          <p class="muted">Logged in as <strong>{{ current_role }}</strong>.</p>
+          <form method="post" action="{{ url_for('logout') }}">
+            <button class="download alt" type="submit">Log out</button>
+          </form>
+        {% else %}
+          <p class="muted">
+            Public visitors can view basic inventory. Log in as privileged/admin to copy upload credentials
+            or bootstrap field laptops.
+          </p>
+          {% if not passwords_configured %}
+            <p class="muted">
+              No NetInventory role passwords are configured. Set
+              <code>NETINVENTORY_ADMIN_PASSWORD</code>,
+              <code>NETINVENTORY_PRIVILEGED_PASSWORD</code>, or
+              <code>NETINVENTORY_USER_PASSWORD</code> before publishing this host.
+            </p>
+          {% endif %}
+          <form method="post" action="{{ url_for('login') }}" class="stack">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <label for="role-password">Password</label>
+            <input id="role-password" name="password" type="password" autocomplete="current-password">
+            <button class="download" type="submit">Unlock</button>
+            {% if request.args.get('login') == 'failed' %}
+              <div class="muted">Login failed.</div>
+            {% endif %}
+          </form>
+        {% endif %}
+      </div>
+      <div>
+        <h2>Role Model</h2>
+        <ul class="list">
+          <li><strong>user</strong>: view collected data.</li>
+          <li><strong>privileged</strong>: upload/sync field data and edit operational records.</li>
+          <li><strong>admin</strong>: all privileged actions plus host administration.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  {% if can_upload %}
+  <section class="panel" style="margin-top: 0.8rem;">
+    <h2>NetInventory Client Setup</h2>
+    <p class="muted">
+      Copy this block into the laptop NetInventory Client sync setup. It contains the endpoint and upload token
+      for this host. Treat it like a password.
+    </p>
+    <pre id="client-pairing">{{ client_pairing_text }}</pre>
+    <button class="download" type="button" data-copy-target="client-pairing">Copy setup block</button>
+  </section>
+  {% endif %}
 
   <section class="layout">
     <div class="panel">
@@ -86,7 +146,11 @@
       <div id="simple-browser-result" class="muted"></div>
       <div class="stack">
         <div class="muted">Current simple upload token</div>
-        <code>{{ simple_upload_token }}</code>
+        {% if can_upload %}
+          <code>{{ simple_upload_token }}</code>
+        {% else %}
+          <span class="muted">Log in as privileged/admin to view upload credentials.</span>
+        {% endif %}
       </div>
       <div class="stack">
         <div class="muted">User-mode collectors: broad hardware and network facts without requiring elevation.</div>
@@ -164,6 +228,17 @@
     }
 
     document.getElementById("simple-browser-preview").textContent = JSON.stringify(simpleBrowserFacts, null, 2);
+
+    document.querySelectorAll("[data-copy-target]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const target = document.getElementById(button.dataset.copyTarget);
+        if (!target) return;
+        await navigator.clipboard.writeText(target.textContent.trim());
+        const old = button.textContent;
+        button.textContent = "Copied";
+        setTimeout(() => { button.textContent = old; }, 1400);
+      });
+    });
 
     document.getElementById("simple-browser-form").addEventListener("submit", async (event) => {
       event.preventDefault();

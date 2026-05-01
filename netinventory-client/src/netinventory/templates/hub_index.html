@@ -83,12 +83,13 @@
     th, td { padding: 0.42rem 0.4rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
     th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
     td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    input[type="text"], input[type="password"], input[type="url"] {
+    input[type="text"], input[type="password"], input[type="url"], textarea {
       width: 100%; padding: 0.5rem 0.65rem;
       background: rgba(255,255,255,0.9); color: var(--ink);
       border: 1px solid var(--line); border-radius: 8px;
       font-family: inherit; font-size: 0.92rem;
     }
+    textarea { resize: vertical; font-family: "IBM Plex Mono", ui-monospace, monospace; }
     input:focus { outline: none; border-color: var(--accent); }
     label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 0.18rem; font-weight: 500; }
     .field { margin-bottom: 0.6rem; }
@@ -324,6 +325,17 @@
         <p class="muted" style="margin:0 0 0.4rem; font-size:0.86rem;">
           Push observations to a TRACK host. Add multiple hosts (per location) and switch between them. Auto-sync skips if no URL is set or no credentials are stored.
         </p>
+        <details>
+          <summary>Paste setup block from host</summary>
+          <p class="muted" style="font-size:0.84rem;">
+            On the public NetInventory Host page, log in as privileged/admin and copy the setup block. Paste it here to fill the sync fields.
+          </p>
+          <textarea id="sync-paste" rows="7" placeholder='{"kind":"track-netinventory-sync-target-v1","target_url":"https://track.example.org/netinventory/api/simple-ingest?env=museum","shared_secret":"..."}'></textarea>
+          <div class="row" style="align-items:center; margin-top:0.45rem;">
+            <button class="btn ghost" id="sync-apply-paste" type="button">Apply pasted setup</button>
+            <div id="sync-paste-flash" class="save-flash">Applied</div>
+          </div>
+        </details>
         <form id="sync-form" autocomplete="off">
           <div class="field">
             <label for="sync-target-select">Saved hosts</label>
@@ -836,6 +848,32 @@
       document.getElementById("sync-pass").value = t.password || "";
       document.getElementById("sync-secret").value = t.shared_secret || "";
     }
+    function parseSetupBlock(raw) {
+      const trimmed = (raw || "").trim();
+      if (!trimmed) throw new Error("empty setup block");
+      const parsed = JSON.parse(trimmed);
+      if (!parsed || typeof parsed !== "object") throw new Error("setup block is not an object");
+      if (parsed.kind && parsed.kind !== "track-netinventory-sync-target-v1") {
+        throw new Error(`unsupported setup block kind: ${parsed.kind}`);
+      }
+      if (!parsed.target_url) throw new Error("setup block is missing target_url");
+      return {
+        name: String(parsed.name || parsed.target_url || ""),
+        target_url: String(parsed.target_url || ""),
+        username: String(parsed.username || ""),
+        password: String(parsed.password || ""),
+        shared_secret: String(parsed.shared_secret || parsed.token || ""),
+      };
+    }
+    document.getElementById("sync-apply-paste")?.addEventListener("click", () => {
+      try {
+        const target = parseSetupBlock(document.getElementById("sync-paste").value);
+        populateFromTarget(target);
+        flash("sync-paste-flash");
+      } catch (e) {
+        alert(`Could not read setup block: ${e.message || e}`);
+      }
+    });
     document.getElementById("sync-target-select")?.addEventListener("change", async (ev) => {
       const url = ev.target.value;
       if (!url) return;

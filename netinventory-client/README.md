@@ -100,7 +100,8 @@ The intended operational model is:
 
 - laptop runs NetInventory Client locally
 - public server runs NetInventory Host inside TRACK
-- admin enters the remote host, environment, and credentials
+- admin copies the setup block from the public NetInventory Host page
+- admin pastes that block into the client sync setup
 - laptop uploads or syncs collected observations when online
 
 NetInventory Client is intentionally not exposed through TrackHub and is not

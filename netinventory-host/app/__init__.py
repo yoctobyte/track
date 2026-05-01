@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import platform
@@ -11,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_from_directory, url_for
+from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 from werkzeug.utils import secure_filename
 
 from .topology import build_topology, write_topology
@@ -127,6 +128,54 @@ def load_or_create_simple_upload_token() -> str:
     token_path.write_text(token + "\n", encoding="utf-8")
     token_path.chmod(0o600)
     return token
+
+
+def configured_passwords() -> dict[str, str]:
+    return {
+        "admin": os.environ.get("NETINVENTORY_ADMIN_PASSWORD", "").strip(),
+        "privileged": os.environ.get("NETINVENTORY_PRIVILEGED_PASSWORD", "").strip(),
+        "user": os.environ.get("NETINVENTORY_USER_PASSWORD", "").strip(),
+    }
+
+
+def current_role() -> str:
+    role = str(session.get("netinventory_role", "")).strip()
+    if role in {"admin", "privileged", "user"}:
+        return role
+    return ""
+
+
+def role_at_least(role: str) -> bool:
+    order = {"": 0, "user": 1, "privileged": 2, "admin": 3}
+    return order.get(current_role(), 0) >= order.get(role, 0)
+
+
+def require_role(role: str) -> None:
+    if not role_at_least(role):
+        abort(403)
+
+
+def upload_token_authorized() -> bool:
+    token = (
+        request.headers.get("X-NetInventory-Simple-Token", "").strip()
+        or request.headers.get("X-NetInv-Token", "").strip()
+    )
+    return bool(token) and hmac.compare_digest(token, load_or_create_simple_upload_token())
+
+
+def public_base_url(app: Flask) -> str:
+    configured = str(app.config.get("NETINV_HOST_TRACK_BASE", "")).rstrip("/")
+    if configured:
+        return configured
+    proto = request.headers.get("X-Forwarded-Proto", request.scheme or "http").split(",")[0].strip()
+    host = request.headers.get("X-Forwarded-Host", request.host).split(",")[0].strip()
+    return f"{proto}://{host}".rstrip("/")
+
+
+def public_url(app: Flask, path: str) -> str:
+    if not path.startswith("/"):
+        path = "/" + path
+    return f"{public_base_url(app)}{path}"
 
 
 def read_simple_registrations(limit: int = 25) -> list[dict[str, Any]]:
@@ -550,7 +599,18 @@ def render_simple_template(name: str, replacements: dict[str, str]) -> str:
 
 
 def simple_ingest_url(app: Flask) -> str:
-    return f'{app.config["NETINV_HOST_TRACK_BASE"]}/netinventory/api/simple-ingest?env={app.config["NETINV_HOST_INSTANCE"]}'
+    return public_url(app, f'/netinventory/api/simple-ingest?env={app.config["NETINV_HOST_INSTANCE"]}')
+
+
+def client_pairing_payload(app: Flask) -> dict[str, str]:
+    return {
+        "kind": "track-netinventory-sync-target-v1",
+        "name": f'{app.config["NETINV_HOST_INSTANCE"]} NetInventory Host',
+        "target_url": simple_ingest_url(app),
+        "username": "",
+        "password": "",
+        "shared_secret": load_or_create_simple_upload_token(),
+    }
 
 
 def simple_download_response(app: Flask, template_name: str, download_name: str, mimetype: str) -> Response:
@@ -592,9 +652,29 @@ def create_app() -> Flask:
             "netinventory_public_path": app.config["NETINV_HOST_PUBLIC_PATH"],
             "netinventory_client_public_path": app.config["NETINV_CLIENT_PUBLIC_PATH"],
             "github_repo": app.config["NETINV_GITHUB_REPO"],
-            "simple_upload_token": load_or_create_simple_upload_token(),
             "now": datetime.now(UTC),
+            "current_role": current_role(),
+            "can_view": role_at_least("user"),
+            "can_upload": role_at_least("privileged"),
+            "can_admin": role_at_least("admin"),
+            "passwords_configured": any(configured_passwords().values()),
         }
+
+    @app.post("/login")
+    def login():
+        password = str(request.form.get("password", ""))
+        passwords = configured_passwords()
+        for role in ("admin", "privileged", "user"):
+            configured = passwords.get(role, "")
+            if configured and hmac.compare_digest(password, configured):
+                session["netinventory_role"] = role
+                return redirect(request.form.get("next") or url_for("index"))
+        return redirect(url_for("index", login="failed"))
+
+    @app.post("/logout")
+    def logout():
+        session.pop("netinventory_role", None)
+        return redirect(url_for("index"))
 
     @app.get("/")
     def index():
@@ -632,6 +712,7 @@ def create_app() -> Flask:
                 "hint": "Low-friction browser or script registrations for ordinary devices.",
             },
         ]
+        pairing_payload = client_pairing_payload(app) if role_at_least("privileged") else None
         return render_template(
             "index.html",
             title="NetInventory Host",
@@ -645,6 +726,9 @@ def create_app() -> Flask:
             simple_recent=simple_recent,
             paths={key: str(value) for key, value in paths.items()},
             current_host=platform.node(),
+            simple_upload_token=load_or_create_simple_upload_token() if role_at_least("privileged") else "",
+            client_pairing_payload=pairing_payload,
+            client_pairing_text=json.dumps(pairing_payload, indent=2) if pairing_payload else "",
         )
 
     @app.get("/hosts")
@@ -693,6 +777,7 @@ def create_app() -> Flask:
 
     @app.get("/racks/new")
     def rack_new():
+        require_role("privileged")
         record = default_rack_record()
         record["devices"] = [{} for _ in range(6)]
         return render_template(
@@ -726,6 +811,7 @@ def create_app() -> Flask:
 
     @app.post("/racks")
     def rack_create():
+        require_role("privileged")
         record = default_rack_record()
         posted = rack_form_data(request.form)
         record.update(posted)
@@ -759,6 +845,7 @@ def create_app() -> Flask:
 
     @app.post("/racks/<rack_id>")
     def rack_update(rack_id: str):
+        require_role("privileged")
         record = load_rack_record(rack_id)
         if not record:
             abort(404)
@@ -797,6 +884,7 @@ def create_app() -> Flask:
 
     @app.get("/downloads/netinventory-client-bootstrap.sh")
     def download_bootstrap():
+        require_role("privileged")
         repo = app.config["NETINV_GITHUB_REPO"]
         script = f"""#!/bin/bash
 set -euo pipefail
@@ -821,6 +909,7 @@ cd "$WORKDIR/netinventory-client"
 
     @app.post("/api/simple-browser")
     def simple_browser():
+        require_role("privileged")
         payload = request.get_json(silent=True) or {}
         if not isinstance(payload, dict):
             return jsonify({"ok": False, "error": "invalid payload"}), 400
@@ -843,10 +932,11 @@ cd "$WORKDIR/netinventory-client"
 
     @app.post("/api/simple-ingest")
     def simple_ingest():
-        token = request.headers.get("X-NetInventory-Simple-Token", "").strip()
         client_id = request.headers.get("X-Track-Client-Id", "").strip()
-        if not client_id and token != load_or_create_simple_upload_token():
-            return jsonify({"ok": False, "error": "invalid token or missing client id"}), 403
+        if not upload_token_authorized():
+            return jsonify({"ok": False, "error": "invalid upload token"}), 403
+        if not client_id:
+            client_id = f"anonymous-{uuid.uuid4().hex[:12]}"
 
         # Sliding window DDoS protection
         client_ip = request.headers.get("CF-Connecting-IP", request.headers.get("X-Forwarded-For", request.remote_addr or ""))
@@ -899,6 +989,7 @@ cd "$WORKDIR/netinventory-client"
 
     @app.get("/downloads/register-device-user.sh")
     def download_simple_shell_user():
+        require_role("privileged")
         return simple_download_response(
             app,
             "register-device-user.sh.tmpl",
@@ -908,6 +999,7 @@ cd "$WORKDIR/netinventory-client"
 
     @app.get("/downloads/register-device-admin.sh")
     def download_simple_shell_admin():
+        require_role("privileged")
         return simple_download_response(
             app,
             "register-device-admin.sh.tmpl",
@@ -917,6 +1009,7 @@ cd "$WORKDIR/netinventory-client"
 
     @app.get("/downloads/register-device-user.bat")
     def download_simple_batch_user():
+        require_role("privileged")
         return simple_download_response(
             app,
             "register-device-user.bat.tmpl",
@@ -926,6 +1019,7 @@ cd "$WORKDIR/netinventory-client"
 
     @app.get("/downloads/register-device-admin.bat")
     def download_simple_batch_admin():
+        require_role("privileged")
         return simple_download_response(
             app,
             "register-device-admin.bat.tmpl",
@@ -945,6 +1039,8 @@ cd "$WORKDIR/netinventory-client"
 
     @app.get("/api/core/locations/export")
     def api_export_locations():
+        if not (role_at_least("user") or upload_token_authorized()):
+            abort(403)
         db = get_location_db()
         return jsonify({
             "buildings": db.list_buildings(),
