@@ -293,6 +293,18 @@ def create_app() -> Flask:
         response.headers["Expires"] = "0"
         return response
 
+    @app.get("/favicon.ico")
+    def favicon():
+        svg = (
+            b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+            b'<rect width="64" height="64" rx="12" fill="#2f6a62"/>'
+            b'<text x="32" y="44" text-anchor="middle" '
+            b'font-family="IBM Plex Serif, Georgia, serif" font-size="42" '
+            b'font-weight="700" fill="#f6f8f2">T</text>'
+            b'</svg>'
+        )
+        return Response(svg, mimetype="image/svg+xml")
+
     @app.get("/")
     def index():
         only_env = single_environment()
