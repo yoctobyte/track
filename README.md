@@ -1,186 +1,139 @@
 # TRACK
 
-`TRACK` is an umbrella project for technical documentation, inventory,
-spatial mapping, and operational control across real-world environments.
+TRACK is a collection of small tools for documenting and operating real-world
+locations: photos, network inventory, device control, 3D mapping, and host sync.
 
-The acronym currently in use is:
+The project is intentionally not one big app. Each subproject should remain
+runnable on its own. The root TRACK app only provides shared environment
+navigation and starts the configured host-side services.
 
-**Technical Resource And Control Knowledge Kit**
+## Quick Start On A Test Laptop
 
-## Core Idea
+Requirements:
 
-`TRACK` is not one monolithic application.
+- Linux laptop or workstation
+- `git`
+- `python3`
+- `python3-venv`
+- `pip`
+- optional: `sudo` for privileged NetInventory probes
 
-It is a coordinated set of subprojects that should remain:
+Clone and check the config:
 
-- independently runnable
-- independently useful
-- independently deployable
+```bash
+git clone <repo-url> track
+cd track
+./track-configure.py validate
+./track-configure.py list
+```
 
-At the same time, they should gradually share:
+Start the TRACK umbrella app and configured host-side services:
 
-- common locations
-- common tags
-- shared navigation
-- shared environmental context
-- eventually, selected authentication and metadata services
+```bash
+./track.sh
+```
 
-The umbrella should integrate subprojects, not dissolve them.
+Open:
 
-## Current Subprojects
+```text
+http://127.0.0.1:5000/
+```
 
-### `map3d/`
+The launch scripts create local virtual environments and install their Python
+requirements on first run.
 
-Spatial capture and 3D reconstruction.
+## NetInventory Client
 
-Current focus:
+NetInventory Client is the laptop field tool for local network observation. It
+is not launched by `./track.sh` and is not shown in the TRACK umbrella UI.
 
-- browser-based photo capture
-- location-aware archival image storage
-- COLMAP-based sparse reconstruction
-- early HTML viewer
-- dense reconstruction pipeline experiments
-
-### `museumcontrol/`
-
-Museum kiosk and device control dashboard.
-
-Current focus:
-
-- Tailscale-aware host discovery
-- kiosk status and metadata
-- secure proxy access
-- operator-facing control UI
-
-### `netinventory-client/`
-
-Laptop-side network observation and field inventory tooling.
-
-Run it standalone from the repository root:
+Run it from the repository root:
 
 ```bash
 ./netinventory-client.sh
 ```
 
-It is intentionally not part of the TRACK umbrella UI or autostart plan. An
-admin can run it on any laptop, keep it in the foreground for privileged
-operations, then configure sync/upload toward the public NetInventory host for
-the chosen environment. The launcher opens the local web UI in a browser when
-possible; set `NETINVENTORY_OPEN_BROWSER=0` to disable that.
+It starts a local UI on `http://127.0.0.1:8889/`, keeps running in the
+foreground, and may ask for sudo so it can perform better Wi-Fi, ARP, and link
+inspection. The launcher opens a browser automatically when possible.
 
-Current focus:
+Useful options:
 
-- local network probing
-- observation persistence
-- task runtime
-- user context
-- sync/export workflows
+```bash
+NETINVENTORY_UI_PORT=8890 ./netinventory-client.sh
+NETINVENTORY_OPEN_BROWSER=0 ./netinventory-client.sh
+NETINVENTORY_SKIP_SUDO=1 ./netinventory-client.sh
+TRACK_BASE_URL=https://track.praktijkpioniers.com ./netinventory-client.sh
+```
 
-### `netinventory-host/`
+See [netinventory-client/README.md](./netinventory-client/README.md) if this is
+the only tool an admin needs to run.
 
-Host-side intake and publishing surface for NetInventory.
+## Installation Profiles
 
-Current focus:
+Use [INSTALL.md](./INSTALL.md) for the current install model. The short version:
 
-- receive and later aggregate client/host reports
-- publish client downloads and bootstrap entrypoints
-- provide a lightweight browser-and-script registration path for ordinary devices
-- publish user-mode and admin-mode lightweight collectors for Linux and Windows
-- centralize web-facing network inventory workflows
+- `standalone`: start fresh, keep all data local until paired later.
+- `server`: mostly-on host that serves TrackHub, host-side apps, and TrackSync.
+- `client` or field laptop: local tools and opportunistic sync with a remote
+  trusted TRACK host.
 
-### `netinventory-simple/`
+Known deployments usually point laptops at:
 
-Client-side lightweight registration assets for NetInventory.
+```text
+https://track.praktijkpioniers.com
+```
 
-Current focus:
+The remote host can list available environments/realms. The local environment
+slug does not have to match the remote slug; admins are expected to choose
+responsible names.
 
-- isolated user-mode and admin-mode `.sh` / `.bat` collector templates
-- room for future binary or packaged collectors
-- no standalone server runtime
+## Main Commands
 
-### `devicecontrol/`
+```bash
+./track.sh                  # start TrackHub plus configured autostart services
+./track-configure.py list   # inspect environments, apps, ports, launch plan
+./track-configure.py validate
+./netinventory-client.sh    # standalone laptop network inventory client
+```
 
-Ansible-backed operational control kit.
+Local tests:
 
-Current focus:
+```bash
+./trackhub/test-local.sh
+./tracksync/test-local.sh
+./netinventory-host/test-local.sh
+./quicktrack/test-local.sh
+```
 
-- environment-separated Ansible inventories
-- manual host bootstrap helpers
-- approved maintenance playbooks
-- web-triggered runs with logs and fetched screenshots
+## Subprojects
 
-### `quicktrack/`
+- `trackhub/`: root web interface and environment navigation.
+- `tracksync/`: host identity, peer credentials, manifests, and file sync APIs.
+- `netinventory-host/`: public intake, storage, and topology views for network
+  inventory data.
+- `netinventory-client/`: standalone laptop/client network observation tool.
+- `quicktrack/`: timestamped photo observations with optional notes and GPS.
+- `map3d/`: photo capture and 3D reconstruction workflow.
+- `devicecontrol/`: Ansible-backed maintenance actions for enrolled devices.
+- `museumcontrol/`: kiosk and device control dashboard.
 
-Fast photo observation capture.
+## Data And Sync Rules
 
-Current focus:
+- SQLite databases may remain local to each app.
+- Synced records and filenames should be globally unique enough to move between
+  hosts safely.
+- Normal sync is append-only: new facts and file revisions are added rather than
+  deleted in place.
+- TrackSync trust is global. Subprojects expose data; TrackSync decides which
+  peer is trusted to exchange it.
+- Host-local environment names are allowed. A remote `museum` can be local
+  `devspacemuseum` if the admin configured that mapping deliberately.
 
-- timestamped photo submissions
-- optional description and sender ID
-- explicit GPS capture only after pressing the location button
-- local JSON/photo storage ready for later TrackSync artifact handling
-
-## Project Structure
-
-This repository is now the canonical `track` repo.
-
-Imported subprojects keep their own history inside this repo.
-
-That means:
-
-- `museumcontrol/` history was preserved
-- `netinventory-client/` history was preserved
-- `map3d/` remains an actively developed subproject in the root repo
-
-## Current Integration Strategy
-
-For now, each subproject remains self-contained.
-
-Near-term umbrella work should focus on:
-
-1. a root identity and documentation layer
-2. a root landing interface
-3. shared concepts such as environment, location, and tags
-4. thin integration seams between subprojects
-
-Not yet:
-
-- one merged database
-- one merged codebase
-- one forced Flask application
-
-## Central Runtime Configuration
-
-TRACK now keeps per-environment subservice launch parameters in
-`trackhub/config.json`.
-
-That central config decides:
-
-- which environments exist
-- which subprojects are exposed in each environment
-- which app instances autostart on the current workstation
-- which environment variables are injected into generic subservice launchers
-
-Useful root tools:
-
-- `./track.sh`
-  - start the umbrella plus configured autostart subservices
-- `./track-configure.py list`
-  - inspect current environments, apps, and launch plan
-- `./track-configure.py validate`
-  - validate configured launch script targets
-
-## Important Root Documents
+## More Docs
 
 - [INSTALL.md](./INSTALL.md)
-- [GOALS.md](./GOALS.md)
-- [PROGRESS.md](./PROGRESS.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [STATE.md](./STATE.md)
-- [GITHUB_PROJECT.md](./GITHUB_PROJECT.md)
-- [philosophy/TRACK_PHILOSOPHY.md](./philosophy/TRACK_PHILOSOPHY.md)
-- [ARCHITECTURAL_FEEDBACK.md](./ARCHITECTURAL_FEEDBACK.md)
-
-## Guiding Rule
-
-`TRACK` integrates subprojects; it does not swallow them.
+- [PROGRESS.md](./PROGRESS.md)
+- [GOALS.md](./GOALS.md)

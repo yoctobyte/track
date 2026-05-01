@@ -35,7 +35,8 @@ Use for an always-on or mostly-on node.
 Default behavior:
 
 - expose TrackHub and TrackSync on configured bind/ports
-- keep NetInventory Client hidden from public overview, with localhost shortcut
+- run NetInventory Host as the server-side intake app when configured
+- keep NetInventory Client separate from TrackHub; run it with `./netinventory-client.sh`
 - run server-side subprojects according to selected environment
 - accept pairing requests after admin approval
 - act as relay/public surface for intermittent laptops when policy allows
@@ -50,7 +51,7 @@ Use for laptops and workstations that collect or produce data.
 Default behavior:
 
 - bind user-facing tools to localhost
-- show local-only app shortcuts, such as NetInventory Client
+- run local tools explicitly, such as `./netinventory-client.sh`
 - create a TrackSync host identity
 - suggest the known environment/location slug
 - optionally pair with a known remote server
@@ -215,7 +216,7 @@ Normal data sync should be append-only:
 Already present:
 
 - TrackHub environment config and app visibility controls
-- localhost-only shortcut for hidden NetInventory Client
+- standalone foreground NetInventory Client launcher
 - TrackSync host identity
 - manual peer URL plus secret configuration
 - signed hello/manifest/file APIs
