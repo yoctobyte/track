@@ -34,6 +34,102 @@ PROBE_LABELS: dict[str, str] = {
 }
 
 
+PROBE_TOOLS: dict[str, list[dict[str, Any]]] = {
+    "dhcp": [
+        {"name": "nmcli", "kind": "binary", "package": "network-manager",
+         "purpose": "DHCP info via NetworkManager", "required_one_of": "dhcp_source"},
+        {"name": "/run/systemd/netif/leases", "kind": "dir", "package": "systemd-networkd",
+         "purpose": "DHCP info via systemd-networkd", "required_one_of": "dhcp_source"},
+        {"name": "/var/lib/dhcp", "kind": "dir", "package": "isc-dhcp-client",
+         "purpose": "DHCP info via dhclient leases", "required_one_of": "dhcp_source"},
+    ],
+    "exit_ip": [],
+    "traceroute": [
+        {"name": "traceroute", "kind": "binary", "package": "traceroute",
+         "purpose": "preferred traceroute", "required_one_of": "traceroute_tool"},
+        {"name": "tracepath", "kind": "binary", "package": "iputils-tracepath",
+         "purpose": "fallback (no privileges needed)", "required_one_of": "traceroute_tool"},
+    ],
+    "link_speed": [
+        {"name": "ethtool", "kind": "binary", "package": "ethtool",
+         "purpose": "richer link info; sysfs fallback always works", "required": False},
+    ],
+    "wifi": [
+        {"name": "iw", "kind": "binary", "package": "iw",
+         "purpose": "Wi-Fi link state and scan (note: iw, not iwd)", "required": True},
+    ],
+    "speed_test": [],
+}
+
+
+PROBE_NOTES: dict[str, str] = {
+    "wifi": "Scanning needs root or cached sudo. The launcher pre-caches sudo for you.",
+    "dhcp": "Reads whichever source is available. Missing all three usually means a static IP.",
+    "speed_test": "Downloads ~10 MB from speed.cloudflare.com. Skip on metered connections.",
+    "exit_ip": "Hits ifconfig.me / api.ipify.org / icanhazip.com — first to respond wins.",
+    "traceroute": "Stops at the first non-RFC1918 hop so we only map internal topology.",
+    "link_speed": "Reads /sys/class/net/<iface>/speed. ethtool adds duplex / autoneg detail.",
+}
+
+
+def tool_is_available(tool: dict[str, Any]) -> bool:
+    kind = tool.get("kind", "binary")
+    name = tool.get("name", "")
+    if kind == "binary":
+        return shutil.which(name) is not None
+    if kind == "file":
+        return Path(name).is_file()
+    if kind == "dir":
+        return Path(name).is_dir()
+    return False
+
+
+def gather_probe_tooling(enabled_lookup) -> list[dict[str, Any]]:
+    """Returns a list of probe descriptions with tool availability + enabled state.
+
+    `enabled_lookup` is a callable taking probe_id and returning bool.
+    """
+    rows: list[dict[str, Any]] = []
+    for probe_id in PROBE_IDS:
+        tools = PROBE_TOOLS.get(probe_id, [])
+        tool_status = []
+        groups: dict[str, list[bool]] = {}
+        any_required_missing = False
+        for tool in tools:
+            found = tool_is_available(tool)
+            tool_status.append(
+                {
+                    "name": tool.get("name"),
+                    "kind": tool.get("kind", "binary"),
+                    "package": tool.get("package"),
+                    "purpose": tool.get("purpose", ""),
+                    "found": found,
+                    "required": bool(tool.get("required")),
+                    "required_one_of": tool.get("required_one_of"),
+                }
+            )
+            if tool.get("required") and not found:
+                any_required_missing = True
+            group = tool.get("required_one_of")
+            if group:
+                groups.setdefault(group, []).append(found)
+        for group_results in groups.values():
+            if not any(group_results):
+                any_required_missing = True
+
+        rows.append(
+            {
+                "id": probe_id,
+                "label": PROBE_LABELS.get(probe_id, probe_id),
+                "note": PROBE_NOTES.get(probe_id, ""),
+                "tools": tool_status,
+                "satisfied": not any_required_missing,
+                "enabled": bool(enabled_lookup(probe_id)),
+            }
+        )
+    return rows
+
+
 def run_probe(probe_id: str, **kwargs: Any) -> dict[str, Any]:
     fn = _DISPATCH.get(probe_id)
     if fn is None:

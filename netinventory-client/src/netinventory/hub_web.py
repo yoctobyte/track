@@ -12,7 +12,7 @@ from netinventory.collect.collector import CollectedObservation
 from netinventory.config import get_app_paths, get_hub_settings
 from netinventory.context import add_user_context
 from netinventory.core.context import UserContextRecord
-from netinventory.probes import PROBE_IDS, PROBE_LABELS, run_probe
+from netinventory.probes import PROBE_IDS, PROBE_LABELS, gather_probe_tooling, run_probe
 from netinventory.realtime import gather_realtime
 from netinventory.storage.db import Database
 from netinventory.sync import get_sync_settings, run_sync_once, save_sync_settings
@@ -22,6 +22,19 @@ LOCATION_ENTITY_KIND = "current_location"
 LOCATION_ENTITY_ID = "active"
 LOCATION_FIELDS = ("building", "sublocation", "cabinet", "switch", "switch_port", "notes")
 SNAPSHOT_KIND = "location_snapshot"
+PROBE_ENABLED_KEY_PREFIX = "probe_enabled."
+
+
+def probe_enabled_lookup(db: Database):
+    state = db.get_app_state_many(PROBE_ENABLED_KEY_PREFIX)
+
+    def _lookup(probe_id: str) -> bool:
+        key = f"{PROBE_ENABLED_KEY_PREFIX}{probe_id}"
+        if key not in state:
+            return True  # default: enabled
+        return state[key] != "0"
+
+    return _lookup
 
 
 def create_hub_web() -> Flask:
@@ -71,7 +84,12 @@ def create_hub_web() -> Flask:
         except Exception:
             pass
 
-        probe_options = [{"id": pid, "label": PROBE_LABELS.get(pid, pid)} for pid in PROBE_IDS]
+        tooling = gather_probe_tooling(probe_enabled_lookup(db))
+        probe_options = [
+            {"id": row["id"], "label": row["label"], "satisfied": row["satisfied"]}
+            for row in tooling
+            if row["enabled"]
+        ]
         return render_template(
             "hub_index.html",
             title="NetInventory",
@@ -89,6 +107,7 @@ def create_hub_web() -> Flask:
             location=location,
             location_fields=LOCATION_FIELDS,
             probe_options=probe_options,
+            probe_tooling=tooling,
             snapshots=snapshots,
             targets=targets,
         )
@@ -165,11 +184,30 @@ def create_hub_web() -> Flask:
             db.set_app_state("sync_last_status", f"failed: {result.get('error') or result.get('reason', 'unknown')}")
         return jsonify(result)
 
+    @app.get("/api/tooling")
+    def api_tooling():
+        db = Database(app.config["NETINV_PATHS"])
+        return jsonify({"probes": gather_probe_tooling(probe_enabled_lookup(db))})
+
+    @app.post("/api/tooling/<probe_id>")
+    def api_tooling_set(probe_id: str):
+        if probe_id not in PROBE_IDS:
+            abort(404)
+        data = request.get_json(silent=True) or {}
+        enabled = bool(data.get("enabled", True))
+        db = Database(app.config["NETINV_PATHS"])
+        db.set_app_state(f"{PROBE_ENABLED_KEY_PREFIX}{probe_id}", "1" if enabled else "0")
+        return jsonify({"ok": True, "id": probe_id, "enabled": enabled})
+
     @app.post("/api/snapshot")
     def api_snapshot():
         data = request.get_json(silent=True) or {}
         location_input = {f: str(data.get(f, "") or "").strip() for f in LOCATION_FIELDS}
-        requested_probes = [p for p in (data.get("probes") or []) if p in PROBE_IDS]
+        is_enabled = probe_enabled_lookup(Database(app.config["NETINV_PATHS"]))
+        requested_probes = [
+            p for p in (data.get("probes") or [])
+            if p in PROBE_IDS and is_enabled(p)
+        ]
         probe_kwargs: dict[str, dict] = data.get("probe_options") or {}
 
         paths = app.config["NETINV_PATHS"]

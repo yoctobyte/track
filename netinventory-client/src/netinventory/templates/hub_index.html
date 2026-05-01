@@ -129,6 +129,21 @@
     .hop-list { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.8rem; line-height: 1.4; }
     .hop-list .private { color: var(--accent); }
     .hop-list .public { color: var(--warn); font-weight: 700; }
+    .probe-card { border: 1px solid var(--line); border-radius: 12px; padding: 0.7rem 0.85rem; margin-bottom: 0.6rem; background: rgba(255,255,255,0.55); }
+    .probe-card.disabled { opacity: 0.6; background: rgba(0,0,0,0.02); }
+    .probe-card.unsatisfied { border-color: rgba(145, 96, 34, 0.45); background: rgba(145, 96, 34, 0.05); }
+    .probe-card-header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .probe-card-header h4 { margin: 0; font-size: 0.95rem; }
+    .probe-card-note { color: var(--muted); font-size: 0.8rem; margin: 0.25rem 0 0.4rem; }
+    .probe-tool-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.84rem; padding: 0.18rem 0; }
+    .probe-tool-row .tool-status { display: inline-block; min-width: 1rem; font-weight: 700; }
+    .probe-tool-row .tool-status.found { color: var(--good); }
+    .probe-tool-row .tool-status.missing { color: var(--bad); }
+    .probe-tool-row code { font-size: 0.82rem; }
+    .probe-tool-row .pkg { color: var(--muted); font-size: 0.78rem; }
+    .toggle { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; user-select: none; font-size: 0.84rem; }
+    .toggle input[type="checkbox"] { width: auto; }
+    .probe-warn-pill { font-size: 0.7rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: rgba(145, 96, 34, 0.18); color: var(--warn); }
   </style>
 </head>
 <body>
@@ -209,9 +224,15 @@
           </div>
 
           <h3 style="margin-top:0.7rem;">Include in snapshot</h3>
-          <div class="probe-grid">
+          <div class="probe-grid" id="probe-grid">
             {% for opt in probe_options %}
-            <label><input type="checkbox" name="probe" value="{{ opt.id }}" data-probe="{{ opt.id }}"> {{ opt.label }}</label>
+            <label title="{{ '' if opt.satisfied else 'required tool missing — see Probes & tooling below' }}">
+              <input type="checkbox" name="probe" value="{{ opt.id }}" data-probe="{{ opt.id }}">
+              {{ opt.label }}
+              {% if not opt.satisfied %}<span class="probe-warn-pill">tool missing</span>{% endif %}
+            </label>
+            {% else %}
+            <div class="muted">No probes enabled. Enable some in the Probes &amp; tooling section below.</div>
             {% endfor %}
           </div>
 
@@ -347,6 +368,48 @@
         <pre>{{ shared_secret }}</pre>
       </section>
     </div>
+
+    <section class="card stack" style="margin-bottom: 1rem;">
+      <h2>Probes &amp; tooling</h2>
+      <p class="muted" style="margin:0 0 0.5rem; font-size:0.86rem;">
+        Each probe shells out to one or more system tools. Toggle a probe off to remove it from the snapshot picker entirely.
+        Missing tools show install hints — your distro may name the package differently.
+      </p>
+      <div class="grid cols-2" id="probe-tooling-grid">
+        {% for row in probe_tooling %}
+        <div class="probe-card {% if not row.enabled %}disabled{% elif not row.satisfied %}unsatisfied{% endif %}" data-probe="{{ row.id }}">
+          <div class="probe-card-header">
+            <h4>{{ row.label }}</h4>
+            <code style="font-size:0.78rem;">{{ row.id }}</code>
+            {% if not row.satisfied %}<span class="probe-warn-pill">missing tool</span>{% endif %}
+            <div style="flex:1;"></div>
+            <label class="toggle">
+              <input type="checkbox" class="probe-toggle" data-probe-id="{{ row.id }}" {% if row.enabled %}checked{% endif %}>
+              <span>Enabled</span>
+            </label>
+          </div>
+          {% if row.note %}<p class="probe-card-note">{{ row.note }}</p>{% endif %}
+          {% if row.tools %}
+          <div>
+            {% for tool in row.tools %}
+            <div class="probe-tool-row">
+              <span class="tool-status {{ 'found' if tool.found else 'missing' }}">{{ '✓' if tool.found else '✗' }}</span>
+              <code>{{ tool.name }}</code>
+              {% if tool.package %}<span class="pkg">·&nbsp;<code>{{ tool.package }}</code></span>{% endif %}
+              <span class="pkg">·&nbsp;{{ tool.purpose }}</span>
+              {% if not tool.found and tool.kind == 'binary' %}
+              <span class="pkg">·&nbsp;install: <code>sudo apt install {{ tool.package }}</code></span>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="muted" style="font-size:0.84rem;">No external tools needed.</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
 
     <div class="grid cols-2">
       <section class="card stack">
@@ -735,6 +798,40 @@
         btn.textContent = "Sync now";
         refreshRealtime();
       }
+    });
+
+    // Probe enable/disable toggles
+    document.querySelectorAll(".probe-toggle").forEach(toggle => {
+      toggle.addEventListener("change", async () => {
+        const probeId = toggle.dataset.probeId;
+        const enabled = toggle.checked;
+        const card = toggle.closest(".probe-card");
+        toggle.disabled = true;
+        try {
+          const resp = await fetch(`/api/tooling/${encodeURIComponent(probeId)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+          });
+          if (!resp.ok) {
+            toggle.checked = !enabled;
+            return;
+          }
+          if (card) card.classList.toggle("disabled", !enabled);
+          const snapBox = document.querySelector(`#probe-grid input[data-probe="${probeId}"]`);
+          const snapLabel = snapBox?.closest("label");
+          if (!enabled && snapLabel) {
+            snapLabel.style.display = "none";
+            snapBox.checked = false;
+          } else if (enabled && snapLabel) {
+            snapLabel.style.display = "";
+          } else if (enabled && !snapLabel) {
+            location.reload();  // probe wasn't in the picker; rebuild from server
+          }
+        } finally {
+          toggle.disabled = false;
+        }
+      });
     });
 
     // Manual scan
