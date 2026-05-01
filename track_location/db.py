@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import uuid
 from pathlib import Path
@@ -154,6 +155,8 @@ class LocationDB:
     def update_building(self, b_id: str, **kwargs) -> dict:
         now = self._now()
         kwargs['updated_at'] = now
+        if 'extra_data' in kwargs and isinstance(kwargs['extra_data'], dict):
+            kwargs['extra_data'] = json.dumps(kwargs['extra_data'])
         sets = ", ".join(f"{k} = ?" for k in kwargs.keys())
         values = list(kwargs.values()) + [b_id]
         with self.connect() as conn:
@@ -187,6 +190,8 @@ class LocationDB:
     def update_location(self, l_id: str, **kwargs) -> dict:
         now = self._now()
         kwargs['updated_at'] = now
+        if 'extra_data' in kwargs and isinstance(kwargs['extra_data'], dict):
+            kwargs['extra_data'] = json.dumps(kwargs['extra_data'])
         sets = ", ".join(f"{k} = ?" for k in kwargs.keys())
         values = list(kwargs.values()) + [l_id]
         with self.connect() as conn:
@@ -220,6 +225,8 @@ class LocationDB:
     def update_cabinet(self, c_id: str, **kwargs) -> dict:
         now = self._now()
         kwargs['updated_at'] = now
+        if 'extra_data' in kwargs and isinstance(kwargs['extra_data'], dict):
+            kwargs['extra_data'] = json.dumps(kwargs['extra_data'])
         sets = ", ".join(f"{k} = ?" for k in kwargs.keys())
         values = list(kwargs.values()) + [c_id]
         with self.connect() as conn:
@@ -256,6 +263,8 @@ class LocationDB:
     def update_device(self, d_id: str, **kwargs) -> dict:
         now = self._now()
         kwargs['updated_at'] = now
+        if 'extra_data' in kwargs and isinstance(kwargs['extra_data'], dict):
+            kwargs['extra_data'] = json.dumps(kwargs['extra_data'])
         sets = ", ".join(f"{k} = ?" for k in kwargs.keys())
         values = list(kwargs.values()) + [d_id]
         with self.connect() as conn:

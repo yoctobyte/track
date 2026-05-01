@@ -1,97 +1,115 @@
 #!/usr/bin/env python3
+"""Migrate legacy rack-inventory/*.json blobs into the unified LocationDB.
+
+Runs per environment under data/environments/<env>/. For each rack JSON,
+calls the host's own save_rack_record() so migrated records are
+indistinguishable from records created via the web form. Also surfaces
+rack photos as media_records (target_type=cabinet) so other TRACK apps
+can find them.
+
+Idempotent — re-running only adds what's missing.
+"""
+from __future__ import annotations
+
 import json
+import os
 import sys
 from pathlib import Path
 
-# Add track_location to path
 APP_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(APP_DIR))
 sys.path.insert(0, str(APP_DIR.parent))
 
-from track_location import LocationDB
 
-def get_data_root() -> Path:
-    # Mimics netinventory-host's data_root
-    import os
-    instance = os.environ.get("NETINVENTORY_HOST_INSTANCE", "testing").strip() or "testing"
-    configured = os.environ.get("NETINVENTORY_HOST_DATA_DIR", "").strip()
-    if configured:
-        root = Path(configured).expanduser().resolve()
-    else:
-        root = (APP_DIR / "data" / "environments" / instance).resolve()
-    return root
+def list_environments() -> list[str]:
+    base = APP_DIR / "data" / "environments"
+    if not base.exists():
+        return []
+    return sorted(p.name for p in base.iterdir() if p.is_dir())
 
-def main():
-    root = get_data_root()
-    rack_inventory_dir = root / "rack-inventory"
-    db_path = root / "locations.sqlite"
-    
-    print(f"Migrating racks from {rack_inventory_dir}")
-    print(f"To central LocationDB at {db_path}")
-    
-    db = LocationDB(db_path)
-    
-    if not rack_inventory_dir.exists():
-        print("No rack_inventory directory found. Exiting.")
-        return
 
-    # Cache IDs to avoid creating duplicates
-    b_cache = {}
-    l_cache = {}
+def migrate_environment(env: str) -> dict[str, int]:
+    os.environ["NETINVENTORY_HOST_INSTANCE"] = env
+    # Force fresh import paths for the host module so runtime_paths() picks
+    # up the new env var on every call.
+    for mod_name in list(sys.modules):
+        if mod_name == "app" or mod_name.startswith("app."):
+            del sys.modules[mod_name]
 
-    for rack_file in rack_inventory_dir.glob("*.json"):
-        with rack_file.open() as f:
-            rack = json.load(f)
-            
-        b_name = rack.get("building", "").strip() or "Unknown Building"
-        l_name = rack.get("location", "").strip() or "Unknown Location"
-        
-        if b_name not in b_cache:
-            # Check if exists in db
-            existing_b = next((b for b in db.list_buildings() if b['name'] == b_name), None)
-            if not existing_b:
-                existing_b = db.create_building(name=b_name)
-            b_cache[b_name] = existing_b['id']
-            
-        b_id = b_cache[b_name]
-        
-        l_key = f"{b_id}::{l_name}"
-        if l_key not in l_cache:
-            existing_l = next((l for l in db.list_locations(b_id) if l['name'] == l_name), None)
-            if not existing_l:
-                existing_l = db.create_location(building_id=b_id, name=l_name, type="room")
-            l_cache[l_key] = existing_l['id']
-            
-        l_id = l_cache[l_key]
-        
-        c_name = rack.get("name", "").strip() or "Unnamed Rack"
-        c_desc = rack.get("description", "")
-        # Create cabinet
-        c = db.create_cabinet(
-            location_id=l_id,
-            name=c_name,
-            notes=c_desc,
-            id=rack.get("id") # try to preserve ID if possible
-        )
-        
-        # Add devices
-        for device in rack.get("devices", []):
-            db.create_device(
-                cabinet_id=c['id'],
-                location_id=l_id,
-                name=device.get("name", ""),
-                kind=device.get("kind", ""),
-                brand=device.get("brand", ""),
-                model=device.get("model", ""),
-                port_count=device.get("port_count") or 0,
-                unit_size=device.get("unit_size") or 1,
-                u_position=device.get("u_position"),
-                notes=device.get("notes", ""),
-                id=device.get("id")
+    from app import (  # type: ignore[import-not-found]
+        get_location_db,
+        runtime_paths,
+        save_rack_record,
+    )
+
+    paths = runtime_paths()
+    rack_dir = paths["rack_inventory"]
+    if not rack_dir.exists():
+        return {"racks_seen": 0, "racks_migrated": 0, "photos_linked": 0}
+
+    db = get_location_db()
+    counts = {"racks_seen": 0, "racks_migrated": 0, "photos_linked": 0}
+
+    for rack_file in sorted(rack_dir.glob("*.json")):
+        try:
+            with rack_file.open(encoding="utf-8") as handle:
+                record = json.load(handle)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"  [skip] {rack_file.name}: {exc}")
+            continue
+
+        if not record.get("id"):
+            record["id"] = rack_file.stem
+
+        counts["racks_seen"] += 1
+        save_rack_record(record)
+        counts["racks_migrated"] += 1
+
+        rack_id = record["id"]
+        existing_media = {m.get("uri") for m in db.list_media_records(target_type="cabinet", target_id=rack_id)}
+        for photo in record.get("photos") or []:
+            filename = photo.get("filename")
+            if not filename:
+                continue
+            uri = f"/rack-photos/{rack_id}/{filename}"
+            if uri in existing_media:
+                continue
+            db.create_media_record(
+                target_type="cabinet",
+                target_id=rack_id,
+                source_app="netinventory-host",
+                uri=uri,
+                mime_type="image/jpeg",
             )
-            
-        print(f"Migrated rack: {c_name}")
-        
-    print("Migration complete!")
+            counts["photos_linked"] += 1
 
-if __name__ == '__main__':
-    main()
+        print(f"  [ok] {record.get('name') or rack_id}")
+
+    return counts
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) > 1:
+        envs = argv[1:]
+    else:
+        envs = list_environments()
+        if not envs:
+            print("No environments found under data/environments/")
+            return 1
+
+    print(f"Environments to process: {', '.join(envs)}")
+    grand_total = {"racks_seen": 0, "racks_migrated": 0, "photos_linked": 0}
+    for env in envs:
+        print(f"\n=== {env} ===")
+        result = migrate_environment(env)
+        for key, value in result.items():
+            grand_total[key] += value
+        print(f"  → racks: {result['racks_migrated']}/{result['racks_seen']} migrated, photos linked: {result['photos_linked']}")
+
+    print()
+    print(f"Total: {grand_total['racks_migrated']} racks migrated, {grand_total['photos_linked']} photos linked.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))
