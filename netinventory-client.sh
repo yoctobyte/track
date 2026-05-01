@@ -7,11 +7,13 @@ CLIENT_DIR="$ROOT_DIR/netinventory-client"
 HOST="${NETINVENTORY_UI_HOST:-127.0.0.1}"
 PORT="${NETINVENTORY_UI_PORT:-8889}"
 TRACK_BASE_URL="${TRACK_BASE_URL:-https://track.praktijkpioniers.com}"
+TRACK_GITHUB_REPO="${TRACK_GITHUB_REPO:-git@github.com:yoctobyte/track.git}"
 LOCAL_URL="http://$HOST:$PORT/"
 
 export NETINVENTORY_UI_HOST="$HOST"
 export NETINVENTORY_UI_PORT="$PORT"
 export TRACK_BASE_URL
+export TRACK_GITHUB_REPO
 export NETINV_PUBLIC_PATH="${NETINV_PUBLIC_PATH:-/}"
 
 if [ ! -x "$CLIENT_DIR/run-track.sh" ]; then
@@ -27,6 +29,9 @@ Local UI:
 
 Remote TRACK host for future sync/upload:
   $TRACK_BASE_URL
+
+Repository used by generated bootstrap scripts:
+  $TRACK_GITHUB_REPO
 
 This does not start the TRACK umbrella app.
 EOF

@@ -21,7 +21,7 @@ Requirements:
 Clone the TRACK repository:
 
 ```bash
-git clone <repo-url> track
+git clone git@github.com:yoctobyte/track.git
 cd track
 ```
 
@@ -73,6 +73,12 @@ Point the client at the expected public TRACK host for future upload/sync:
 
 ```bash
 TRACK_BASE_URL=https://track.praktijkpioniers.com ./netinventory-client.sh
+```
+
+Override the repository URL embedded in generated bootstrap scripts:
+
+```bash
+TRACK_GITHUB_REPO=git@github.com:yoctobyte/track.git ./netinventory-client.sh
 ```
 
 ## What It Stores
@@ -127,4 +133,10 @@ That script can still run in background mode for development:
 
 ```bash
 NETINVENTORY_BACKGROUND=1 ./netinventory-client/run-track.sh
+```
+
+Run the local regression test:
+
+```bash
+./netinventory-client/test-local.sh
 ```

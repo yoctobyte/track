@@ -21,7 +21,7 @@ Requirements:
 Clone and check the config:
 
 ```bash
-git clone <repo-url> track
+git clone git@github.com:yoctobyte/track.git
 cd track
 ./track-configure.py validate
 ./track-configure.py list
@@ -64,6 +64,7 @@ NETINVENTORY_UI_PORT=8890 ./netinventory-client.sh
 NETINVENTORY_OPEN_BROWSER=0 ./netinventory-client.sh
 NETINVENTORY_SKIP_SUDO=1 ./netinventory-client.sh
 TRACK_BASE_URL=https://track.praktijkpioniers.com ./netinventory-client.sh
+TRACK_GITHUB_REPO=git@github.com:yoctobyte/track.git ./netinventory-client.sh
 ```
 
 See [netinventory-client/README.md](./netinventory-client/README.md) if this is
@@ -101,6 +102,7 @@ Local tests:
 
 ```bash
 ./trackhub/test-local.sh
+./netinventory-client/test-local.sh
 ./tracksync/test-local.sh
 ./netinventory-host/test-local.sh
 ./quicktrack/test-local.sh

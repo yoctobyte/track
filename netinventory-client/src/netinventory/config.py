@@ -44,12 +44,12 @@ def get_app_paths() -> AppPaths:
 
 def get_hub_settings() -> HubSettings:
     track_base_url = os.environ.get("TRACK_BASE_URL", "https://track.praktijkpioniers.com").rstrip("/")
-    public_path = os.environ.get("NETINV_PUBLIC_PATH", "/netinventory-client/").strip() or "/netinventory-client/"
+    public_path = os.environ.get("NETINV_PUBLIC_PATH", "/").strip() or "/"
     if not public_path.startswith("/"):
         public_path = "/" + public_path
     if not public_path.endswith("/"):
         public_path = public_path + "/"
-    github_repo = os.environ.get("TRACK_GITHUB_REPO", "https://github.com/praktijkpioniers/track.git").strip()
+    github_repo = os.environ.get("TRACK_GITHUB_REPO", "git@github.com:yoctobyte/track.git").strip()
     ui_bind = os.environ.get("NETINV_UI_BIND", "127.0.0.1:8888").strip() or "127.0.0.1:8888"
     return HubSettings(
         track_base_url=track_base_url,
