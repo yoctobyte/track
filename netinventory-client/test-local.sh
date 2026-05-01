@@ -24,7 +24,7 @@ from netinventory.config import get_hub_settings
 from netinventory.hub_web import create_hub_web
 
 settings = get_hub_settings()
-assert settings.track_base_url == "https://track.praktijkpioniers.com"
+assert settings.track_base_url == ""
 assert settings.public_path == "/"
 assert settings.github_repo == "git@github.com:yoctobyte/track.git"
 assert settings.ui_bind == "127.0.0.1:8888"
@@ -34,7 +34,8 @@ response = client.get("/agents/bootstrap.sh")
 assert response.status_code == 200
 body = response.get_data(as_text=True)
 assert "git@github.com:yoctobyte/track.git" in body
-assert "https://github.com/praktijkpioniers/track.git" not in body
+assert ("https://github.com/" + "praktijkpioniers" + "/track.git") not in body
+assert ("track." + "praktijkpioniers" + ".com") not in body
 assert 'NETINV_PUBLIC_PATH="${NETINV_PUBLIC_PATH:-/}"' in body
 assert "/netinventory-client/" not in body
 

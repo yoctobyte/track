@@ -3,8 +3,8 @@
   hosts: all
   become: true
   vars:
-    # Use the environment variable if present, falling back to a sensible default if it is unset empty
-    netinv_base_url: "{{ lookup('env', 'TRACK_BASE_URL') | default('https://track.praktijkpioniers.com', true) }}"
+    # Admin must choose the public TRACK host explicitly.
+    netinv_base_url: "{{ lookup('env', 'TRACK_BASE_URL') | default('', true) }}"
     netinv_url: "{{ netinv_base_url }}/netinventory/api/simple-ingest"
     netinv_script_src: "../../../../netinventory-minimal/netinventory-minimal.sh"
     netinv_script_dest: "/usr/local/bin/netinventory-minimal.sh"
@@ -12,6 +12,12 @@
     netinv_cron_minute: "*/15"
 
   tasks:
+    - name: Require TRACK_BASE_URL for minimal client install
+      ansible.builtin.assert:
+        that:
+          - netinv_base_url | length > 0
+        fail_msg: "Set TRACK_BASE_URL to the public TRACK host before installing NetInventory Minimal."
+
     - name: Generate static Client ID if missing locally
       ansible.builtin.set_fact:
         netinv_client_id: "client-{{ inventory_hostname | hash('md5') }}"

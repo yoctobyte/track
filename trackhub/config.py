@@ -14,7 +14,7 @@ DEFAULT_CONFIG: dict[str, object] = {
     "subtitle": "Technical Resource And Control Knowledge Kit",
     "bind": "0.0.0.0",
     "port": 5000,
-    "public_base_url": "https://track.praktijkpioniers.com",
+    "public_base_url": "",
     "routing_mode": "reverse-proxy",
     "environments": [
         {

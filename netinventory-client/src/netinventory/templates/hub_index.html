@@ -149,7 +149,11 @@
 <body>
   <div class="shell">
     <div class="topbar">
+      {% if track_base_url %}
       <a class="track-link" href="{{ track_base_url }}">← TRACK</a>
+      {% else %}
+      <span class="track-link">Standalone local client</span>
+      {% endif %}
     </div>
 
     <section class="hero">

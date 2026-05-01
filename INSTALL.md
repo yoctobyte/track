@@ -85,9 +85,9 @@ Public base URL: https://track.example.org
 The common user flow should be:
 
 1. User enters the public TRACK host, for example
-   `https://track.praktijkpioniers.com`.
+   `https://track.example.org`.
 2. Installer derives the TrackSync URL as
-   `https://track.praktijkpioniers.com/tracksync`.
+   `https://track.example.org/tracksync`.
 3. Installer asks that remote host for public realms/environments.
 4. User chooses a realm/location from the returned list.
 5. User enters the realm password or pairing password.
@@ -107,8 +107,8 @@ Example:
 ```json
 {
   "profile": "client",
-  "trackhub_public_base_url": "https://track.praktijkpioniers.com",
-  "tracksync_remote_url": "https://track.praktijkpioniers.com/tracksync",
+  "trackhub_public_base_url": "https://track.example.org",
+  "tracksync_remote_url": "https://track.example.org/tracksync",
   "suggested_location_slug": "museum",
   "suggested_location_name": "Museum"
 }
@@ -118,8 +118,8 @@ Equivalent environment variables:
 
 ```bash
 TRACK_PROFILE=client
-TRACK_PUBLIC_BASE_URL=https://track.praktijkpioniers.com
-TRACKSYNC_REMOTE_URL=https://track.praktijkpioniers.com/tracksync
+TRACK_PUBLIC_BASE_URL=https://track.example.org
+TRACKSYNC_REMOTE_URL=https://track.example.org/tracksync
 TRACK_LOCATION_SLUG=museum
 TRACK_LOCATION_NAME=Museum
 ```
@@ -142,7 +142,7 @@ Optional environment variables:
 NETINVENTORY_UI_HOST=127.0.0.1
 NETINVENTORY_UI_PORT=8889
 NETINVENTORY_OPEN_BROWSER=0
-TRACK_BASE_URL=https://track.praktijkpioniers.com
+TRACK_BASE_URL=https://track.example.org
 TRACK_GITHUB_REPO=git@github.com:yoctobyte/track.git
 ```
 
@@ -175,13 +175,13 @@ The node can be paired later without losing local data.
 The operator enters a public TRACK host such as:
 
 ```text
-https://track.praktijkpioniers.com
+https://track.example.org
 ```
 
 The installer normalizes that to the remote TrackSync endpoint:
 
 ```text
-https://track.praktijkpioniers.com/tracksync
+https://track.example.org/tracksync
 ```
 
 The installer should:

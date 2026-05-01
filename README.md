@@ -63,7 +63,7 @@ Useful options:
 NETINVENTORY_UI_PORT=8890 ./netinventory-client.sh
 NETINVENTORY_OPEN_BROWSER=0 ./netinventory-client.sh
 NETINVENTORY_SKIP_SUDO=1 ./netinventory-client.sh
-TRACK_BASE_URL=https://track.praktijkpioniers.com ./netinventory-client.sh
+TRACK_BASE_URL=https://track.example.org ./netinventory-client.sh
 TRACK_GITHUB_REPO=git@github.com:yoctobyte/track.git ./netinventory-client.sh
 ```
 
@@ -79,10 +79,10 @@ Use [INSTALL.md](./INSTALL.md) for the current install model. The short version:
 - `client` or field laptop: local tools and opportunistic sync with a remote
   trusted TRACK host.
 
-Known deployments usually point laptops at:
+Known deployments can preconfigure or ask the admin for a public TRACK host:
 
 ```text
-https://track.praktijkpioniers.com
+https://track.example.org
 ```
 
 The remote host can list available environments/realms. The local environment

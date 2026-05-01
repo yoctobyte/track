@@ -72,7 +72,7 @@ NETINVENTORY_SKIP_SUDO=1 ./netinventory-client.sh
 Point the client at the expected public TRACK host for future upload/sync:
 
 ```bash
-TRACK_BASE_URL=https://track.praktijkpioniers.com ./netinventory-client.sh
+TRACK_BASE_URL=https://track.example.org ./netinventory-client.sh
 ```
 
 Override the repository URL embedded in generated bootstrap scripts:

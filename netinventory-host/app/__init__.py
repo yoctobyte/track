@@ -575,7 +575,7 @@ def create_app() -> Flask:
     app.config["NETINV_HOST_BIND"] = os.environ.get("NETINVENTORY_HOST_BIND", "127.0.0.1").strip() or "127.0.0.1"
     app.config["NETINV_HOST_PORT"] = int(os.environ.get("NETINVENTORY_HOST_PORT", "8888").strip() or "8888")
     app.config["NETINV_HOST_TRACK_BASE"] = (
-        os.environ.get("TRACK_BASE_URL", "https://track.praktijkpioniers.com").rstrip("/")
+        os.environ.get("TRACK_BASE_URL", "").rstrip("/")
     )
     app.config["NETINV_HOST_PUBLIC_PATH"] = "/netinventory/"
     app.config["NETINV_CLIENT_PUBLIC_PATH"] = "/netinventory-client/"

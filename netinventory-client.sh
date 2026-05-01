@@ -6,7 +6,7 @@ CLIENT_DIR="$ROOT_DIR/netinventory-client"
 
 HOST="${NETINVENTORY_UI_HOST:-127.0.0.1}"
 PORT="${NETINVENTORY_UI_PORT:-8889}"
-TRACK_BASE_URL="${TRACK_BASE_URL:-https://track.praktijkpioniers.com}"
+TRACK_BASE_URL="${TRACK_BASE_URL:-}"
 TRACK_GITHUB_REPO="${TRACK_GITHUB_REPO:-git@github.com:yoctobyte/track.git}"
 LOCAL_URL="http://$HOST:$PORT/"
 
@@ -27,14 +27,25 @@ Starting standalone NetInventory Client.
 Local UI:
   $LOCAL_URL
 
-Remote TRACK host for future sync/upload:
-  $TRACK_BASE_URL
-
 Repository used by generated bootstrap scripts:
   $TRACK_GITHUB_REPO
 
 This does not start the TRACK umbrella app.
 EOF
+
+if [ -n "$TRACK_BASE_URL" ]; then
+  cat <<EOF
+
+Remote TRACK host for future sync/upload:
+  $TRACK_BASE_URL
+EOF
+else
+  cat <<EOF
+
+Remote TRACK host for future sync/upload:
+  not configured; set TRACK_BASE_URL when an admin provides one
+EOF
+fi
 
 open_browser() {
   if [ "${NETINVENTORY_OPEN_BROWSER:-1}" = "0" ]; then

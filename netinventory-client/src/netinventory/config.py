@@ -43,7 +43,7 @@ def get_app_paths() -> AppPaths:
 
 
 def get_hub_settings() -> HubSettings:
-    track_base_url = os.environ.get("TRACK_BASE_URL", "https://track.praktijkpioniers.com").rstrip("/")
+    track_base_url = os.environ.get("TRACK_BASE_URL", "").rstrip("/")
     public_path = os.environ.get("NETINV_PUBLIC_PATH", "/").strip() or "/"
     if not public_path.startswith("/"):
         public_path = "/" + public_path
